@@ -1,0 +1,12 @@
+## Interface: 20506
+## Title: KUI
+## Notes: Lightweight unit frames
+## Author: John
+## Version: 0.1.0
+## SavedVariables: KUIDB
+## OptionalDeps: LibSharedMedia-3.0, SharedMedia
+
+Core.lua
+Media.lua
+Frames.lua
+Config.lua
