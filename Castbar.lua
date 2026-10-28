@@ -39,14 +39,23 @@ local function Idle(cb)
 	cb.icon:Hide()
 end
 
+-- Many tradeskill spells carry the placeholder grinning-face icon; the
+-- crafted item's icon is what the profession window shows. Name lookup only
+-- resolves items the client has cached, which crafted items usually are.
+local function TradeSkillIcon(name, fallback)
+	local _, _, _, _, icon = GetItemInfoInstant(name)
+	return icon or fallback
+end
+
 local function Start(cb, isChannel)
-	local name, text, texture, startMs, endMs, _, castID
+	local name, text, texture, startMs, endMs, isTradeSkill, castID
 	if isChannel then
-		name, text, texture, startMs, endMs = UnitChannelInfo(cb.unit)
+		name, text, texture, startMs, endMs, isTradeSkill = UnitChannelInfo(cb.unit)
 	else
-		name, text, texture, startMs, endMs, _, castID = UnitCastingInfo(cb.unit)
+		name, text, texture, startMs, endMs, isTradeSkill, castID = UnitCastingInfo(cb.unit)
 	end
 	if not name then return end
+	if isTradeSkill then texture = TradeSkillIcon(name, texture) end
 
 	cb.channel = isChannel
 	cb.castID = castID
