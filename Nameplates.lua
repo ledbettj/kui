@@ -1,6 +1,7 @@
 local addonName, ns = ...
 
 -- Nameplates in the unit frame style: a health bar with name and percent,
+-- a threat-colored border and threat % while the player has aggro,
 -- the player's own debuffs and buffs (purgeable ones on enemies) above,
 -- and a cast bar below that only shows while casting. KUI's frame sits on
 -- Blizzard's nameplate base; the Blizzard unit frame stays alive but fully
@@ -30,11 +31,52 @@ end
 -- Updates
 ---------------------------------------------------------------------------
 
-local function UpdateTargetHighlight(kp)
+-- The player's threat on a hostile unit: status 1 (about to pull), 2
+-- (tanking, not securely) or 3 (tanking), with the threat percentage where
+-- 100 pulls aggro. nil when not on its threat list or below the tank.
+local function PlayerThreat(unit)
+	if not UnitCanAttack("player", unit) then return end
+	local _, status, percent = UnitDetailedThreatSituation("player", unit)
+	if status and status > 0 then return status, percent end
+	return nil, percent
+end
+
+-- Border: threat color while the player has or is pulling aggro (more
+-- urgent than the target highlight), else the target color, else the
+-- normal border
+local function UpdateBorder(kp)
 	local N = KUIDB.nameplates
-	local isTarget = N.highlightTarget and UnitIsUnit(kp.unit, "target")
-	local c = isTarget and N.targetColor or KUIDB.style.borderColor
+	local status = N.threatBorder and kp.threatStatus
+	local c
+	if status then
+		c = ns:GetColor("threat", ns.threatOrder[status])
+	elseif N.highlightTarget and UnitIsUnit(kp.unit, "target") then
+		c = N.targetColor
+	else
+		c = KUIDB.style.borderColor
+	end
 	kp:SetBackdropBorderColor(c[1], c[2], c[3], 1)
+end
+
+-- Threat percentage outside the left edge, colored by status (white below
+-- the tank)
+local function UpdateThreat(kp)
+	local status, percent = PlayerThreat(kp.unit)
+	kp.threatStatus = status
+
+	if KUIDB.nameplates.threatPercent and percent and percent > 0 then
+		local c = status and ns:GetColor("threat", ns.threatOrder[status])
+		kp.threatText:SetFormattedText("%d%%", percent)
+		if c then
+			kp.threatText:SetTextColor(c[1], c[2], c[3])
+		else
+			kp.threatText:SetTextColor(1, 1, 1)
+		end
+		kp.threatText:Show()
+	else
+		kp.threatText:Hide()
+	end
+	UpdateBorder(kp)
 end
 
 -- Raid marker just outside the plate's right edge, sized to stand out
@@ -54,7 +96,7 @@ local function UpdatePlate(kp)
 	ns.UpdateHealth(kp)
 	ns.UpdateName(kp)
 	ns.UpdateAuras(kp)
-	UpdateTargetHighlight(kp)
+	UpdateThreat(kp) -- also sets the border
 end
 
 ---------------------------------------------------------------------------
@@ -86,8 +128,9 @@ local function LayoutPlate(kp)
 
 	ns.SizeAuras(kp.auras, N.width)
 
-	-- Backdrop reapply resets the border color
-	if kp.unit then UpdateTargetHighlight(kp) end
+	-- Backdrop reapply resets the border color; threat sets it and the
+	-- threat text, which the config toggles go through here
+	if kp.unit then UpdateThreat(kp) end
 end
 
 local function StylePlate(kp)
@@ -117,6 +160,10 @@ local function CreatePlate(base)
 	kp.raidMark:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
 	kp.raidMark:SetPoint("LEFT", kp, "RIGHT", 4, 0)
 	kp.raidMark:Hide()
+
+	kp.threatText = ns.CreateText(kp, ns.fonts.small, "RIGHT")
+	kp.threatText:SetPoint("RIGHT", kp, "LEFT", -4, 0)
+	kp.threatText:Hide()
 
 	-- Own debuffs and buffs, plus enemy buffs the player can purge, above
 	ns.CreateAuras(kp, "nameplate")
@@ -171,19 +218,23 @@ local unitHandlers = {
 	UNIT_CONNECTION = ns.UpdateHealth,
 	UNIT_NAME_UPDATE = ns.UpdateName,
 	UNIT_AURA = ns.UpdateAuras,
+	UNIT_THREAT_LIST_UPDATE = UpdateThreat,
+}
+
+-- Events that can change the player's threat on any plate
+local allPlateEvents = {
+	PLAYER_TARGET_CHANGED = UpdateBorder,
+	RAID_TARGET_UPDATE = UpdateRaidMark,
+	UNIT_THREAT_SITUATION_UPDATE = UpdateThreat,
+	PLAYER_REGEN_ENABLED = UpdateThreat,
+	PLAYER_REGEN_DISABLED = UpdateThreat,
 }
 
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, unit)
-	if event == "PLAYER_TARGET_CHANGED" then
-		for _, kp in pairs(plates) do
-			UpdateTargetHighlight(kp)
-		end
-		return
-	elseif event == "RAID_TARGET_UPDATE" then
-		for _, kp in pairs(plates) do
-			UpdateRaidMark(kp)
-		end
+	local handler = allPlateEvents[event]
+	if handler then
+		for _, kp in pairs(plates) do handler(kp) end
 		return
 	end
 	local kp = plates[unit]
@@ -212,8 +263,9 @@ function ns:InitNameplates()
 	for event in pairs(unitHandlers) do
 		pcall(events.RegisterEvent, events, event)
 	end
-	events:RegisterEvent("PLAYER_TARGET_CHANGED")
-	events:RegisterEvent("RAID_TARGET_UPDATE")
+	for event in pairs(allPlateEvents) do
+		pcall(events.RegisterEvent, events, event)
+	end
 
 	-- Plates already on screen (e.g. after /reload)
 	for _, base in ipairs(C_NamePlate.GetNamePlates()) do

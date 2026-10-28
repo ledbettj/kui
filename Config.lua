@@ -284,6 +284,7 @@ local WIDTH_LABELS = {
 local REACTION_LABELS = { hostile = "Hostile", neutral = "Neutral", friendly = "Friendly" }
 local CAST_LABELS = { cast = "Casting", channel = "Channeling", failed = "Failed / interrupted" }
 local HEAL_LABELS = { mine = "Your heals", others = "Others' heals" }
+local THREAT_LABELS = { pulling = "About to pull aggro", insecure = "Tanking, losing it", tanking = "Tanking" }
 
 -- Returns the content height
 local function BuildPanel(panel)
@@ -401,6 +402,13 @@ local function BuildPanel(panel)
 	Slider("Cast bar height", 6, 24, 1, Bind("nameplates", "castHeight", SetNameplates))
 	Checkbox("Highlight target", Bind("nameplates", "highlightTarget", SetNameplates))
 	Swatch("Target border color", Bind("nameplates", "targetColor", SetNameplates))
+	Checkbox("Threat border", Bind("nameplates", "threatBorder", SetNameplates))
+	Checkbox("Threat percentage", Bind("nameplates", "threatPercent", SetNameplates))
+
+	Section("Threat colors")
+	for _, key in ipairs(ns.threatOrder) do
+		ColorRow("threat", key, THREAT_LABELS[key])
+	end
 
 	Section("Action bars")
 	Checkbox("Restyle action bars", Bind("actionbars", "enabled", SetActionBars))

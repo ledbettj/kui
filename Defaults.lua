@@ -119,6 +119,8 @@ ns.settingsDefaults = {
 		castHeight = 12,
 		highlightTarget = true,
 		targetColor = { 1, 0.82, 0 }, -- border color on the current target's plate
+		threatBorder = true, -- border in the threat color while pulling/tanking
+		threatPercent = true, -- threat % beside the plate while on its threat list
 	},
 
 	healPrediction = {

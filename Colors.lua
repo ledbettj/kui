@@ -2,12 +2,12 @@ local addonName, ns = ...
 
 -- Colors, as { r, g, b } arrays. Lookup order: the user's override
 -- (KUIDB.colors.<kind>[key]), then the selected palette, then Blizzard's
--- tables (or KUI's own defaults for cast bars and heal prediction). Resetting a row removes the override,
+-- tables (or KUI's own defaults for cast bars, heal prediction and threat). Resetting a row removes the override,
 -- falling back to the palette.
 --
 -- Returned tables are shared; callers must not modify them.
 
-ns.colorKinds = { "class", "reaction", "power", "cast", "heal" }
+ns.colorKinds = { "class", "reaction", "power", "cast", "heal", "threat" }
 
 -- Row order for each kind in the config panel
 ns.classOrder = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
@@ -15,6 +15,8 @@ ns.powerOrder = { "MANA", "RAGE", "ENERGY", "FOCUS" }
 ns.reactionOrder = { "hostile", "neutral", "friendly" }
 ns.castOrder = { "cast", "channel", "failed" }
 ns.healOrder = { "mine", "others" }
+-- Indexed by UnitThreatSituation status (1-3)
+ns.threatOrder = { "pulling", "insecure", "tanking" }
 
 ---------------------------------------------------------------------------
 -- Palettes
@@ -59,6 +61,11 @@ ns.palettes = {
 			mine   = { 0.30, 0.72, 0.45 },
 			others = { 0.25, 0.55, 0.40 },
 		},
+		threat = {
+			pulling  = { 0.88, 0.84, 0.50 },
+			insecure = { 0.88, 0.58, 0.30 },
+			tanking  = { 0.80, 0.30, 0.30 },
+		},
 	},
 }
 
@@ -77,6 +84,12 @@ local KUI_DEFAULTS = {
 	heal = {
 		mine = { 0, 0.85, 0.45 },
 		others = { 0, 0.6, 0.35 },
+	},
+	-- Blizzard's GetThreatStatusColor values
+	threat = {
+		pulling = { 1, 1, 0.47 },
+		insecure = { 1, 0.6, 0 },
+		tanking = { 1, 0, 0 },
 	},
 }
 
