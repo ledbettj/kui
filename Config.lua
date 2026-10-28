@@ -213,6 +213,11 @@ local function SetNameplates(key, value)
 	end
 end
 
+local function SetChat(key, value)
+	KUIDB.chat[key] = value
+	ns:ApplyChat()
+end
+
 local function SetActionBars(key, value)
 	KUIDB.actionbars[key] = value
 	if key == "enabled" then
@@ -391,6 +396,9 @@ local function BuildPanel(panel)
 	Checkbox("Show macro names", Bind("actionbars", "showMacroNames", SetActionBars))
 	Checkbox("Red icons out of range", Bind("actionbars", "rangeColor", SetActionBars))
 	Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
+
+	Section("Chat")
+	Checkbox("Hide chat buttons", Bind("chat", "hideButtons", SetChat))
 
 	Section("Border")
 	Dropdown("Style", BorderList, Bind("style", "border", SetStyle))

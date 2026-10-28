@@ -23,5 +23,6 @@ Frames.lua
 ActionBars.lua
 Nameplates.lua
 StatusBars.lua
+Chat.lua
 
 Config.lua

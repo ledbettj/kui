@@ -110,4 +110,8 @@ ns.settingsDefaults = {
 		highlightTarget = true,
 		targetColor = { 1, 0.82, 0 }, -- border color on the current target's plate
 	},
+
+	chat = {
+		hideButtons = true, -- the button column beside the chat windows
+	},
 }

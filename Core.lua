@@ -67,6 +67,7 @@ function ns:ResetSettings()
 
 	ns:ApplyStyle()
 	ns:ApplyLayout()
+	ns:ApplyChat()
 end
 
 ---------------------------------------------------------------------------
@@ -160,6 +161,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		ns:InitActionBars()
 		ns:InitNameplates()
 		ns:InitStatusBars()
+		ns:InitChat()
 		ns:ApplyStyle()
 	elseif event == "PLAYER_REGEN_DISABLED" then
 		-- Fires just before lockdown, the last chance to restore secure
