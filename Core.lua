@@ -11,7 +11,7 @@ ns.defaults = {
 	target       = { label = "Target", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, combo = true },
 	targettarget = { label = "ToT",    w = 108, h = 22, poll = true },
 	pet          = { label = "Pet",    w = 108, h = 22, power = true },
-	focus        = { label = "Focus",  w = 108, h = 22, widthFrom = "targettarget" },
+	focus        = { label = "Focus",  w = 108, h = 22, widthFrom = "targettarget", detachedCastbar = true },
 }
 -- Party: the other four members (like Blizzard's classic party frames, the
 -- player isn't included). All share party1's width.
@@ -33,6 +33,7 @@ ns.styleDefaults = {
 	bgAlpha = 0.8,
 	padding = 1, -- gap between the border and the bars/portrait
 	powerHeight = 10, -- player/target only; party and pet keep fixed sizes
+	outOfRangeAlpha = 0.45, -- party members out of range
 	-- Background of empty power bars and idle cast bars
 	emptyColor = { 0, 0, 0 },
 	emptyAlpha = 0.5,
@@ -73,6 +74,7 @@ ns.nameplateDefaults = {
 -- Cast bar row inside the player/target frames, under the power bar
 ns.castbarDefaults = {
 	height = 12,
+	focusHeight = 12, -- detached bar under the focus frame
 	texture = "Modern",
 	showIcon = true,
 }

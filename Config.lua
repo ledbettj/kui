@@ -309,6 +309,9 @@ local function BuildPanel(panel)
 	Place(CreateSlider(panel, "Spacing", 0, 60, 1,
 		function() return KUIDB.layout.partySpacing end,
 		function(v) SetLayout("partySpacing", v) end))
+	Place(CreateSlider(panel, "Out of range opacity", 0, 100, 5,
+		function() return math.floor(KUIDB.style.outOfRangeAlpha * 100 + 0.5) end,
+		function(v) SetStyle("outOfRangeAlpha", v / 100) end))
 
 	y = y - 12
 	Place(CreateHeader(panel, "Frame width"), 6)
@@ -351,7 +354,10 @@ local function BuildPanel(panel)
 
 	y = y - 12
 	Place(CreateHeader(panel, "Cast bar"), 6)
-	Place(CreateSlider(panel, "Height", 4, 24, 1,
+	Place(CreateSlider(panel, "Focus cast bar height", 6, 30, 1,
+		function() return KUIDB.castbar.focusHeight end,
+		function(v) SetCastbar("focusHeight", v) end))
+	Place(CreateSlider(panel, "Height (player/target)", 4, 24, 1,
 		function() return KUIDB.castbar.height end,
 		function(v) SetCastbar("height", v) end))
 	Place(CreateDropdown(panel, "Texture", function() return ns:ListMedia("statusbar") end,

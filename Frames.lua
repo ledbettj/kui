@@ -330,10 +330,43 @@ local function HideAuras(self)
 	end
 end
 
+local RAID_ICON_TEXTURE = "Interface\\TargetingFrame\\UI-RaidTargetingIcons"
+local NAME_INSET = 4
+
+-- Raid marker inside the health bar, before the name; the name shifts right
+-- to make room while one is set
+local function UpdateRaidIcon(self)
+	local icon = self.raidIcon
+	local index = UnitExists(self.unit) and GetRaidTargetIndex(self.unit)
+	if index then
+		SetRaidTargetIconTexture(icon, index)
+		icon:Show()
+	else
+		icon:Hide()
+	end
+	self.nameText:SetPoint("LEFT", index and (NAME_INSET + icon:GetWidth() + 2) or NAME_INSET, 0)
+end
+
+-- Party members out of range fade (SetAlpha is allowed on secure frames in
+-- combat). Units the client can't range-check stay opaque.
+local function UpdateRange(self)
+	local inRange, checkedRange = UnitInRange(self.unit)
+	self:SetAlpha((checkedRange and not inRange) and KUIDB.style.outOfRangeAlpha or 1)
+end
+
+local function OnUpdateRange(self, elapsed)
+	self.rangeElapsed = (self.rangeElapsed or 0) + elapsed
+	if self.rangeElapsed > 0.25 then
+		self.rangeElapsed = 0
+		UpdateRange(self)
+	end
+end
+
 local function UpdateAll(self)
 	if not UnitExists(self.unit) then
 		-- Only reachable in preview mode: show a placeholder
 		if self.portrait then self.portrait:ClearModel() end
+		UpdateRaidIcon(self)
 		HideAuras(self)
 		if self.castbar then ns:PreviewCastbar(self.castbar) end
 		self.nameText:SetText(self.label)
@@ -352,6 +385,7 @@ local function UpdateAll(self)
 	UpdatePower(self)
 	UpdateName(self)
 	UpdatePortrait(self)
+	UpdateRaidIcon(self)
 	UpdateAuras(self)
 	if self.castbar then ns:RefreshCastbar(self.castbar) end
 end
@@ -380,6 +414,9 @@ local eventHandlers = {
 }
 
 local function OnEvent(self, event, ...)
+	if event == "RAID_TARGET_UPDATE" then
+		return UpdateRaidIcon(self)
+	end
 	local handler = eventHandlers[event]
 	if handler then
 		handler(self)
@@ -479,7 +516,7 @@ local function LayoutContents(f)
 	-- takes whatever height is left
 	local bottom = inset
 
-	if f.castbar then
+	if f.castbar and not f.castHolder then
 		f.castbar:ClearAllPoints()
 		f.castbar:SetPoint("BOTTOMLEFT", left, bottom)
 		f.castbar:SetPoint("BOTTOMRIGHT", -inset, bottom)
@@ -500,6 +537,22 @@ local function LayoutContents(f)
 	f.health:SetPoint("TOPLEFT", left, -inset)
 	f.health:SetPoint("TOPRIGHT", -inset, -inset)
 	f.health:SetPoint("BOTTOM", 0, bottom)
+
+	-- Detached cast bar (focus): own bordered holder under the frame, only
+	-- shown while casting
+	if f.castHolder then
+		local holder, h = f.castHolder, KUIDB.castbar.focusHeight
+		holder:ClearAllPoints()
+		holder:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -2)
+		holder:SetPoint("TOPRIGHT", f, "BOTTOMRIGHT", 0, -2)
+		holder:SetHeight(h)
+		local holderInset = ns:ApplyBackdrop(holder, true)
+		f.castbar:ClearAllPoints()
+		f.castbar:SetPoint("TOPLEFT", holderInset, -holderInset)
+		f.castbar:SetPoint("TOPRIGHT", -holderInset, -holderInset)
+		f.castbar:SetHeight(math.max(1, h - holderInset * 2))
+		ns:LayoutCastbar(f.castbar)
+	end
 end
 
 function ns:LayoutFrame(f)
@@ -550,6 +603,12 @@ function ns:CreateUnitFrame(unit, cfg)
 
 	if cfg.castbar then
 		f.castbar = ns:CreateCastbar(f)
+	elseif cfg.detachedCastbar then
+		f.castHolder = CreateFrame("Frame", nil, f, "BackdropTemplate")
+		f.castHolder.unit = unit
+		f.castbar = ns:CreateCastbar(f.castHolder)
+		f.castbar.container = f.castHolder
+		f.castHolder:Hide()
 	end
 
 	-- Buffs/debuffs
@@ -575,7 +634,13 @@ function ns:CreateUnitFrame(unit, cfg)
 	-- Text
 	local font = f.small and ns.fonts.small or ns.fonts.normal
 	f.nameText = CreateText(f.health, font, "LEFT")
-	f.nameText:SetPoint("LEFT", 4, 0)
+	f.nameText:SetPoint("LEFT", NAME_INSET, 0)
+
+	f.raidIcon = f.health:CreateTexture(nil, "OVERLAY")
+	f.raidIcon:SetTexture(RAID_ICON_TEXTURE)
+	f.raidIcon:SetSize(f.small and 12 or 14, f.small and 12 or 14)
+	f.raidIcon:SetPoint("LEFT", 3, 0)
+	f.raidIcon:Hide()
 
 	f.healthText = CreateText(f.health, font, "RIGHT")
 	f.healthText:SetPoint("RIGHT", -4, 0)
@@ -627,10 +692,13 @@ function ns:CreateUnitFrame(unit, cfg)
 		-- partyN can point at a different player after roster changes
 		f:RegisterEvent("GROUP_ROSTER_UPDATE")
 	end
+	f:RegisterEvent("RAID_TARGET_UPDATE")
 	f:SetScript("OnEvent", OnEvent)
 	f:SetScript("OnShow", UpdateAll)
 	if cfg.poll then
 		f:SetScript("OnUpdate", OnUpdatePoll)
+	elseif cfg.party then
+		f:SetScript("OnUpdate", OnUpdateRange)
 	end
 
 	ns:LayoutFrame(f)

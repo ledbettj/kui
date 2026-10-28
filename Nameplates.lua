@@ -36,7 +36,19 @@ local function UpdateTargetHighlight(kp)
 	kp:SetBackdropBorderColor(c[1], c[2], c[3], 1)
 end
 
+-- Raid marker just outside the plate's right edge, sized to stand out
+local function UpdateRaidMark(kp)
+	local index = GetRaidTargetIndex(kp.unit)
+	if index then
+		SetRaidTargetIconTexture(kp.raidMark, index)
+		kp.raidMark:Show()
+	else
+		kp.raidMark:Hide()
+	end
+end
+
 local function UpdatePlate(kp)
+	UpdateRaidMark(kp)
 	ns.UpdateHealth(kp)
 	ns.UpdateName(kp)
 	ns.UpdateAuras(kp)
@@ -51,6 +63,7 @@ local function LayoutPlate(kp)
 	local N = KUIDB.nameplates
 
 	kp:SetSize(N.width, N.height)
+	kp.raidMark:SetSize(N.height + 8, N.height + 8)
 	local inset = ns:ApplyBackdrop(kp, true)
 	kp.health:ClearAllPoints()
 	kp.health:SetPoint("TOPLEFT", inset, -inset)
@@ -99,6 +112,11 @@ local function CreatePlate(base)
 	kp.healthText = ns.CreateText(kp.health, ns.fonts.small, "RIGHT")
 	kp.healthText:SetPoint("RIGHT", -3, 0)
 	kp.nameText:SetPoint("RIGHT", kp.healthText, "LEFT", -3, 0)
+
+	kp.raidMark = kp:CreateTexture(nil, "OVERLAY")
+	kp.raidMark:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
+	kp.raidMark:SetPoint("LEFT", kp, "RIGHT", 4, 0)
+	kp.raidMark:Hide()
 
 	-- Buffs and own debuffs above
 	kp.auras = CreateFrame("Frame", nil, kp)
@@ -164,6 +182,11 @@ events:SetScript("OnEvent", function(_, event, unit)
 			UpdateTargetHighlight(kp)
 		end
 		return
+	elseif event == "RAID_TARGET_UPDATE" then
+		for _, kp in pairs(plates) do
+			UpdateRaidMark(kp)
+		end
+		return
 	end
 	local kp = plates[unit]
 	if kp then unitHandlers[event](kp) end
@@ -192,6 +215,7 @@ function ns:InitNameplates()
 		pcall(events.RegisterEvent, events, event)
 	end
 	events:RegisterEvent("PLAYER_TARGET_CHANGED")
+	events:RegisterEvent("RAID_TARGET_UPDATE")
 
 	-- Plates already on screen (e.g. after /reload)
 	for _, base in ipairs(C_NamePlate.GetNamePlates()) do
