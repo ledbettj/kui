@@ -1,10 +1,11 @@
 local addonName, ns = ...
 
 -- Nameplates in the unit frame style: a health bar with name and percent,
--- buffs and the player's own debuffs above, and a cast bar below that only
--- shows while casting. KUI's frame sits on Blizzard's nameplate base; the
--- Blizzard unit frame stays alive but fully transparent, so its own logic
--- (and click handling on the base) is untouched.
+-- the player's own debuffs and buffs (purgeable ones on enemies) above,
+-- and a cast bar below that only shows while casting. KUI's frame sits on
+-- Blizzard's nameplate base; the Blizzard unit frame stays alive but fully
+-- transparent, so its own logic (and click handling on the base) is
+-- untouched.
 
 local plates = {} -- unit token -> KUI plate
 
@@ -117,7 +118,7 @@ local function CreatePlate(base)
 	kp.raidMark:SetPoint("LEFT", kp, "RIGHT", 4, 0)
 	kp.raidMark:Hide()
 
-	-- Buffs and own debuffs above
+	-- Own debuffs and buffs, plus enemy buffs the player can purge, above
 	ns.CreateAuras(kp, "nameplate")
 	kp.auras:SetPoint("BOTTOMLEFT", kp, "TOPLEFT", 0, 3)
 
@@ -165,7 +166,8 @@ end
 local unitHandlers = {
 	UNIT_HEALTH = ns.UpdateHealth,
 	UNIT_MAXHEALTH = ns.UpdateHealth,
-	UNIT_FACTION = ns.UpdateHealth,
+	-- Reaction decides the health color and which buffs show
+	UNIT_FACTION = UpdatePlate,
 	UNIT_CONNECTION = ns.UpdateHealth,
 	UNIT_NAME_UPDATE = ns.UpdateName,
 	UNIT_AURA = ns.UpdateAuras,

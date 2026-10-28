@@ -8,12 +8,32 @@ local SPACING = 2
 -- size: icon size. growUp: rows stack upward from the container's bottom
 -- edge (otherwise downward from its top). perRow: fixed icons per row,
 -- else as many as fit the owner's width. debuffFilter: defaults to all
--- harmful auras. noMouse: no tooltips, so the icons don't block clicks.
+-- harmful auras. buffsByReaction: on enemies, only buffs the player's class
+-- can remove; on friendly units, only the player's own buffs. noMouse: no
+-- tooltips, so the icons don't block clicks.
 local LAYOUTS = {
 	above = { size = 22, maxBuffs = 32, maxDebuffs = 16, growUp = true },
 	right = { size = 16, maxBuffs = 8, maxDebuffs = 8, perRow = 8 },
-	nameplate = { size = 18, maxBuffs = 4, maxDebuffs = 6, growUp = true, debuffFilter = "HARMFUL|PLAYER", noMouse = true },
+	nameplate = { size = 18, maxBuffs = 4, maxDebuffs = 6, growUp = true, debuffFilter = "HARMFUL|PLAYER", buffsByReaction = true, noMouse = true },
 }
+
+-- Buff types each class can remove from enemies (TBC): Dispel Magic,
+-- Purge, Spellsteal, and the Felhunter's Devour Magic
+local PURGE_TYPES = {
+	PRIEST = { Magic = true },
+	SHAMAN = { Magic = true },
+	MAGE = { Magic = true },
+	WARLOCK = { Magic = true },
+}
+
+local purgeTypes -- the player's entry, looked up on first use
+local function PlayerPurgeTypes()
+	if purgeTypes == nil then
+		local _, class = UnitClass("player")
+		purgeTypes = PURGE_TYPES[class] or false
+	end
+	return purgeTypes
+end
 
 ---------------------------------------------------------------------------
 -- Icons
@@ -70,6 +90,8 @@ end
 local pass = {}
 
 local function Place(aura)
+	if pass.types and not pass.types[aura.dispelName] then return false end
+
 	local container, layout = pass.container, pass.container.layout
 	pass.n = pass.n + 1
 	local b = container.buttons[pass.n]
@@ -107,8 +129,9 @@ local function Place(aura)
 	return pass.placed >= pass.max -- true stops the iteration
 end
 
-local function PlaceAll(filter, isBuff, max)
-	pass.filter, pass.isBuff, pass.max, pass.placed = filter, isBuff, max, 0
+-- types: optional set of dispel types to accept, others are skipped
+local function PlaceAll(filter, isBuff, max, types)
+	pass.filter, pass.isBuff, pass.max, pass.placed, pass.types = filter, isBuff, max, 0, types
 	AuraUtil.ForEachAura(pass.unit, filter, max, Place, true)
 end
 
@@ -125,7 +148,13 @@ function ns.UpdateAuras(self)
 	if pass.col > 0 then
 		pass.col, pass.row = 0, pass.row + 1
 	end
-	PlaceAll("HELPFUL", true, layout.maxBuffs)
+	if not layout.buffsByReaction then
+		PlaceAll("HELPFUL", true, layout.maxBuffs)
+	elseif not UnitCanAttack("player", pass.unit) then
+		PlaceAll("HELPFUL|PLAYER", true, layout.maxBuffs)
+	elseif PlayerPurgeTypes() then
+		PlaceAll("HELPFUL", true, layout.maxBuffs, PlayerPurgeTypes())
+	end
 
 	for i = pass.n + 1, #container.buttons do
 		container.buttons[i]:Hide()
