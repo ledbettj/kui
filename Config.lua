@@ -208,6 +208,17 @@ local function CreateColorRow(panel, kind, key, label)
 		function() SetColor(kind, key, nil) end)
 end
 
+-- KUI's nameplate frames aren't secure, so these apply immediately
+local function SetNameplates(key, value)
+	KUIDB.nameplates[key] = value
+	if key == "enabled" then
+		ns.Print("nameplate change takes effect after /reload.")
+	else
+		-- Layout also re-applies the border, including the target highlight
+		ns:LayoutNameplates()
+	end
+end
+
 local function SetActionBars(key, value)
 	KUIDB.actionbars[key] = value
 	if key == "enabled" then
@@ -233,6 +244,10 @@ local function ResetToDefaults()
 	wipe(KUIDB.colors.reaction)
 	wipe(KUIDB.colors.cast)
 	KUIDB.colors.palette = "Default"
+	wipe(KUIDB.nameplates)
+	for k, v in pairs(ns.nameplateDefaults) do
+		KUIDB.nameplates[k] = v
+	end
 	wipe(KUIDB.actionbars)
 	for k, v in pairs(ns.actionbarDefaults) do
 		KUIDB.actionbars[k] = v
@@ -377,6 +392,27 @@ local function BuildPanel(panel)
 	for _, key in ipairs(ns.castOrder) do
 		Place(CreateColorRow(panel, "cast", key, castLabels[key]))
 	end
+
+	y = y - 12
+	Place(CreateHeader(panel, "Nameplates"), 6)
+	Place(CreateCheckbox(panel, "Restyle nameplates",
+		function() return KUIDB.nameplates.enabled end,
+		function(v) SetNameplates("enabled", v) end))
+	Place(CreateSlider(panel, "Width", 60, 240, 2,
+		function() return KUIDB.nameplates.width end,
+		function(v) SetNameplates("width", v) end))
+	Place(CreateSlider(panel, "Health height", 6, 30, 1,
+		function() return KUIDB.nameplates.height end,
+		function(v) SetNameplates("height", v) end))
+	Place(CreateSlider(panel, "Cast bar height", 6, 24, 1,
+		function() return KUIDB.nameplates.castHeight end,
+		function(v) SetNameplates("castHeight", v) end))
+	Place(CreateCheckbox(panel, "Highlight target",
+		function() return KUIDB.nameplates.highlightTarget end,
+		function(v) SetNameplates("highlightTarget", v) end))
+	Place(CreateColorSwatch(panel, "Target border color",
+		function() return KUIDB.nameplates.targetColor end,
+		function(v) SetNameplates("targetColor", v) end))
 
 	y = y - 12
 	Place(CreateHeader(panel, "Action bars"), 6)

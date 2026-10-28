@@ -11,4 +11,5 @@ Media.lua
 Frames.lua
 Castbar.lua
 ActionBars.lua
+Nameplates.lua
 Config.lua

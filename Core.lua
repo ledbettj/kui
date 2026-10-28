@@ -61,6 +61,15 @@ ns.actionbarDefaults = {
 	activeColor = { 1, 0.82, 0 }, -- border color while an action is active
 }
 
+ns.nameplateDefaults = {
+	enabled = true,
+	width = 130,
+	height = 14,
+	castHeight = 12,
+	highlightTarget = true,
+	targetColor = { 1, 0.82, 0 }, -- border color on the current target's plate
+}
+
 -- Cast bar row inside the player/target frames, under the power bar
 ns.castbarDefaults = {
 	height = 12,
@@ -148,6 +157,7 @@ function ns:ApplyStyle()
 		ns:StyleFrame(f)
 	end
 	ns:StyleActionBars()
+	ns:StyleNameplates()
 end
 
 function ns:ApplyLayout()
@@ -162,6 +172,7 @@ function ns:ApplyLayout()
 	end
 	ns:ApplyPositions()
 	ns:StyleActionBars()
+	ns:LayoutNameplates()
 end
 
 ---------------------------------------------------------------------------
@@ -219,6 +230,8 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		KUIDB.layout = KUIDB.layout or {}
 		KUIDB.castbar = KUIDB.castbar or {}
 		KUIDB.actionbars = KUIDB.actionbars or {}
+		KUIDB.nameplates = KUIDB.nameplates or {}
+		FillDefaults(KUIDB.nameplates, ns.nameplateDefaults)
 		KUIDB.colors = KUIDB.colors or {}
 		KUIDB.colors.class = KUIDB.colors.class or {}
 		KUIDB.colors.power = KUIDB.colors.power or {}
@@ -243,6 +256,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		-- Re-apply once every addon has loaded, in case saved media comes
 		-- from a LibSharedMedia pack that wasn't registered yet
 		ns:InitActionBars()
+		ns:InitNameplates()
 		ns:ApplyStyle()
 	elseif event == "PLAYER_REGEN_DISABLED" and ns.preview then
 		ns:SetPreview(false)

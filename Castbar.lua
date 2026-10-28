@@ -22,7 +22,14 @@ local function ShowIcon(cb, texture)
 	cb.icon:SetShown(KUIDB.castbar.showIcon)
 end
 
+-- cb.container (optional): a frame shown only while there's something to
+-- show; nameplates use it to hide the cast bar when idle
+local function SetVisible(cb, visible)
+	if cb.container then cb.container:SetShown(visible) end
+end
+
 local function Idle(cb)
+	SetVisible(cb, false)
 	cb.active, cb.holdUntil = false, nil
 	cb.status:SetMinMaxValues(0, 1)
 	cb.status:SetValue(0)
@@ -49,6 +56,7 @@ local function Start(cb, isChannel)
 	ShowIcon(cb, texture)
 	SetColor(cb, isChannel and "channel" or "cast")
 	cb.active, cb.holdUntil = true, nil
+	SetVisible(cb, true)
 end
 
 local function Fail(cb, text)
@@ -60,6 +68,7 @@ local function Fail(cb, text)
 	cb.text:SetText(text)
 	cb.time:SetText("")
 	cb.spark:Hide()
+	SetVisible(cb, true)
 end
 
 local function OnUpdate(cb)
@@ -132,6 +141,7 @@ function ns:PreviewCastbar(cb)
 	ShowIcon(cb, PREVIEW_ICON)
 	SetColor(cb, "cast")
 	SetSpark(cb, 0.6)
+	SetVisible(cb, true)
 end
 
 -- Arranges the icon and bar within the row; the row itself is positioned by
@@ -152,6 +162,23 @@ function ns:LayoutCastbar(cb)
 		ns:PreviewCastbar(cb)
 	elseif not KUIDB.castbar.showIcon then
 		cb.icon:Hide()
+	end
+end
+
+local EVENTS = {
+	"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_FAILED",
+	"UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_DELAYED",
+	"UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_CHANNEL_STOP",
+}
+
+-- Point the cast bar at a different unit (nameplates are recycled); nil
+-- detaches it
+function ns:SetCastbarUnit(cb, unit)
+	cb:UnregisterAllEvents()
+	cb.unit = unit
+	if not unit then return Idle(cb) end
+	for _, event in ipairs(EVENTS) do
+		cb:RegisterUnitEvent(event, unit)
 	end
 end
 
@@ -190,13 +217,7 @@ function ns:CreateCastbar(f)
 	cb.time:SetPoint("RIGHT", -3, 0)
 	cb.text:SetPoint("RIGHT", cb.time, "LEFT", -3, 0)
 
-	for _, event in ipairs({
-		"UNIT_SPELLCAST_START", "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_FAILED",
-		"UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_DELAYED",
-		"UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_UPDATE", "UNIT_SPELLCAST_CHANNEL_STOP",
-	}) do
-		cb:RegisterUnitEvent(event, cb.unit)
-	end
+	ns:SetCastbarUnit(cb, cb.unit)
 	cb:SetScript("OnEvent", OnEvent)
 	cb:SetScript("OnUpdate", OnUpdate)
 

@@ -164,7 +164,8 @@ local function UpdateName(self)
 	local unit = self.unit
 	local name = UnitName(unit) or ""
 
-	if unit == "player" or self.small then
+	-- Compact frames skip the level unless they opt in (nameplates do)
+	if unit == "player" or (self.small and not self.showLevel) then
 		self.nameText:SetText(name)
 		return
 	end
@@ -202,10 +203,15 @@ local AURA_SPACING = 2
 
 -- "above": rows above the frame growing upward, as many per row as fit the
 -- frame width. "right": compact rows beside the frame growing downward.
+-- debuffFilter: defaults to all harmful auras. noMouse: no tooltips, so
+-- the icons don't block clicks (nameplates).
 local AURA_LAYOUTS = {
 	above = { size = 22, maxBuffs = 32, maxDebuffs = 16, growUp = true },
 	right = { size = 16, maxBuffs = 8, maxDebuffs = 8, perRow = 8 },
+	nameplate = { size = 18, maxBuffs = 4, maxDebuffs = 6, growUp = true, debuffFilter = "HARMFUL|PLAYER", noMouse = true },
 }
+ns.AURA_LAYOUTS = AURA_LAYOUTS
+ns.AURA_SPACING = AURA_SPACING
 
 local function AuraButton_OnEnter(self)
 	GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT", 15, -25)
@@ -219,9 +225,11 @@ end
 local function CreateAuraButton(container)
 	local b = CreateFrame("Frame", nil, container)
 	b:SetSize(container.layout.size, container.layout.size)
-	b:EnableMouse(true)
-	b:SetScript("OnEnter", AuraButton_OnEnter)
-	b:SetScript("OnLeave", GameTooltip_Hide)
+	if not container.layout.noMouse then
+		b:EnableMouse(true)
+		b:SetScript("OnEnter", AuraButton_OnEnter)
+		b:SetScript("OnLeave", GameTooltip_Hide)
+	end
 
 	-- 1px border behind the icon; tinted by dispel type for debuffs
 	b.border = b:CreateTexture(nil, "BACKGROUND")
@@ -292,8 +300,9 @@ local function UpdateAuras(self)
 	end
 
 	local count = 0
-	AuraUtil.ForEachAura(unit, "HARMFUL", layout.maxDebuffs, function(aura)
-		Place(aura, "HARMFUL", false)
+	local debuffFilter = layout.debuffFilter or "HARMFUL"
+	AuraUtil.ForEachAura(unit, debuffFilter, layout.maxDebuffs, function(aura)
+		Place(aura, debuffFilter, false)
 		count = count + 1
 		return count >= layout.maxDebuffs
 	end, true)
@@ -347,6 +356,13 @@ local function UpdateAll(self)
 	if self.castbar then ns:RefreshCastbar(self.castbar) end
 end
 ns.UpdateAll = UpdateAll
+
+-- Shared with the nameplates, which reuse these pieces on their own frames
+ns.CreateBar = CreateBar
+ns.CreateText = CreateText
+ns.UpdateHealth = UpdateHealth
+ns.UpdateName = UpdateName
+ns.UpdateAuras = UpdateAuras
 
 local eventHandlers = {
 	UNIT_HEALTH = UpdateHealth,
