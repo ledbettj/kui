@@ -219,6 +219,12 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		KUIDB.layout = KUIDB.layout or {}
 		KUIDB.castbar = KUIDB.castbar or {}
 		KUIDB.actionbars = KUIDB.actionbars or {}
+		KUIDB.colors = KUIDB.colors or {}
+		KUIDB.colors.class = KUIDB.colors.class or {}
+		KUIDB.colors.power = KUIDB.colors.power or {}
+		KUIDB.colors.reaction = KUIDB.colors.reaction or {}
+		KUIDB.colors.cast = KUIDB.colors.cast or {}
+		KUIDB.colors.palette = KUIDB.colors.palette or "Default"
 		FillDefaults(KUIDB.actionbars, ns.actionbarDefaults)
 		FillDefaults(KUIDB.style, ns.styleDefaults)
 		FillDefaults(KUIDB.layout, ns.layoutDefaults)

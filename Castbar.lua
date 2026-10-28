@@ -7,14 +7,8 @@ local SPARK = "Interface\\CastingBar\\UI-CastingBar-Spark"
 local PREVIEW_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 local HOLD_TIME = 0.6 -- how long a failed/interrupted cast stays red
 
-local COLORS = {
-	cast = { 1, 0.7, 0 },
-	channel = { 0, 0.8, 0.2 },
-	failed = { 0.9, 0.1, 0.1 },
-}
-
 local function SetColor(cb, key)
-	local c = COLORS[key]
+	local c = ns:GetCastColor(key)
 	cb.status:SetStatusBarColor(c[1], c[2], c[3])
 end
 

@@ -92,7 +92,8 @@ local function CreateCheckbox(parent, text, get, set)
 	return row
 end
 
-local function CreateColorSwatch(parent, text, get, set)
+-- reset: optional; adds a Reset button that calls it
+local function CreateColorSwatch(parent, text, get, set, reset)
 	local row = CreateRow(parent, text)
 
 	local button = CreateFrame("Button", nil, row)
@@ -122,6 +123,17 @@ local function CreateColorSwatch(parent, text, get, set)
 			cancelFunc = function() Apply(r, g, b) end,
 		})
 	end)
+
+	if reset then
+		local resetButton = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+		resetButton:SetSize(60, 20)
+		resetButton:SetPoint("LEFT", button, "RIGHT", 10, 0)
+		resetButton:SetText(RESET)
+		resetButton:SetScript("OnClick", function()
+			reset()
+			row:Refresh()
+		end)
+	end
 
 	function row:Refresh()
 		swatch:SetColorTexture(unpack(get()))
@@ -171,6 +183,31 @@ local function SetCastbar(key, value)
 	end
 end
 
+-- kind: "class", "reaction", "power" or "cast"; nil value removes the override
+local function SetColor(kind, key, value)
+	KUIDB.colors[kind][key] = value
+	ns:ApplyStyle()
+end
+
+local COLOR_KINDS = { "class", "reaction", "power", "cast" }
+
+-- Choosing a palette clears individual overrides so it shows as designed
+local function SetPalette(name)
+	KUIDB.colors.palette = name
+	for _, kind in ipairs(COLOR_KINDS) do
+		wipe(KUIDB.colors[kind])
+	end
+	ns:ApplyStyle()
+	RefreshAll()
+end
+
+local function CreateColorRow(panel, kind, key, label)
+	return CreateColorSwatch(panel, label,
+		function() return KUIDB.colors[kind][key] or ns:GetDefaultColor(kind, key) end,
+		function(v) SetColor(kind, key, v) end,
+		function() SetColor(kind, key, nil) end)
+end
+
 local function SetActionBars(key, value)
 	KUIDB.actionbars[key] = value
 	if key == "enabled" then
@@ -191,6 +228,11 @@ local function ResetToDefaults()
 	wipe(KUIDB.widths)
 	wipe(KUIDB.style)
 	wipe(KUIDB.layout)
+	wipe(KUIDB.colors.class)
+	wipe(KUIDB.colors.power)
+	wipe(KUIDB.colors.reaction)
+	wipe(KUIDB.colors.cast)
+	KUIDB.colors.palette = "Default"
 	wipe(KUIDB.actionbars)
 	for k, v in pairs(ns.actionbarDefaults) do
 		KUIDB.actionbars[k] = v
@@ -303,6 +345,38 @@ local function BuildPanel(panel)
 	Place(CreateCheckbox(panel, "Show spell icon",
 		function() return KUIDB.castbar.showIcon end,
 		function(v) SetCastbar("showIcon", v) end))
+
+	y = y - 12
+	Place(CreateHeader(panel, "Color palette"), 6)
+	Place(CreateDropdown(panel, "Palette", function() return ns.paletteOrder end,
+		function() return KUIDB.colors.palette end,
+		SetPalette))
+
+	y = y - 12
+	Place(CreateHeader(panel, "Class colors (health)"), 6)
+	for _, class in ipairs(ns.classOrder) do
+		Place(CreateColorRow(panel, "class", class, LOCALIZED_CLASS_NAMES_MALE[class] or class))
+	end
+
+	y = y - 12
+	Place(CreateHeader(panel, "Reaction colors (NPC health)"), 6)
+	local reactionLabels = { hostile = "Hostile", neutral = "Neutral", friendly = "Friendly" }
+	for _, key in ipairs(ns.reactionOrder) do
+		Place(CreateColorRow(panel, "reaction", key, reactionLabels[key]))
+	end
+
+	y = y - 12
+	Place(CreateHeader(panel, "Power colors"), 6)
+	for _, token in ipairs(ns.powerOrder) do
+		Place(CreateColorRow(panel, "power", token, _G[token] or token))
+	end
+
+	y = y - 12
+	Place(CreateHeader(panel, "Cast bar colors"), 6)
+	local castLabels = { cast = "Casting", channel = "Channeling", failed = "Failed / interrupted" }
+	for _, key in ipairs(ns.castOrder) do
+		Place(CreateColorRow(panel, "cast", key, castLabels[key]))
+	end
 
 	y = y - 12
 	Place(CreateHeader(panel, "Action bars"), 6)

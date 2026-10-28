@@ -15,19 +15,21 @@ local function ShortValue(v)
 	return tostring(v)
 end
 
--- Health color, following CompactUnitFrame_UpdateHealthColor with extended colors
+-- Health color: grey when dead/offline, class color for players, grey when
+-- tapped, otherwise by reaction (all configurable in the Colors section)
 local function UnitColor(unit)
 	if not UnitIsConnected(unit) or (UnitIsDead(unit) and not UnitIsPlayer(unit)) then
 		return 0.5, 0.5, 0.5
 	elseif UnitIsPlayer(unit) then
 		local _, class = UnitClass(unit)
-		local c = class and RAID_CLASS_COLORS[class]
-		if c then return c.r, c.g, c.b end
+		local c = class and ns:GetClassColor(class)
+		if c then return c[1], c[2], c[3] end
 	elseif UnitIsTapDenied and UnitIsTapDenied(unit) then
 		-- Near-white: the bar atlas darkens it to a neutral grey
 		return 0.9, 0.9, 0.9
 	end
-	return UnitSelectionColor(unit, true)
+	local c = ns:GetReactionColor(unit)
+	return c[1], c[2], c[3]
 end
 
 -- Textures are applied later by StyleBar, so they can change at runtime
@@ -135,11 +137,27 @@ local function UpdatePower(self)
 	local unit = self.unit
 	local cur, max = UnitPower(unit), UnitPowerMax(unit)
 	local ptype, ptoken = UnitPowerType(unit)
-	local c = PowerBarColor[ptoken] or PowerBarColor[ptype] or PowerBarColor.MANA
+	local c = ns:GetPowerColor(ptoken, ptype)
 
 	self.power:SetMinMaxValues(0, max > 0 and max or 1)
 	self.power:SetValue(cur)
-	self.power:SetStatusBarColor(c.r, c.g, c.b)
+	self.power:SetStatusBarColor(c[1], c[2], c[3])
+
+	if self.powerText and self.powerText:IsShown() then
+		self.powerText:SetFormattedText("%d / %d", cur, max)
+	end
+end
+
+-- Power text appears only while the mouse is over the power bar. The bar
+-- itself doesn't take mouse input (that would swallow clicks meant for
+-- targeting/Clique), so check IsMouseOver while the frame is hovered.
+local function PowerHover_OnUpdate(bar)
+	local f = bar:GetParent()
+	local over = bar:IsMouseOver()
+	if over ~= f.powerText:IsShown() then
+		f.powerText:SetShown(over)
+		if over then UpdatePower(f) end
+	end
 end
 
 local function UpdateName(self)
@@ -546,6 +564,19 @@ function ns:CreateUnitFrame(unit, cfg)
 	f.healthText = CreateText(f.health, font, "RIGHT")
 	f.healthText:SetPoint("RIGHT", -4, 0)
 	f.nameText:SetPoint("RIGHT", f.healthText, "LEFT", -4, 0)
+
+	if unit == "player" and f.power then
+		f.powerText = CreateText(f.power, ns.fonts.small, "CENTER")
+		f.powerText:SetPoint("CENTER")
+		f.powerText:Hide()
+		f:HookScript("OnEnter", function(self)
+			self.power:SetScript("OnUpdate", PowerHover_OnUpdate)
+		end)
+		f:HookScript("OnLeave", function(self)
+			self.power:SetScript("OnUpdate", nil)
+			self.powerText:Hide()
+		end)
+	end
 
 	-- Combo points (target only)
 	if cfg.combo then
