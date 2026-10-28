@@ -10,4 +10,5 @@ Core.lua
 Media.lua
 Frames.lua
 Castbar.lua
+ActionBars.lua
 Config.lua

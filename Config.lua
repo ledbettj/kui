@@ -171,6 +171,15 @@ local function SetCastbar(key, value)
 	end
 end
 
+local function SetActionBars(key, value)
+	KUIDB.actionbars[key] = value
+	if key == "enabled" then
+		ns.Print("action bar styling change takes effect after /reload.")
+	else
+		ns:StyleActionBars()
+	end
+end
+
 -- Border settings re-anchor bars inside the secure frame, so they go through
 -- the combat-deferred layout path
 local function SetBorder(key, value)
@@ -182,6 +191,10 @@ local function ResetToDefaults()
 	wipe(KUIDB.widths)
 	wipe(KUIDB.style)
 	wipe(KUIDB.layout)
+	wipe(KUIDB.actionbars)
+	for k, v in pairs(ns.actionbarDefaults) do
+		KUIDB.actionbars[k] = v
+	end
 	wipe(KUIDB.castbar)
 	for k, v in pairs(ns.castbarDefaults) do
 		KUIDB.castbar[k] = v
@@ -290,6 +303,24 @@ local function BuildPanel(panel)
 	Place(CreateCheckbox(panel, "Show spell icon",
 		function() return KUIDB.castbar.showIcon end,
 		function(v) SetCastbar("showIcon", v) end))
+
+	y = y - 12
+	Place(CreateHeader(panel, "Action bars"), 6)
+	Place(CreateCheckbox(panel, "Restyle action bars",
+		function() return KUIDB.actionbars.enabled end,
+		function(v) SetActionBars("enabled", v) end))
+	Place(CreateCheckbox(panel, "Show keybinds",
+		function() return KUIDB.actionbars.showHotkeys end,
+		function(v) SetActionBars("showHotkeys", v) end))
+	Place(CreateCheckbox(panel, "Show macro names",
+		function() return KUIDB.actionbars.showMacroNames end,
+		function(v) SetActionBars("showMacroNames", v) end))
+	Place(CreateCheckbox(panel, "Red icons out of range",
+		function() return KUIDB.actionbars.rangeColor end,
+		function(v) SetActionBars("rangeColor", v) end))
+	Place(CreateColorSwatch(panel, "Active border color",
+		function() return KUIDB.actionbars.activeColor end,
+		function(v) SetActionBars("activeColor", v) end))
 
 	y = y - 12
 	Place(CreateHeader(panel, "Border"), 6)

@@ -52,6 +52,15 @@ ns.layoutDefaults = {
 	partySpacing = 14,
 }
 
+-- Restyling of Blizzard's action buttons (layout stays with Edit Mode)
+ns.actionbarDefaults = {
+	enabled = true,
+	showHotkeys = true,
+	showMacroNames = true,
+	rangeColor = true,
+	activeColor = { 1, 0.82, 0 }, -- border color while an action is active
+}
+
 -- Cast bar row inside the player/target frames, under the power bar
 ns.castbarDefaults = {
 	height = 12,
@@ -138,6 +147,7 @@ function ns:ApplyStyle()
 	for _, f in pairs(ns.frames) do
 		ns:StyleFrame(f)
 	end
+	ns:StyleActionBars()
 end
 
 function ns:ApplyLayout()
@@ -151,6 +161,7 @@ function ns:ApplyLayout()
 		ns:LayoutFrame(f)
 	end
 	ns:ApplyPositions()
+	ns:StyleActionBars()
 end
 
 ---------------------------------------------------------------------------
@@ -207,6 +218,8 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		KUIDB.style = KUIDB.style or {}
 		KUIDB.layout = KUIDB.layout or {}
 		KUIDB.castbar = KUIDB.castbar or {}
+		KUIDB.actionbars = KUIDB.actionbars or {}
+		FillDefaults(KUIDB.actionbars, ns.actionbarDefaults)
 		FillDefaults(KUIDB.style, ns.styleDefaults)
 		FillDefaults(KUIDB.layout, ns.layoutDefaults)
 		KUIDB.castbar.width = nil -- from the old standalone cast bar
@@ -223,6 +236,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 	elseif event == "PLAYER_LOGIN" then
 		-- Re-apply once every addon has loaded, in case saved media comes
 		-- from a LibSharedMedia pack that wasn't registered yet
+		ns:InitActionBars()
 		ns:ApplyStyle()
 	elseif event == "PLAYER_REGEN_DISABLED" and ns.preview then
 		ns:SetPreview(false)

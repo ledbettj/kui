@@ -163,7 +163,7 @@ end
 
 function ns:StyleCastbar(cb)
 	ns.StyleBar(cb.status, KUIDB.castbar.texture, true)
-	cb.status.bg:SetColorTexture(ns:GetEmptyColor())
+	cb.bg:SetColorTexture(ns:GetEmptyColor())
 end
 
 function ns:CreateCastbar(f)
@@ -173,10 +173,13 @@ function ns:CreateCastbar(f)
 	cb.icon = cb:CreateTexture(nil, "ARTWORK")
 	cb.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
+	-- Empty background spans the whole row, icon slot included, so an idle
+	-- row reads as one even strip
+	cb.bg = cb:CreateTexture(nil, "BACKGROUND")
+	cb.bg:SetAllPoints()
+
 	cb.status = CreateFrame("StatusBar", nil, cb)
 	cb.status:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-	cb.status.bg = cb.status:CreateTexture(nil, "BACKGROUND")
-	cb.status.bg:SetAllPoints()
 
 	cb.spark = cb.status:CreateTexture(nil, "OVERLAY")
 	cb.spark:SetTexture(SPARK)
