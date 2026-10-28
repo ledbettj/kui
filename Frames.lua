@@ -254,10 +254,13 @@ local function RegisterEvents(f, unit, cfg)
 	for _, event in ipairs(unitChangedEvents[unit] or {}) do
 		SafeRegister(f, event)
 	end
-	if unit == "pet" then
-		SafeRegister(f, "UNIT_PET", "player")
+	if cfg.owner then
+		SafeRegister(f, "UNIT_PET", cfg.owner)
 	end
-	-- Party frames get GROUP_ROSTER_UPDATE through their status icons
+	if cfg.party then
+		-- partyN / partypetN can point at a different unit after roster changes
+		SafeRegister(f, "GROUP_ROSTER_UPDATE")
+	end
 	SafeRegister(f, "RAID_TARGET_UPDATE")
 
 	f:SetScript("OnEvent", OnEvent)
@@ -497,7 +500,8 @@ function ns:GetWidth(unit)
 end
 
 --   [focus] [player] - - | - - [target] [tot]
--- pet under the player, party column at the top left
+-- pet under the player; party column at the top left, each member followed
+-- by its pet and then its auras
 function ns:ApplyPositions()
 	local L, F = KUIDB.layout, ns.frames
 	for _, f in pairs(F) do
@@ -511,8 +515,16 @@ function ns:ApplyPositions()
 	F.pet:SetPoint("TOPLEFT", F.player, "BOTTOMLEFT", 0, -4)
 
 	F.party1:SetPoint("TOPLEFT", UIParent, "TOPLEFT", L.partyX, L.partyY)
-	for i = 2, 4 do
-		F["party" .. i]:SetPoint("TOPLEFT", F["party" .. (i - 1)], "BOTTOMLEFT", 0, -L.partySpacing)
+	for i = 1, 4 do
+		local member, pet = F["party" .. i], F["partypet" .. i]
+		if i > 1 then
+			member:SetPoint("TOPLEFT", F["party" .. (i - 1)], "BOTTOMLEFT", 0, -L.partySpacing)
+		end
+		pet:SetPoint("TOPLEFT", member, "TOPRIGHT", 4, 0)
+		-- The pet's slot stays reserved even with no pet out, so the auras
+		-- don't jump around as pets come and go
+		member.auras:ClearAllPoints()
+		member.auras:SetPoint("TOPLEFT", pet, "TOPRIGHT", 4, 0)
 	end
 end
 

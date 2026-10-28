@@ -277,7 +277,7 @@ local function BorderList() return ns:ListMedia("border") end
 local WIDTH_LABELS = {
 	player = "Player",
 	target = "Target",
-	targettarget = "Focus / Target of Target",
+	targettarget = "Focus / ToT / party pets",
 	pet = "Pet",
 	party1 = "Party",
 }

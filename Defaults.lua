@@ -9,7 +9,11 @@ local addonName, ns = ...
 ---------------------------------------------------------------------------
 
 -- Creation order; also the order of the width sliders in the config panel
-ns.unitOrder = { "player", "target", "targettarget", "pet", "focus", "party1", "party2", "party3", "party4" }
+ns.unitOrder = {
+	"player", "target", "targettarget", "pet", "focus",
+	"party1", "party2", "party3", "party4",
+	"partypet1", "partypet2", "partypet3", "partypet4",
+}
 
 -- Per-unit build options. Frames are positioned by ns:ApplyPositions from
 -- the layout settings rather than individually.
@@ -24,21 +28,27 @@ ns.unitOrder = { "player", "target", "targettarget", "pet", "focus", "party1", "
 --   combo              combo point pips
 --   status             status icons: leader/looter always, plus pvp/state
 --   poll               no reliable events, refresh on a timer
---   party              party member: raid-hidden, roster-aware, range fade
+--   party              party unit: raid-hidden, roster-aware, range fade
+--   owner              a pet: refresh when this unit's pet changes
 --   widthFrom          share another unit's width setting
 ns.units = {
 	player       = { label = "Player", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, status = { pvp = true, state = true } },
 	target       = { label = "Target", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, combo = true, status = { pvp = true } },
 	targettarget = { label = "ToT",    w = 108, h = 22, poll = true },
-	pet          = { label = "Pet",    w = 108, h = 22, power = true },
+	pet          = { label = "Pet",    w = 108, h = 22, power = true, owner = "player" },
 	focus        = { label = "Focus",  w = 108, h = 22, widthFrom = "targettarget", detachedCastbar = true },
 }
 -- Party: the other four members (like Blizzard's classic party frames, the
--- player isn't included). All share party1's width.
+-- player isn't included), each with a pet frame to its right. Members share
+-- party1's width; pets are focus/ToT sized and share that width.
 for i = 1, 4 do
 	ns.units["party" .. i] = {
 		label = "Party " .. i, w = 150, h = 36, power = true, powerHeight = 8, auras = "right",
 		party = true, widthFrom = i > 1 and "party1" or nil, status = {},
+	}
+	ns.units["partypet" .. i] = {
+		label = "Pet " .. i, w = 108, h = 22,
+		party = true, owner = "party" .. i, widthFrom = "targettarget",
 	}
 end
 
