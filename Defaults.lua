@@ -123,6 +123,12 @@ ns.settingsDefaults = {
 		threatPercent = true, -- threat % beside the plate while on its threat list
 	},
 
+	-- Restyling of Blizzard's player buff/debuff frames (layout stays with
+	-- Edit Mode)
+	buffs = {
+		enabled = true,
+	},
+
 	healPrediction = {
 		enabled = true, -- incoming heals on the unit frames' health bars
 	},

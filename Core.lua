@@ -81,6 +81,7 @@ function ns:ApplyStyle()
 		ns:StyleFrame(f)
 	end
 	ns:StyleActionBars()
+	ns:StyleBuffs()
 	ns:StyleNameplates()
 	ns:StyleStatusBars()
 end
@@ -98,7 +99,9 @@ function ns:ApplyLayout()
 		ns:LayoutFrame(f)
 	end
 	ns:ApplyPositions()
+	-- Border size/inset changes
 	ns:StyleActionBars()
+	ns:StyleBuffs()
 	ns:LayoutNameplates()
 	ns:LayoutStatusBars()
 	return true
@@ -159,6 +162,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		-- now. Styling again also picks up saved media from LibSharedMedia
 		-- packs that registered after us.
 		ns:InitActionBars()
+		ns:InitBuffs()
 		ns:InitNameplates()
 		ns:InitStatusBars()
 		ns:InitChat()

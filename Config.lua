@@ -218,6 +218,11 @@ local function SetHealPrediction(key, value)
 	ns:ApplyStyle()
 end
 
+local function SetBuffs(key, value)
+	KUIDB.buffs[key] = value
+	NeedsReload("buff bar styling")
+end
+
 local function SetChat(key, value)
 	KUIDB.chat[key] = value
 	ns:ApplyChat()
@@ -416,6 +421,9 @@ local function BuildPanel(panel)
 	Checkbox("Show macro names", Bind("actionbars", "showMacroNames", SetActionBars))
 	Checkbox("Red icons out of range", Bind("actionbars", "rangeColor", SetActionBars))
 	Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
+
+	Section("Buff bar")
+	Checkbox("Restyle buff bar", Bind("buffs", "enabled", SetBuffs))
 
 	Section("Chat")
 	Checkbox("Hide chat buttons", Bind("chat", "hideButtons", SetChat))

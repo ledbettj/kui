@@ -22,6 +22,7 @@ Frames.lua
 
 # Other UI replaced or restyled
 ActionBars.lua
+Buffs.lua
 Nameplates.lua
 StatusBars.lua
 Chat.lua
