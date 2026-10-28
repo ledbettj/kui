@@ -1,7 +1,8 @@
 local addonName, ns = ...
 
--- Settings panel: Options -> AddOns -> KUI (or /kui). A single scrolling
--- canvas of labeled rows. Every frame is shown in preview while it's open.
+-- Settings panel: Options -> AddOns -> KUI (or /kui). One page per area
+-- (General, Unit Frames, Colors, ...), each a scrolling canvas of labeled
+-- rows in sections. Every frame is shown in preview while any page is open.
 
 local LABEL_WIDTH = 140
 local CONTROL_WIDTH = 240
@@ -275,7 +276,7 @@ local function FontList() return ns:ListMedia("font") end
 local function BorderList() return ns:ListMedia("border") end
 
 ---------------------------------------------------------------------------
--- Panel
+-- Pages
 ---------------------------------------------------------------------------
 
 -- Width slider labels; units sharing another's width aren't listed
@@ -291,53 +292,75 @@ local CAST_LABELS = { cast = "Casting", channel = "Channeling", failed = "Failed
 local HEAL_LABELS = { mine = "Your heals", others = "Others' heals" }
 local THREAT_LABELS = { pulling = "About to pull aggro", insecure = "Tanking, losing it", tanking = "Tanking" }
 
--- Returns the content height
-local function BuildPanel(panel)
-	local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-	title:SetPoint("TOPLEFT", 16, -16)
-	title:SetText("KUI")
+local PAGE_TOP = -72 -- below the title and (up to two lines of) description
 
-	local subtitle = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-	subtitle:SetText("Unit frame settings. Changes apply immediately; all frames are shown while this panel is open.")
+-- A page's widgets, stacked top-down in sections. Each method places one
+-- row; the widget arguments are passed straight through.
+local function NewBuilder(content)
+	local b = { y = PAGE_TOP }
 
-	-- Simple top-down stacking
-	local y = -64
 	local function Place(region, extraGap)
-		region:SetPoint("TOPLEFT", 16, y)
-		y = y - (region.GetHeight and region:GetHeight() > 0 and region:GetHeight() or 16) - (extraGap or 0)
+		region:SetPoint("TOPLEFT", 16, b.y)
+		b.y = b.y - (region.GetHeight and region:GetHeight() > 0 and region:GetHeight() or 16) - (extraGap or 0)
 	end
 
-	local function Section(text)
-		if y < -64 then y = y - 12 end
-		Place(CreateHeader(panel, text), 6)
+	function b.Section(text)
+		if b.y < PAGE_TOP then b.y = b.y - 12 end
+		Place(CreateHeader(content, text), 6)
 	end
-	local function Slider(...) Place(CreateSlider(panel, ...)) end
-	local function Dropdown(...) Place(CreateDropdown(panel, ...)) end
-	local function Checkbox(...) Place(CreateCheckbox(panel, ...)) end
-	local function Swatch(...) Place(CreateColorSwatch(panel, ...)) end
-	local function ColorRow(kind, key, label)
-		Swatch(label,
+	function b.Slider(...) Place(CreateSlider(content, ...)) end
+	function b.Dropdown(...) Place(CreateDropdown(content, ...)) end
+	function b.Checkbox(...) Place(CreateCheckbox(content, ...)) end
+	function b.Swatch(...) Place(CreateColorSwatch(content, ...)) end
+	function b.ColorRow(kind, key, label)
+		b.Swatch(label,
 			function() return ns:GetColor(kind, key) end,
 			function(v) SetColor(kind, key, v) end,
 			function() SetColor(kind, key, nil) end)
 	end
+	function b.Button(text, onClick)
+		b.y = b.y - 16
+		local button = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+		button:SetSize(140, 24)
+		button:SetText(text)
+		button:SetScript("OnClick", onClick)
+		Place(button)
+	end
 
-	Section("Layout")
-	Slider("Vertical position", -600, 600, 2, Bind("layout", "y", SetLayout))
-	Slider("Distance from center", 0, 400, 1, Bind("layout", "centerGap", SetLayout))
-	Slider("Focus / ToT spacing", 0, 100, 1, Bind("layout", "sideGap", SetLayout))
+	return b
+end
 
-	Section("Party")
-	Slider("Horizontal position", 0, 1000, 2, Bind("layout", "partyX", SetLayout))
-	Slider("Vertical position", -1000, 0, 2, Bind("layout", "partyY", SetLayout))
-	Slider("Spacing", 0, 60, 1, Bind("layout", "partySpacing", SetLayout))
-	Slider("Out of range opacity", 0, 100, 5, Bind("style", "outOfRangeAlpha", SetStyle, true))
+local function BuildGeneral(b)
+	b.Section("Text")
+	b.Dropdown("Font", FontList, Bind("style", "font", SetStyle))
+	b.Slider("Font size", 8, 16, 1, Bind("style", "fontSize", SetStyle))
 
-	Section("Frame width")
+	b.Section("Bar textures")
+	b.Dropdown("Health bar", StatusbarList, Bind("style", "healthTexture", SetStyle))
+	b.Dropdown("Power bar", StatusbarList, Bind("style", "powerTexture", SetStyle))
+	b.Swatch("Empty bar color", Bind("style", "emptyColor", SetStyle))
+	b.Slider("Empty bar opacity", 0, 100, 5, Bind("style", "emptyAlpha", SetStyle, true))
+
+	b.Section("Border")
+	b.Dropdown("Style", BorderList, Bind("style", "border", SetStyle))
+	b.Slider("Thickness", 1, 24, 1, Bind("style", "borderSize", SetStyle))
+	b.Swatch("Color", Bind("style", "borderColor", SetStyle))
+	b.Slider("Padding", 0, 6, 1, Bind("style", "padding", SetStyle))
+	b.Slider("Background opacity", 0, 100, 5, Bind("style", "bgAlpha", SetStyle, true))
+
+	b.Button("Reset to defaults", ResetToDefaults)
+end
+
+local function BuildUnitFrames(b)
+	b.Section("Layout")
+	b.Slider("Vertical position", -600, 600, 2, Bind("layout", "y", SetLayout))
+	b.Slider("Distance from center", 0, 400, 1, Bind("layout", "centerGap", SetLayout))
+	b.Slider("Focus / ToT spacing", 0, 100, 1, Bind("layout", "sideGap", SetLayout))
+
+	b.Section("Frame width")
 	for _, unit in ipairs(ns.unitOrder) do
 		if not ns.units[unit].widthFrom then
-			Slider(WIDTH_LABELS[unit] or unit, 60, 400, 2,
+			b.Slider(WIDTH_LABELS[unit] or unit, 60, 400, 2,
 				function() return ns:GetWidth(unit) end,
 				function(v)
 					KUIDB.widths[unit] = v
@@ -345,134 +368,192 @@ local function BuildPanel(panel)
 				end)
 		end
 	end
+	b.Slider("Power bar height (player/target)", 2, 20, 1, Bind("style", "powerHeight", SetStyle))
 
-	Section("Text")
-	Dropdown("Font", FontList, Bind("style", "font", SetStyle))
-	Slider("Font size", 8, 16, 1, Bind("style", "fontSize", SetStyle))
+	b.Section("Party")
+	b.Slider("Horizontal position", 0, 1000, 2, Bind("layout", "partyX", SetLayout))
+	b.Slider("Vertical position", -1000, 0, 2, Bind("layout", "partyY", SetLayout))
+	b.Slider("Spacing", 0, 60, 1, Bind("layout", "partySpacing", SetLayout))
+	b.Slider("Out of range opacity", 0, 100, 5, Bind("style", "outOfRangeAlpha", SetStyle, true))
 
-	Section("Bars")
-	Dropdown("Health bar", StatusbarList, Bind("style", "healthTexture", SetStyle))
-	Dropdown("Power bar", StatusbarList, Bind("style", "powerTexture", SetStyle))
-	Slider("Power bar height", 2, 20, 1, Bind("style", "powerHeight", SetStyle))
-	Swatch("Empty bar color", Bind("style", "emptyColor", SetStyle))
-	Slider("Empty bar opacity", 0, 100, 5, Bind("style", "emptyAlpha", SetStyle, true))
+	b.Section("Cast bars")
+	b.Slider("Height (player/target)", 4, 24, 1, Bind("castbar", "height", SetCastbar))
+	b.Slider("Height (focus)", 6, 30, 1, Bind("castbar", "focusHeight", SetCastbar))
+	b.Dropdown("Texture", StatusbarList, Bind("castbar", "texture", SetCastbar))
+	b.Checkbox("Show spell icon", Bind("castbar", "showIcon", SetCastbar))
 
-	Section("Incoming heals")
-	Checkbox("Show incoming heals", Bind("healPrediction", "enabled", SetHealPrediction))
-	for _, key in ipairs(ns.healOrder) do
-		ColorRow("heal", key, HEAL_LABELS[key])
-	end
-
-	Section("Cast bar")
-	Slider("Focus cast bar height", 6, 30, 1, Bind("castbar", "focusHeight", SetCastbar))
-	Slider("Height (player/target)", 4, 24, 1, Bind("castbar", "height", SetCastbar))
-	Dropdown("Texture", StatusbarList, Bind("castbar", "texture", SetCastbar))
-	Checkbox("Show spell icon", Bind("castbar", "showIcon", SetCastbar))
-
-	Section("Color palette")
-	Dropdown("Palette", function() return ns.paletteOrder end,
-		function() return KUIDB.colors.palette end, SetPalette)
-
-	Section("Class colors (health)")
-	for _, class in ipairs(ns.classOrder) do
-		ColorRow("class", class, LOCALIZED_CLASS_NAMES_MALE[class] or class)
-	end
-
-	Section("Reaction colors (NPC health)")
-	for _, key in ipairs(ns.reactionOrder) do
-		ColorRow("reaction", key, REACTION_LABELS[key])
-	end
-
-	Section("Power colors")
-	for _, token in ipairs(ns.powerOrder) do
-		ColorRow("power", token, _G[token] or token)
-	end
-
-	Section("Cast bar colors")
-	for _, key in ipairs(ns.castOrder) do
-		ColorRow("cast", key, CAST_LABELS[key])
-	end
-
-	Section("XP / reputation bars")
-	Checkbox("Replace XP/rep bars", Bind("statusbars", "enabled", SetStatusBars))
-	Dropdown("Position", function() return { "Top", "Bottom" } end, Bind("statusbars", "position", SetStatusBars))
-	Slider("Width", 100, 1200, 4, Bind("statusbars", "width", SetStatusBars))
-	Slider("Height", 4, 30, 1, Bind("statusbars", "height", SetStatusBars))
-	Dropdown("Texture", StatusbarList, Bind("statusbars", "texture", SetStatusBars))
-
-	Section("Nameplates")
-	Checkbox("Restyle nameplates", Bind("nameplates", "enabled", SetNameplates))
-	Slider("Width", 60, 240, 2, Bind("nameplates", "width", SetNameplates))
-	Slider("Health height", 6, 30, 1, Bind("nameplates", "height", SetNameplates))
-	Slider("Cast bar height", 6, 24, 1, Bind("nameplates", "castHeight", SetNameplates))
-	Checkbox("Highlight target", Bind("nameplates", "highlightTarget", SetNameplates))
-	Swatch("Target border color", Bind("nameplates", "targetColor", SetNameplates))
-	Checkbox("Threat border", Bind("nameplates", "threatBorder", SetNameplates))
-	Checkbox("Threat percentage", Bind("nameplates", "threatPercent", SetNameplates))
-
-	Section("Threat colors")
-	for _, key in ipairs(ns.threatOrder) do
-		ColorRow("threat", key, THREAT_LABELS[key])
-	end
-
-	Section("Action bars")
-	Checkbox("Restyle action bars", Bind("actionbars", "enabled", SetActionBars))
-	Checkbox("Show keybinds", Bind("actionbars", "showHotkeys", SetActionBars))
-	Checkbox("Show macro names", Bind("actionbars", "showMacroNames", SetActionBars))
-	Checkbox("Red icons out of range", Bind("actionbars", "rangeColor", SetActionBars))
-	Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
-
-	Section("Buff bar")
-	Checkbox("Restyle buff bar", Bind("buffs", "enabled", SetBuffs))
-
-	Section("Chat")
-	Checkbox("Hide chat buttons", Bind("chat", "hideButtons", SetChat))
-
-	Section("Border")
-	Dropdown("Style", BorderList, Bind("style", "border", SetStyle))
-	Slider("Thickness", 1, 24, 1, Bind("style", "borderSize", SetStyle))
-	Swatch("Color", Bind("style", "borderColor", SetStyle))
-	Slider("Padding", 0, 6, 1, Bind("style", "padding", SetStyle))
-	Slider("Background opacity", 0, 100, 5, Bind("style", "bgAlpha", SetStyle, true))
-
-	y = y - 16
-	local reset = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-	reset:SetSize(140, 24)
-	Place(reset)
-	reset:SetText("Reset to defaults")
-	reset:SetScript("OnClick", ResetToDefaults)
-
-	return -y + 16
+	b.Section("Incoming heals")
+	b.Checkbox("Show incoming heals", Bind("healPrediction", "enabled", SetHealPrediction))
 end
 
-function ns:InitConfig()
-	local panel = CreateFrame("Frame")
+local function BuildColors(b)
+	b.Section("Palette")
+	b.Dropdown("Palette", function() return ns.paletteOrder end,
+		function() return KUIDB.colors.palette end, SetPalette)
 
-	-- Settings doesn't scroll canvas panels itself, and ours is taller than
-	-- the visible area
+	b.Section("Class (player health)")
+	for _, class in ipairs(ns.classOrder) do
+		b.ColorRow("class", class, LOCALIZED_CLASS_NAMES_MALE[class] or class)
+	end
+
+	b.Section("Reaction (NPC health)")
+	for _, key in ipairs(ns.reactionOrder) do
+		b.ColorRow("reaction", key, REACTION_LABELS[key])
+	end
+
+	b.Section("Power")
+	for _, token in ipairs(ns.powerOrder) do
+		b.ColorRow("power", token, _G[token] or token)
+	end
+
+	b.Section("Cast bars")
+	for _, key in ipairs(ns.castOrder) do
+		b.ColorRow("cast", key, CAST_LABELS[key])
+	end
+
+	b.Section("Incoming heals")
+	for _, key in ipairs(ns.healOrder) do
+		b.ColorRow("heal", key, HEAL_LABELS[key])
+	end
+
+	b.Section("Threat")
+	for _, key in ipairs(ns.threatOrder) do
+		b.ColorRow("threat", key, THREAT_LABELS[key])
+	end
+end
+
+local function BuildNameplates(b)
+	b.Section("Nameplates")
+	b.Checkbox("Restyle nameplates", Bind("nameplates", "enabled", SetNameplates))
+	b.Slider("Width", 60, 240, 2, Bind("nameplates", "width", SetNameplates))
+	b.Slider("Health height", 6, 30, 1, Bind("nameplates", "height", SetNameplates))
+	b.Slider("Cast bar height", 6, 24, 1, Bind("nameplates", "castHeight", SetNameplates))
+
+	b.Section("Target")
+	b.Checkbox("Highlight target", Bind("nameplates", "highlightTarget", SetNameplates))
+	b.Swatch("Target border color", Bind("nameplates", "targetColor", SetNameplates))
+
+	b.Section("Threat")
+	b.Checkbox("Threat border", Bind("nameplates", "threatBorder", SetNameplates))
+	b.Checkbox("Threat percentage", Bind("nameplates", "threatPercent", SetNameplates))
+end
+
+local function BuildActionBars(b)
+	b.Section("Action bars")
+	b.Checkbox("Restyle action bars", Bind("actionbars", "enabled", SetActionBars))
+	b.Checkbox("Show keybinds", Bind("actionbars", "showHotkeys", SetActionBars))
+	b.Checkbox("Show macro names", Bind("actionbars", "showMacroNames", SetActionBars))
+	b.Checkbox("Red icons out of range", Bind("actionbars", "rangeColor", SetActionBars))
+	b.Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
+
+	b.Section("Buff bar")
+	b.Checkbox("Restyle buff bar", Bind("buffs", "enabled", SetBuffs))
+end
+
+local function BuildOther(b)
+	b.Section("XP / reputation bars")
+	b.Checkbox("Replace XP/rep bars", Bind("statusbars", "enabled", SetStatusBars))
+	b.Dropdown("Position", function() return { "Top", "Bottom" } end, Bind("statusbars", "position", SetStatusBars))
+	b.Slider("Width", 100, 1200, 4, Bind("statusbars", "width", SetStatusBars))
+	b.Slider("Height", 4, 30, 1, Bind("statusbars", "height", SetStatusBars))
+	b.Dropdown("Texture", StatusbarList, Bind("statusbars", "texture", SetStatusBars))
+
+	b.Section("Chat")
+	b.Checkbox("Hide chat buttons", Bind("chat", "hideButtons", SetChat))
+end
+
+-- Order is the sidebar order; the first page is the KUI category itself
+local PAGES = {
+	{ name = "KUI", title = "KUI", build = BuildGeneral,
+		description = "Shared look for everything KUI draws. All unit frames are shown while any KUI page is open." },
+	{ name = "Unit Frames", build = BuildUnitFrames,
+		description = "Position and size of the player, target, focus, pet and party frames." },
+	{ name = "Colors", build = BuildColors,
+		description = "Choosing a palette clears individual overrides; Reset returns a row to the palette." },
+	{ name = "Nameplates", build = BuildNameplates,
+		description = "Enemy plates show your debuffs and buffs you can purge; friendly plates your own buffs." },
+	{ name = "Action Bars & Buffs", build = BuildActionBars,
+		description = "Cosmetic only: positions and sizes stay with Edit Mode." },
+	{ name = "XP & Chat", build = BuildOther,
+		description = "XP/reputation bars and chat window tweaks." },
+}
+
+---------------------------------------------------------------------------
+-- Registration
+---------------------------------------------------------------------------
+
+local panels = {}
+
+local function AnyPageVisible()
+	for _, panel in ipairs(panels) do
+		if panel:IsVisible() then return true end
+	end
+	return false
+end
+
+local function OnPageShow()
+	RefreshAll()
+	if not InCombatLockdown() then ns:SetPreview(true) end
+end
+
+-- Preview stays on while moving between KUI pages: a page hiding only turns
+-- it off if no other KUI page is showing by the next frame
+local function OnPageHide()
+	C_Timer.After(0, function()
+		if not AnyPageVisible() and not InCombatLockdown() then ns:SetPreview(false) end
+	end)
+end
+
+local function CreatePage(page)
+	-- Hidden until Settings displays it: a shown frame without a parent
+	-- counts as visible, which would keep AnyPageVisible true forever
+	local panel = CreateFrame("Frame")
+	panel:Hide()
+
+	-- Settings doesn't scroll canvas panels itself
 	local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
 	scroll:SetPoint("TOPLEFT", 0, -4)
 	scroll:SetPoint("BOTTOMRIGHT", -28, 4)
 
 	local content = CreateFrame("Frame", nil, scroll)
 	content:SetWidth(LABEL_WIDTH + CONTROL_WIDTH + 100)
-	content:SetHeight(BuildPanel(content))
 	scroll:SetScrollChild(content)
 
-	-- Show every frame while the panel is open so the layout is visible
-	panel:SetScript("OnShow", function()
-		RefreshAll()
-		if not InCombatLockdown() then ns:SetPreview(true) end
-	end)
-	panel:SetScript("OnHide", function()
-		if not InCombatLockdown() then ns:SetPreview(false) end
-	end)
+	local title = content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+	title:SetPoint("TOPLEFT", 16, -16)
+	title:SetText(page.title or ("KUI - " .. page.name))
 
-	-- Hooks the Settings panel calls for canvas categories
+	local description = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	description:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+	description:SetPoint("RIGHT", content, "RIGHT", -16, 0)
+	description:SetJustifyH("LEFT")
+	description:SetText(page.description)
+
+	local builder = NewBuilder(content)
+	page.build(builder)
+	content:SetHeight(-builder.y + 16)
+
+	panel:SetScript("OnShow", OnPageShow)
+	panel:SetScript("OnHide", OnPageHide)
+	-- Hook the Settings panel calls when a canvas is shown
 	panel.OnRefresh = RefreshAll
-	panel.OnDefault = ResetToDefaults
+	return panel
+end
 
-	category = Settings.RegisterCanvasLayoutCategory(panel, "KUI")
+function ns:InitConfig()
+	for i, page in ipairs(PAGES) do
+		local panel = CreatePage(page)
+		panels[i] = panel
+		if i == 1 then
+			-- Settings' Defaults button calls OnDefault on the shown canvas, or on
+			-- every canvas for "all settings". Resetting is all-or-nothing in
+			-- KUI, so only the top page carries it.
+			panel.OnDefault = ResetToDefaults
+			category = Settings.RegisterCanvasLayoutCategory(panel, page.name)
+		else
+			Settings.RegisterCanvasLayoutSubcategory(category, panel, page.name)
+		end
+	end
 	Settings.RegisterAddOnCategory(category)
 end
 
