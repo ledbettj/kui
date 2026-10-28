@@ -1,16 +1,27 @@
 ## Interface: 20506
 ## Title: KUI
-## Notes: Lightweight unit frames
+## Notes: Unit frames, nameplates, cast bars, action button and XP bar styling
 ## Author: John
 ## Version: 0.1.0
 ## SavedVariables: KUIDB
 ## OptionalDeps: LibSharedMedia-3.0, SharedMedia
 
+# Shared foundations
+Defaults.lua
 Core.lua
 Media.lua
-Frames.lua
+Colors.lua
+Widgets.lua
+
+# Unit frame parts, then the frames themselves
+Auras.lua
+Indicators.lua
 Castbar.lua
+Frames.lua
+
+# Other UI replaced or restyled
 ActionBars.lua
 Nameplates.lua
 StatusBars.lua
+
 Config.lua

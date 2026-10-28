@@ -37,6 +37,7 @@ local function UpdateTargetHighlight(kp)
 end
 
 -- Raid marker just outside the plate's right edge, sized to stand out
+-- (unit frames put theirs inside the health bar instead)
 local function UpdateRaidMark(kp)
 	local index = GetRaidTargetIndex(kp.unit)
 	if index then
@@ -82,9 +83,7 @@ local function LayoutPlate(kp)
 	kp.castbar:SetHeight(math.max(1, N.castHeight - inset * 2))
 	ns:LayoutCastbar(kp.castbar)
 
-	local layout = kp.auras.layout
-	kp.auras.perRow = math.max(1, math.floor((N.width + ns.AURA_SPACING) / (layout.size + ns.AURA_SPACING)))
-	kp.auras:SetWidth(kp.auras.perRow * (layout.size + ns.AURA_SPACING))
+	ns.SizeAuras(kp.auras, N.width)
 
 	-- Backdrop reapply resets the border color
 	if kp.unit then UpdateTargetHighlight(kp) end
@@ -119,10 +118,7 @@ local function CreatePlate(base)
 	kp.raidMark:Hide()
 
 	-- Buffs and own debuffs above
-	kp.auras = CreateFrame("Frame", nil, kp)
-	kp.auras.layout = ns.AURA_LAYOUTS.nameplate
-	kp.auras.buttons = {}
-	kp.auras:SetHeight(kp.auras.layout.size)
+	ns.CreateAuras(kp, "nameplate")
 	kp.auras:SetPoint("BOTTOMLEFT", kp, "TOPLEFT", 0, 3)
 
 	-- Cast bar below, in its own bordered holder that hides when idle

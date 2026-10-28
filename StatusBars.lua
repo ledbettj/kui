@@ -146,7 +146,7 @@ local function CreateStatusBar(withRested)
 		-- Drawn under the XP fill; its own background stays empty so the
 		-- XP bar's background shows through
 		bar.rested = CreateFrame("StatusBar", nil, bar)
-		bar.rested:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+		bar.rested:SetStatusBarTexture(ns.FLAT_TEXTURE)
 		bar.rested:SetFrameLevel(bar.status:GetFrameLevel())
 		bar.status:SetFrameLevel(bar.rested:GetFrameLevel() + 1)
 		bar.status.bg:SetParent(bar.rested)

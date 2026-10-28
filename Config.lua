@@ -1,19 +1,14 @@
 local addonName, ns = ...
 
-local UNIT_NAMES = {
-	player = "Player",
-	target = "Target",
-	targettarget = "Focus / Target of Target",
-	pet = "Pet",
-	party1 = "Party",
-}
+-- Settings panel: Options -> AddOns -> KUI (or /kui). A single scrolling
+-- canvas of labeled rows. Every frame is shown in preview while it's open.
 
 local LABEL_WIDTH = 140
 local CONTROL_WIDTH = 240
 local ROW_HEIGHT = 30
 
 local category
-local rows = {}
+local rows = {} -- every control row, for RefreshAll
 
 local function RefreshAll()
 	for _, row in ipairs(rows) do
@@ -22,7 +17,8 @@ local function RefreshAll()
 end
 
 ---------------------------------------------------------------------------
--- Widgets
+-- Widgets. Each takes get/set functions last and returns a row with a
+-- Refresh method that re-reads its value.
 ---------------------------------------------------------------------------
 
 local function CreateRow(parent, text)
@@ -57,7 +53,9 @@ local function CreateSlider(parent, text, minValue, maxValue, step, get, set)
 	return row
 end
 
-local function CreateDropdown(parent, text, listMedia, get, set)
+-- list: function returning the option names (media lists can grow at
+-- runtime as LibSharedMedia packs register)
+local function CreateDropdown(parent, text, list, get, set)
 	local row = CreateRow(parent, text)
 
 	local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
@@ -66,7 +64,7 @@ local function CreateDropdown(parent, text, listMedia, get, set)
 	dropdown:SetupMenu(function(_, root)
 		-- LibSharedMedia packs can add dozens of entries
 		if root.SetScrollMode then root:SetScrollMode(400) end
-		for _, name in ipairs(listMedia()) do
+		for _, name in ipairs(list()) do
 			root:CreateRadio(name, function(n) return get() == n end, set, name)
 		end
 	end)
@@ -109,7 +107,7 @@ local function CreateColorSwatch(parent, text, get, set, reset)
 	swatch:SetPoint("BOTTOMRIGHT", -2, 2)
 
 	local function Apply(r, g, b)
-		-- Always a fresh table: the saved value may be the shared default
+		-- Always a fresh table: get() may return a shared default
 		set({ r, g, b })
 		swatch:SetColorTexture(r, g, b)
 	end
@@ -148,71 +146,56 @@ local function CreateHeader(parent, text)
 end
 
 ---------------------------------------------------------------------------
--- Actions
+-- Setters: store the value, then apply it the cheapest correct way
 ---------------------------------------------------------------------------
 
-local function SetWidth(unit, value)
-	KUIDB.widths[unit] = value
-	if InCombatLockdown() then
-		ns.Print("frame sizes will update after combat.")
+-- Layout goes through ns:ApplyLayout, which waits for combat to end
+local function Relayout()
+	if not ns:ApplyLayout() then
+		ns.Print("frame layout will update after combat.")
 	end
-	ns:ApplyLayout()
 end
 
 local function SetLayout(key, value)
 	KUIDB.layout[key] = value
-	if InCombatLockdown() then
-		ns.Print("frame positions will update after combat.")
-	end
-	ns:ApplyLayout()
+	Relayout()
 end
+
+-- Style keys that move or resize regions (the border inset decides where
+-- bars sit) need a relayout; the rest are a restyle
+local STYLE_LAYOUT_KEYS = {
+	border = true, borderSize = true, borderColor = true, padding = true,
+	bgAlpha = true, powerHeight = true,
+}
 
 local function SetStyle(key, value)
 	KUIDB.style[key] = value
-	ns:ApplyStyle()
+	if STYLE_LAYOUT_KEYS[key] then
+		Relayout()
+	else
+		ns:ApplyStyle()
+	end
 end
 
--- Cast bar rows live inside the secure unit frames, so size/icon changes go
--- through the combat-deferred layout path
 local function SetCastbar(key, value)
 	KUIDB.castbar[key] = value
 	if key == "texture" then
 		ns:ApplyStyle()
 	else
-		ns:ApplyLayout()
+		Relayout()
 	end
 end
 
--- kind: "class", "reaction", "power" or "cast"; nil value removes the override
-local function SetColor(kind, key, value)
-	KUIDB.colors[kind][key] = value
-	ns:ApplyStyle()
-end
-
-local COLOR_KINDS = { "class", "reaction", "power", "cast" }
-
--- Choosing a palette clears individual overrides so it shows as designed
-local function SetPalette(name)
-	KUIDB.colors.palette = name
-	for _, kind in ipairs(COLOR_KINDS) do
-		wipe(KUIDB.colors[kind])
-	end
-	ns:ApplyStyle()
-	RefreshAll()
-end
-
-local function CreateColorRow(panel, kind, key, label)
-	return CreateColorSwatch(panel, label,
-		function() return KUIDB.colors[kind][key] or ns:GetDefaultColor(kind, key) end,
-		function(v) SetColor(kind, key, v) end,
-		function() SetColor(kind, key, nil) end)
+-- Modules that are only built at login when enabled
+local function NeedsReload(what)
+	ns.Print(what .. " change takes effect after /reload.")
 end
 
 -- Not secure frames, so these apply immediately, even in combat
 local function SetStatusBars(key, value)
 	KUIDB.statusbars[key] = value
 	if key == "enabled" then
-		ns.Print("XP/reputation bar change takes effect after /reload.")
+		NeedsReload("XP/reputation bar")
 	elseif key == "texture" then
 		ns:StyleStatusBars()
 	else
@@ -220,11 +203,10 @@ local function SetStatusBars(key, value)
 	end
 end
 
--- KUI's nameplate frames aren't secure, so these apply immediately
 local function SetNameplates(key, value)
 	KUIDB.nameplates[key] = value
 	if key == "enabled" then
-		ns.Print("nameplate change takes effect after /reload.")
+		NeedsReload("nameplate")
 	else
 		-- Layout also re-applies the border, including the target highlight
 		ns:LayoutNameplates()
@@ -234,59 +216,65 @@ end
 local function SetActionBars(key, value)
 	KUIDB.actionbars[key] = value
 	if key == "enabled" then
-		ns.Print("action bar styling change takes effect after /reload.")
+		NeedsReload("action bar styling")
 	else
 		ns:StyleActionBars()
 	end
 end
 
--- Border settings re-anchor bars inside the secure frame, so they go through
--- the combat-deferred layout path
-local function SetBorder(key, value)
-	KUIDB.style[key] = value
-	ns:ApplyLayout()
+-- get/set pair for KUIDB[section][key], for the trailing get, set arguments
+-- of the widgets. percent: stored as 0-1, shown as 0-100.
+local function Bind(section, key, setter, percent)
+	if percent then
+		return function() return math.floor(KUIDB[section][key] * 100 + 0.5) end,
+			function(v) setter(key, v / 100) end
+	end
+	return function() return KUIDB[section][key] end,
+		function(v) setter(key, v) end
+end
+
+-- Color overrides; kind is one of ns.colorKinds, a nil value removes the
+-- override
+local function SetColor(kind, key, value)
+	KUIDB.colors[kind][key] = value
+	ns:ApplyStyle()
+end
+
+-- Choosing a palette clears individual overrides so it shows as designed
+local function SetPalette(name)
+	KUIDB.colors.palette = name
+	for _, kind in ipairs(ns.colorKinds) do
+		wipe(KUIDB.colors[kind])
+	end
+	ns:ApplyStyle()
+	RefreshAll()
 end
 
 local function ResetToDefaults()
-	wipe(KUIDB.widths)
-	wipe(KUIDB.style)
-	wipe(KUIDB.layout)
-	wipe(KUIDB.colors.class)
-	wipe(KUIDB.colors.power)
-	wipe(KUIDB.colors.reaction)
-	wipe(KUIDB.colors.cast)
-	KUIDB.colors.palette = "Default"
-	wipe(KUIDB.statusbars)
-	for k, v in pairs(ns.statusbarDefaults) do
-		KUIDB.statusbars[k] = v
-	end
-	wipe(KUIDB.nameplates)
-	for k, v in pairs(ns.nameplateDefaults) do
-		KUIDB.nameplates[k] = v
-	end
-	wipe(KUIDB.actionbars)
-	for k, v in pairs(ns.actionbarDefaults) do
-		KUIDB.actionbars[k] = v
-	end
-	wipe(KUIDB.castbar)
-	for k, v in pairs(ns.castbarDefaults) do
-		KUIDB.castbar[k] = v
-	end
-	for k, v in pairs(ns.styleDefaults) do
-		KUIDB.style[k] = v
-	end
-	for k, v in pairs(ns.layoutDefaults) do
-		KUIDB.layout[k] = v
-	end
-	ns:ApplyStyle()
-	ns:ApplyLayout()
+	ns:ResetSettings()
 	RefreshAll()
 end
+
+local function StatusbarList() return ns:ListMedia("statusbar") end
+local function FontList() return ns:ListMedia("font") end
+local function BorderList() return ns:ListMedia("border") end
 
 ---------------------------------------------------------------------------
 -- Panel
 ---------------------------------------------------------------------------
 
+-- Width slider labels; units sharing another's width aren't listed
+local WIDTH_LABELS = {
+	player = "Player",
+	target = "Target",
+	targettarget = "Focus / Target of Target",
+	pet = "Pet",
+	party1 = "Party",
+}
+local REACTION_LABELS = { hostile = "Hostile", neutral = "Neutral", friendly = "Friendly" }
+local CAST_LABELS = { cast = "Casting", channel = "Channeling", failed = "Failed / interrupted" }
+
+-- Returns the content height
 local function BuildPanel(panel)
 	local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 	title:SetPoint("TOPLEFT", 16, -16)
@@ -303,192 +291,113 @@ local function BuildPanel(panel)
 		y = y - (region.GetHeight and region:GetHeight() > 0 and region:GetHeight() or 16) - (extraGap or 0)
 	end
 
-	Place(CreateHeader(panel, "Layout"), 6)
-	Place(CreateSlider(panel, "Vertical position", -600, 600, 2,
-		function() return KUIDB.layout.y end,
-		function(v) SetLayout("y", v) end))
-	Place(CreateSlider(panel, "Distance from center", 0, 400, 1,
-		function() return KUIDB.layout.centerGap end,
-		function(v) SetLayout("centerGap", v) end))
-	Place(CreateSlider(panel, "Focus / ToT spacing", 0, 100, 1,
-		function() return KUIDB.layout.sideGap end,
-		function(v) SetLayout("sideGap", v) end))
+	local function Section(text)
+		if y < -64 then y = y - 12 end
+		Place(CreateHeader(panel, text), 6)
+	end
+	local function Slider(...) Place(CreateSlider(panel, ...)) end
+	local function Dropdown(...) Place(CreateDropdown(panel, ...)) end
+	local function Checkbox(...) Place(CreateCheckbox(panel, ...)) end
+	local function Swatch(...) Place(CreateColorSwatch(panel, ...)) end
+	local function ColorRow(kind, key, label)
+		Swatch(label,
+			function() return ns:GetColor(kind, key) end,
+			function(v) SetColor(kind, key, v) end,
+			function() SetColor(kind, key, nil) end)
+	end
 
-	y = y - 12
-	Place(CreateHeader(panel, "Party"), 6)
-	Place(CreateSlider(panel, "Horizontal position", 0, 1000, 2,
-		function() return KUIDB.layout.partyX end,
-		function(v) SetLayout("partyX", v) end))
-	Place(CreateSlider(panel, "Vertical position", -1000, 0, 2,
-		function() return KUIDB.layout.partyY end,
-		function(v) SetLayout("partyY", v) end))
-	Place(CreateSlider(panel, "Spacing", 0, 60, 1,
-		function() return KUIDB.layout.partySpacing end,
-		function(v) SetLayout("partySpacing", v) end))
-	Place(CreateSlider(panel, "Out of range opacity", 0, 100, 5,
-		function() return math.floor(KUIDB.style.outOfRangeAlpha * 100 + 0.5) end,
-		function(v) SetStyle("outOfRangeAlpha", v / 100) end))
+	Section("Layout")
+	Slider("Vertical position", -600, 600, 2, Bind("layout", "y", SetLayout))
+	Slider("Distance from center", 0, 400, 1, Bind("layout", "centerGap", SetLayout))
+	Slider("Focus / ToT spacing", 0, 100, 1, Bind("layout", "sideGap", SetLayout))
 
-	y = y - 12
-	Place(CreateHeader(panel, "Frame width"), 6)
-	for _, unit in ipairs(ns.order) do
-		-- Units sharing another's width (focus) are covered by that slider
-		if not ns.defaults[unit].widthFrom then
-			Place(CreateSlider(panel, UNIT_NAMES[unit] or unit, 60, 400, 2,
+	Section("Party")
+	Slider("Horizontal position", 0, 1000, 2, Bind("layout", "partyX", SetLayout))
+	Slider("Vertical position", -1000, 0, 2, Bind("layout", "partyY", SetLayout))
+	Slider("Spacing", 0, 60, 1, Bind("layout", "partySpacing", SetLayout))
+	Slider("Out of range opacity", 0, 100, 5, Bind("style", "outOfRangeAlpha", SetStyle, true))
+
+	Section("Frame width")
+	for _, unit in ipairs(ns.unitOrder) do
+		if not ns.units[unit].widthFrom then
+			Slider(WIDTH_LABELS[unit] or unit, 60, 400, 2,
 				function() return ns:GetWidth(unit) end,
-				function(v) SetWidth(unit, v) end))
+				function(v)
+					KUIDB.widths[unit] = v
+					Relayout()
+				end)
 		end
 	end
 
-	y = y - 12
-	Place(CreateHeader(panel, "Text"), 6)
-	Place(CreateDropdown(panel, "Font", function() return ns:ListMedia("font") end,
-		function() return KUIDB.style.font end,
-		function(v) SetStyle("font", v) end))
-	Place(CreateSlider(panel, "Font size", 8, 16, 1,
-		function() return KUIDB.style.fontSize end,
-		function(v) SetStyle("fontSize", v) end))
+	Section("Text")
+	Dropdown("Font", FontList, Bind("style", "font", SetStyle))
+	Slider("Font size", 8, 16, 1, Bind("style", "fontSize", SetStyle))
 
-	y = y - 12
-	Place(CreateHeader(panel, "Bars"), 6)
-	Place(CreateDropdown(panel, "Health bar", function() return ns:ListMedia("statusbar") end,
-		function() return KUIDB.style.healthTexture end,
-		function(v) SetStyle("healthTexture", v) end))
-	Place(CreateDropdown(panel, "Power bar", function() return ns:ListMedia("statusbar") end,
-		function() return KUIDB.style.powerTexture end,
-		function(v) SetStyle("powerTexture", v) end))
-	-- Resizes rows inside the secure frames, hence the deferred layout path
-	Place(CreateSlider(panel, "Power bar height", 2, 20, 1,
-		function() return KUIDB.style.powerHeight end,
-		function(v) SetBorder("powerHeight", v) end))
-	Place(CreateColorSwatch(panel, "Empty bar color",
-		function() return KUIDB.style.emptyColor end,
-		function(v) SetStyle("emptyColor", v) end))
-	Place(CreateSlider(panel, "Empty bar opacity", 0, 100, 5,
-		function() return math.floor(KUIDB.style.emptyAlpha * 100 + 0.5) end,
-		function(v) SetStyle("emptyAlpha", v / 100) end))
+	Section("Bars")
+	Dropdown("Health bar", StatusbarList, Bind("style", "healthTexture", SetStyle))
+	Dropdown("Power bar", StatusbarList, Bind("style", "powerTexture", SetStyle))
+	Slider("Power bar height", 2, 20, 1, Bind("style", "powerHeight", SetStyle))
+	Swatch("Empty bar color", Bind("style", "emptyColor", SetStyle))
+	Slider("Empty bar opacity", 0, 100, 5, Bind("style", "emptyAlpha", SetStyle, true))
 
-	y = y - 12
-	Place(CreateHeader(panel, "Cast bar"), 6)
-	Place(CreateSlider(panel, "Focus cast bar height", 6, 30, 1,
-		function() return KUIDB.castbar.focusHeight end,
-		function(v) SetCastbar("focusHeight", v) end))
-	Place(CreateSlider(panel, "Height (player/target)", 4, 24, 1,
-		function() return KUIDB.castbar.height end,
-		function(v) SetCastbar("height", v) end))
-	Place(CreateDropdown(panel, "Texture", function() return ns:ListMedia("statusbar") end,
-		function() return KUIDB.castbar.texture end,
-		function(v) SetCastbar("texture", v) end))
-	Place(CreateCheckbox(panel, "Show spell icon",
-		function() return KUIDB.castbar.showIcon end,
-		function(v) SetCastbar("showIcon", v) end))
+	Section("Cast bar")
+	Slider("Focus cast bar height", 6, 30, 1, Bind("castbar", "focusHeight", SetCastbar))
+	Slider("Height (player/target)", 4, 24, 1, Bind("castbar", "height", SetCastbar))
+	Dropdown("Texture", StatusbarList, Bind("castbar", "texture", SetCastbar))
+	Checkbox("Show spell icon", Bind("castbar", "showIcon", SetCastbar))
 
-	y = y - 12
-	Place(CreateHeader(panel, "Color palette"), 6)
-	Place(CreateDropdown(panel, "Palette", function() return ns.paletteOrder end,
-		function() return KUIDB.colors.palette end,
-		SetPalette))
+	Section("Color palette")
+	Dropdown("Palette", function() return ns.paletteOrder end,
+		function() return KUIDB.colors.palette end, SetPalette)
 
-	y = y - 12
-	Place(CreateHeader(panel, "Class colors (health)"), 6)
+	Section("Class colors (health)")
 	for _, class in ipairs(ns.classOrder) do
-		Place(CreateColorRow(panel, "class", class, LOCALIZED_CLASS_NAMES_MALE[class] or class))
+		ColorRow("class", class, LOCALIZED_CLASS_NAMES_MALE[class] or class)
 	end
 
-	y = y - 12
-	Place(CreateHeader(panel, "Reaction colors (NPC health)"), 6)
-	local reactionLabels = { hostile = "Hostile", neutral = "Neutral", friendly = "Friendly" }
+	Section("Reaction colors (NPC health)")
 	for _, key in ipairs(ns.reactionOrder) do
-		Place(CreateColorRow(panel, "reaction", key, reactionLabels[key]))
+		ColorRow("reaction", key, REACTION_LABELS[key])
 	end
 
-	y = y - 12
-	Place(CreateHeader(panel, "Power colors"), 6)
+	Section("Power colors")
 	for _, token in ipairs(ns.powerOrder) do
-		Place(CreateColorRow(panel, "power", token, _G[token] or token))
+		ColorRow("power", token, _G[token] or token)
 	end
 
-	y = y - 12
-	Place(CreateHeader(panel, "Cast bar colors"), 6)
-	local castLabels = { cast = "Casting", channel = "Channeling", failed = "Failed / interrupted" }
+	Section("Cast bar colors")
 	for _, key in ipairs(ns.castOrder) do
-		Place(CreateColorRow(panel, "cast", key, castLabels[key]))
+		ColorRow("cast", key, CAST_LABELS[key])
 	end
 
-	y = y - 12
-	Place(CreateHeader(panel, "XP / reputation bars"), 6)
-	Place(CreateCheckbox(panel, "Replace XP/rep bars",
-		function() return KUIDB.statusbars.enabled end,
-		function(v) SetStatusBars("enabled", v) end))
-	Place(CreateDropdown(panel, "Position", function() return { "Top", "Bottom" } end,
-		function() return KUIDB.statusbars.position end,
-		function(v) SetStatusBars("position", v) end))
-	Place(CreateSlider(panel, "Width", 100, 1200, 4,
-		function() return KUIDB.statusbars.width end,
-		function(v) SetStatusBars("width", v) end))
-	Place(CreateSlider(panel, "Height", 4, 30, 1,
-		function() return KUIDB.statusbars.height end,
-		function(v) SetStatusBars("height", v) end))
-	Place(CreateDropdown(panel, "Texture", function() return ns:ListMedia("statusbar") end,
-		function() return KUIDB.statusbars.texture end,
-		function(v) SetStatusBars("texture", v) end))
+	Section("XP / reputation bars")
+	Checkbox("Replace XP/rep bars", Bind("statusbars", "enabled", SetStatusBars))
+	Dropdown("Position", function() return { "Top", "Bottom" } end, Bind("statusbars", "position", SetStatusBars))
+	Slider("Width", 100, 1200, 4, Bind("statusbars", "width", SetStatusBars))
+	Slider("Height", 4, 30, 1, Bind("statusbars", "height", SetStatusBars))
+	Dropdown("Texture", StatusbarList, Bind("statusbars", "texture", SetStatusBars))
 
-	y = y - 12
-	Place(CreateHeader(panel, "Nameplates"), 6)
-	Place(CreateCheckbox(panel, "Restyle nameplates",
-		function() return KUIDB.nameplates.enabled end,
-		function(v) SetNameplates("enabled", v) end))
-	Place(CreateSlider(panel, "Width", 60, 240, 2,
-		function() return KUIDB.nameplates.width end,
-		function(v) SetNameplates("width", v) end))
-	Place(CreateSlider(panel, "Health height", 6, 30, 1,
-		function() return KUIDB.nameplates.height end,
-		function(v) SetNameplates("height", v) end))
-	Place(CreateSlider(panel, "Cast bar height", 6, 24, 1,
-		function() return KUIDB.nameplates.castHeight end,
-		function(v) SetNameplates("castHeight", v) end))
-	Place(CreateCheckbox(panel, "Highlight target",
-		function() return KUIDB.nameplates.highlightTarget end,
-		function(v) SetNameplates("highlightTarget", v) end))
-	Place(CreateColorSwatch(panel, "Target border color",
-		function() return KUIDB.nameplates.targetColor end,
-		function(v) SetNameplates("targetColor", v) end))
+	Section("Nameplates")
+	Checkbox("Restyle nameplates", Bind("nameplates", "enabled", SetNameplates))
+	Slider("Width", 60, 240, 2, Bind("nameplates", "width", SetNameplates))
+	Slider("Health height", 6, 30, 1, Bind("nameplates", "height", SetNameplates))
+	Slider("Cast bar height", 6, 24, 1, Bind("nameplates", "castHeight", SetNameplates))
+	Checkbox("Highlight target", Bind("nameplates", "highlightTarget", SetNameplates))
+	Swatch("Target border color", Bind("nameplates", "targetColor", SetNameplates))
 
-	y = y - 12
-	Place(CreateHeader(panel, "Action bars"), 6)
-	Place(CreateCheckbox(panel, "Restyle action bars",
-		function() return KUIDB.actionbars.enabled end,
-		function(v) SetActionBars("enabled", v) end))
-	Place(CreateCheckbox(panel, "Show keybinds",
-		function() return KUIDB.actionbars.showHotkeys end,
-		function(v) SetActionBars("showHotkeys", v) end))
-	Place(CreateCheckbox(panel, "Show macro names",
-		function() return KUIDB.actionbars.showMacroNames end,
-		function(v) SetActionBars("showMacroNames", v) end))
-	Place(CreateCheckbox(panel, "Red icons out of range",
-		function() return KUIDB.actionbars.rangeColor end,
-		function(v) SetActionBars("rangeColor", v) end))
-	Place(CreateColorSwatch(panel, "Active border color",
-		function() return KUIDB.actionbars.activeColor end,
-		function(v) SetActionBars("activeColor", v) end))
+	Section("Action bars")
+	Checkbox("Restyle action bars", Bind("actionbars", "enabled", SetActionBars))
+	Checkbox("Show keybinds", Bind("actionbars", "showHotkeys", SetActionBars))
+	Checkbox("Show macro names", Bind("actionbars", "showMacroNames", SetActionBars))
+	Checkbox("Red icons out of range", Bind("actionbars", "rangeColor", SetActionBars))
+	Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
 
-	y = y - 12
-	Place(CreateHeader(panel, "Border"), 6)
-	Place(CreateDropdown(panel, "Style", function() return ns:ListMedia("border") end,
-		function() return KUIDB.style.border end,
-		function(v) SetBorder("border", v) end))
-	Place(CreateSlider(panel, "Thickness", 1, 24, 1,
-		function() return KUIDB.style.borderSize end,
-		function(v) SetBorder("borderSize", v) end))
-	Place(CreateColorSwatch(panel, "Color",
-		function() return KUIDB.style.borderColor end,
-		function(v) SetBorder("borderColor", v) end))
-	Place(CreateSlider(panel, "Padding", 0, 6, 1,
-		function() return KUIDB.style.padding end,
-		function(v) SetBorder("padding", v) end))
-	Place(CreateSlider(panel, "Background opacity", 0, 100, 5,
-		function() return math.floor(KUIDB.style.bgAlpha * 100 + 0.5) end,
-		function(v) SetBorder("bgAlpha", v / 100) end))
+	Section("Border")
+	Dropdown("Style", BorderList, Bind("style", "border", SetStyle))
+	Slider("Thickness", 1, 24, 1, Bind("style", "borderSize", SetStyle))
+	Swatch("Color", Bind("style", "borderColor", SetStyle))
+	Slider("Padding", 0, 6, 1, Bind("style", "padding", SetStyle))
+	Slider("Background opacity", 0, 100, 5, Bind("style", "bgAlpha", SetStyle, true))
 
 	y = y - 16
 	local reset = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")

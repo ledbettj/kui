@@ -1,167 +1,79 @@
 local addonName, ns = ...
 
-ns.frames = {}
+-- Addon bootstrap: saved variable setup, the two "apply settings" entry
+-- points every module hooks into, Blizzard frame suppression, and slash
+-- commands.
+--
+-- Conventions used across the files:
+--   ns:Verb(...)     module API (InitX, LayoutX, StyleX, ...)
+--   ns.Verb(frame)   per-frame functions shared between modules; plain
+--                    functions so they can sit directly in event tables
+--   Layout*          sizes/anchors; touches secure frames, so it is
+--                    deferred while in combat
+--   Style*           textures/colors/fonts; safe at any time
 
--- Unit layout defaults. Frames are positioned by ApplyPositions from the
--- layout settings below rather than individually.
--- widthFrom: share another unit's width setting so the pair always matches.
-ns.order = { "player", "target", "targettarget", "pet", "focus", "party1", "party2", "party3", "party4" }
-ns.defaults = {
-	player       = { label = "Player", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, status = { pvp = true, state = true } },
-	target       = { label = "Target", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, combo = true, status = { pvp = true } },
-	targettarget = { label = "ToT",    w = 108, h = 22, poll = true },
-	pet          = { label = "Pet",    w = 108, h = 22, power = true },
-	focus        = { label = "Focus",  w = 108, h = 22, widthFrom = "targettarget", detachedCastbar = true },
-}
--- Party: the other four members (like Blizzard's classic party frames, the
--- player isn't included). All share party1's width.
-for i = 1, 4 do
-	ns.defaults["party" .. i] = {
-		label = "Party " .. i, w = 150, h = 36, power = true, powerHeight = 8, auras = "right",
-		party = true, widthFrom = i > 1 and "party1" or nil, status = {},
-	}
-end
+ns.frames = {} -- unit -> unit frame
 
-ns.styleDefaults = {
-	font = "Arial Narrow",
-	fontSize = 11,
-	healthTexture = "Modern",
-	powerTexture = "Modern",
-	border = "Rounded",
-	borderSize = 12, -- small frames use 2/3 of this
-	borderColor = { 0.5, 0.5, 0.5 },
-	bgAlpha = 0.8,
-	padding = 1, -- gap between the border and the bars/portrait
-	powerHeight = 10, -- player/target only; party and pet keep fixed sizes
-	outOfRangeAlpha = 0.45, -- party members out of range
-	-- Background of empty power bars and idle cast bars
-	emptyColor = { 0, 0, 0 },
-	emptyAlpha = 0.5,
-}
-
---   [focus] [player] - - | - - [target] [tot]
--- y: vertical offset of the whole row from screen center
--- centerGap: distance from the center line to player's right / target's left edge
--- sideGap: distance between player-focus and target-tot (always symmetric)
-ns.layoutDefaults = {
-	y = -200,
-	centerGap = 120,
-	sideGap = 8,
-	-- Party column, top-left anchored, the classic spot
-	partyX = 20,
-	partyY = -180,
-	partySpacing = 14,
-}
-
--- Restyling of Blizzard's action buttons (layout stays with Edit Mode)
-ns.actionbarDefaults = {
-	enabled = true,
-	showHotkeys = true,
-	showMacroNames = true,
-	rangeColor = true,
-	activeColor = { 1, 0.82, 0 }, -- border color while an action is active
-}
-
--- XP / reputation bars replacing Blizzard's status tracking bars
-ns.statusbarDefaults = {
-	enabled = true,
-	width = 500,
-	height = 10,
-	texture = "Modern",
-	position = "Top", -- or "Bottom"; centered horizontally
-}
-
-ns.nameplateDefaults = {
-	enabled = true,
-	width = 130,
-	height = 14,
-	castHeight = 12,
-	highlightTarget = true,
-	targetColor = { 1, 0.82, 0 }, -- border color on the current target's plate
-}
-
--- Cast bar row inside the player/target frames, under the power bar
-ns.castbarDefaults = {
-	height = 12,
-	focusHeight = 12, -- detached bar under the focus frame
-	texture = "Modern",
-	showIcon = true,
-}
-
-function ns:GetWidth(unit)
-	local key = ns.defaults[unit].widthFrom or unit
-	return KUIDB.widths[key] or ns.defaults[key].w
-end
-
-local function Print(...)
+function ns.Print(...)
 	print("|cff33ff99KUI|r:", ...)
 end
-ns.Print = Print
 
 ---------------------------------------------------------------------------
--- Positioning
+-- Saved variables
 ---------------------------------------------------------------------------
 
-function ns:ApplyPositions()
-	local L, F = KUIDB.layout, ns.frames
-	for _, f in pairs(F) do
-		f:ClearAllPoints()
-	end
-
-	F.player:SetPoint("RIGHT", UIParent, "CENTER", -L.centerGap, L.y)
-	F.target:SetPoint("LEFT", UIParent, "CENTER", L.centerGap, L.y)
-	F.focus:SetPoint("RIGHT", F.player, "LEFT", -L.sideGap, 0)
-	F.targettarget:SetPoint("LEFT", F.target, "RIGHT", L.sideGap, 0)
-	F.pet:SetPoint("TOPLEFT", F.player, "BOTTOMLEFT", 0, -4)
-
-	F.party1:SetPoint("TOPLEFT", UIParent, "TOPLEFT", L.partyX, L.partyY)
-	for i = 2, 4 do
-		F["party" .. i]:SetPoint("TOPLEFT", F["party" .. (i - 1)], "BOTTOMLEFT", 0, -L.partySpacing)
-	end
-end
-
--- Secure visibility. Party frames hide in raids (Grid handles those);
--- everything else just follows unit existence.
-function ns:WatchFrame(f)
-	if f.cfg.party then
-		RegisterStateDriver(f, "visibility", "[group:raid] hide; [@" .. f.unit .. ",exists] show; hide")
-	else
-		RegisterUnitWatch(f)
-	end
-end
-
-function ns:UnwatchFrame(f)
-	if f.cfg.party then
-		UnregisterStateDriver(f, "visibility")
-	else
-		UnregisterUnitWatch(f)
-	end
-end
-
--- Preview shows every frame, even for units that don't exist, so the
--- layout can be judged while configuring.
-function ns:SetPreview(on)
-	if on == ns.preview then return end
-	if InCombatLockdown() then
-		-- Secure frames can't be shown/hidden manually in combat
-		return Print("can't toggle preview in combat.")
-	end
-	ns.preview = on
-	for _, f in pairs(ns.frames) do
-		if on then
-			ns:UnwatchFrame(f)
-			f:Show()
-		else
-			ns:WatchFrame(f)
+-- Tables are copied so saved settings never alias the defaults
+local function FillDefaults(t, defaults)
+	for k, v in pairs(defaults) do
+		if t[k] == nil then
+			t[k] = type(v) == "table" and CopyTable(v) or v
 		end
-		ns.UpdateAll(f)
 	end
+end
+
+local function InitDB()
+	KUIDB = KUIDB or {}
+	local db = KUIDB
+
+	-- Settings from earlier versions
+	db.positions = nil -- per-frame drag positions, replaced by layout
+	if db.widths then db.widths.focus = nil end -- focus shares the ToT width
+	if db.castbar then db.castbar.width = nil end -- old standalone cast bar
+
+	db.widths = db.widths or {}
+	for section, defaults in pairs(ns.settingsDefaults) do
+		db[section] = db[section] or {}
+		FillDefaults(db[section], defaults)
+	end
+
+	-- Per-entry color overrides on top of the selected palette
+	db.colors = db.colors or {}
+	for _, kind in ipairs(ns.colorKinds) do
+		db.colors[kind] = db.colors[kind] or {}
+	end
+	db.colors.palette = db.colors.palette or "Default"
+end
+
+function ns:ResetSettings()
+	wipe(KUIDB.widths)
+	for section, defaults in pairs(ns.settingsDefaults) do
+		wipe(KUIDB[section])
+		FillDefaults(KUIDB[section], defaults)
+	end
+	for _, kind in ipairs(ns.colorKinds) do
+		wipe(KUIDB.colors[kind])
+	end
+	KUIDB.colors.palette = "Default"
+
+	ns:ApplyStyle()
+	ns:ApplyLayout()
 end
 
 ---------------------------------------------------------------------------
 -- Applying settings
 ---------------------------------------------------------------------------
 
+-- Textures, colors and fonts everywhere
 function ns:ApplyStyle()
 	ns:UpdateFonts()
 	for _, f in pairs(ns.frames) do
@@ -172,11 +84,13 @@ function ns:ApplyStyle()
 	ns:StyleStatusBars()
 end
 
+-- Sizes, borders and positions everywhere. Moving/resizing secure frames
+-- is blocked in combat, so it catches up when combat ends. Returns false
+-- when deferred.
 function ns:ApplyLayout()
 	if InCombatLockdown() then
-		-- Moving/resizing secure frames is blocked in combat; catch up afterwards
 		ns.pendingLayout = true
-		return
+		return false
 	end
 	ns.pendingLayout = false
 	for _, f in pairs(ns.frames) do
@@ -186,6 +100,7 @@ function ns:ApplyLayout()
 	ns:StyleActionBars()
 	ns:LayoutNameplates()
 	ns:LayoutStatusBars()
+	return true
 end
 
 ---------------------------------------------------------------------------
@@ -195,9 +110,9 @@ end
 local hider = CreateFrame("Frame")
 hider:Hide()
 
-function ns:HideBlizzard()
-	-- ComboFrame is parented to UIParent, not TargetFrame, so it needs hiding on its own
-	-- PartyFrame is the container for all four Blizzard party member frames
+local function HideBlizzard()
+	-- ComboFrame is parented to UIParent, not TargetFrame, so it needs hiding
+	-- on its own. PartyFrame holds all four Blizzard party member frames.
 	for _, name in ipairs({ "PlayerFrame", "TargetFrame", "FocusFrame", "PetFrame", "ComboFrame", "PartyFrame" }) do
 		local f = _G[name]
 		if f then
@@ -222,12 +137,6 @@ end
 -- Init
 ---------------------------------------------------------------------------
 
-local function FillDefaults(t, defaults)
-	for k, v in pairs(defaults) do
-		if t[k] == nil then t[k] = v end
-	end
-end
-
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:RegisterEvent("PLAYER_LOGIN")
@@ -235,49 +144,29 @@ loader:RegisterEvent("PLAYER_REGEN_DISABLED")
 loader:RegisterEvent("PLAYER_REGEN_ENABLED")
 loader:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == addonName then
-		KUIDB = KUIDB or {}
-		KUIDB.positions = nil -- per-frame drag positions, replaced by layout
-		KUIDB.widths = KUIDB.widths or {}
-		KUIDB.widths.focus = nil -- focus now shares the ToT width
-		KUIDB.style = KUIDB.style or {}
-		KUIDB.layout = KUIDB.layout or {}
-		KUIDB.castbar = KUIDB.castbar or {}
-		KUIDB.actionbars = KUIDB.actionbars or {}
-		KUIDB.statusbars = KUIDB.statusbars or {}
-		FillDefaults(KUIDB.statusbars, ns.statusbarDefaults)
-		KUIDB.nameplates = KUIDB.nameplates or {}
-		FillDefaults(KUIDB.nameplates, ns.nameplateDefaults)
-		KUIDB.colors = KUIDB.colors or {}
-		KUIDB.colors.class = KUIDB.colors.class or {}
-		KUIDB.colors.power = KUIDB.colors.power or {}
-		KUIDB.colors.reaction = KUIDB.colors.reaction or {}
-		KUIDB.colors.cast = KUIDB.colors.cast or {}
-		KUIDB.colors.palette = KUIDB.colors.palette or "Default"
-		FillDefaults(KUIDB.actionbars, ns.actionbarDefaults)
-		FillDefaults(KUIDB.style, ns.styleDefaults)
-		FillDefaults(KUIDB.layout, ns.layoutDefaults)
-		KUIDB.castbar.width = nil -- from the old standalone cast bar
-		FillDefaults(KUIDB.castbar, ns.castbarDefaults)
-
+		self:UnregisterEvent("ADDON_LOADED")
+		InitDB()
 		ns:UpdateFonts()
-		ns:HideBlizzard()
-		for _, unit in ipairs(ns.order) do
-			ns.frames[unit] = ns:CreateUnitFrame(unit, ns.defaults[unit])
+		HideBlizzard()
+		for _, unit in ipairs(ns.unitOrder) do
+			ns.frames[unit] = ns:CreateUnitFrame(unit, ns.units[unit])
 		end
 		ns:ApplyLayout()
 		ns:InitConfig()
-		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_LOGIN" then
-		-- Re-apply once every addon has loaded, in case saved media comes
-		-- from a LibSharedMedia pack that wasn't registered yet
+		-- Blizzard's action buttons, nameplate driver and status bars exist by
+		-- now. Styling again also picks up saved media from LibSharedMedia
+		-- packs that registered after us.
 		ns:InitActionBars()
 		ns:InitNameplates()
 		ns:InitStatusBars()
 		ns:ApplyStyle()
-	elseif event == "PLAYER_REGEN_DISABLED" and ns.preview then
-		ns:SetPreview(false)
-	elseif event == "PLAYER_REGEN_ENABLED" and ns.pendingLayout then
-		ns:ApplyLayout()
+	elseif event == "PLAYER_REGEN_DISABLED" then
+		-- Fires just before lockdown, the last chance to restore secure
+		-- visibility drivers
+		if ns.preview then ns:SetPreview(false) end
+	elseif event == "PLAYER_REGEN_ENABLED" then
+		if ns.pendingLayout then ns:ApplyLayout() end
 	end
 end)
 
@@ -293,6 +182,6 @@ SlashCmdList.KUI = function(msg)
 	elseif cmd == "preview" then
 		ns:SetPreview(not ns.preview)
 	else
-		Print("commands: |cffffff00config|r, |cffffff00preview|r")
+		ns.Print("commands: |cffffff00config|r, |cffffff00preview|r")
 	end
 end

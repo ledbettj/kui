@@ -1,0 +1,116 @@
+local addonName, ns = ...
+
+-- Building blocks shared by the unit frames, nameplates, cast bars, action
+-- buttons and XP bars: status bars, text, fonts and the bordered backdrop.
+
+local FLAT = "Interface\\Buttons\\WHITE8X8"
+ns.FLAT_TEXTURE = FLAT
+
+---------------------------------------------------------------------------
+-- Status bars
+---------------------------------------------------------------------------
+
+-- A StatusBar with a background texture (bar.bg). Textures are applied
+-- later by StyleBar, so they can change at runtime.
+function ns.CreateBar(parent)
+	local bar = CreateFrame("StatusBar", nil, parent)
+	bar:SetStatusBarTexture(FLAT)
+	bar.bg = bar:CreateTexture(nil, "BACKGROUND")
+	bar.bg:SetAllPoints()
+	return bar
+end
+
+-- solidBg: leave bar.bg to the caller (a flat empty color) instead of a
+-- darkened copy of the bar texture
+function ns.StyleBar(bar, textureName, solidBg)
+	local atlas, path = ns:GetStatusbar(textureName)
+	if atlas then
+		bar:GetStatusBarTexture():SetAtlas(atlas)
+	else
+		bar:SetStatusBarTexture(path)
+	end
+
+	if solidBg then return end
+
+	-- Empty portion uses the same art, darkened, so the shading carries across
+	if atlas then
+		bar.bg:SetAtlas(atlas)
+	else
+		bar.bg:SetTexture(path)
+		bar.bg:SetTexCoord(0, 1, 0, 1)
+	end
+	bar.bg:SetVertexColor(0.15, 0.15, 0.15)
+end
+
+-- r, g, b, a for the background of empty power bars and idle cast bars
+function ns:GetEmptyColor()
+	local c = KUIDB.style.emptyColor
+	return c[1], c[2], c[3], KUIDB.style.emptyAlpha
+end
+
+---------------------------------------------------------------------------
+-- Text
+---------------------------------------------------------------------------
+
+-- Shared font objects: changing one restyles every fontstring using it.
+-- Styling (shadow, color) follows the nameplate font.
+local function NewFont(name)
+	local fo = CreateFont(name)
+	fo:CopyFontObject(SystemFont_NamePlate or GameFontHighlightSmall)
+	fo:SetTextColor(1, 1, 1)
+	fo:SetShadowOffset(1, -1)
+	fo:SetShadowColor(0, 0, 0, 1)
+	return fo
+end
+
+ns.fonts = {
+	normal = NewFont("KUIFontNormal"),
+	small = NewFont("KUIFontSmall"),
+	aura = NewFont("KUIFontAura"), -- stack counts
+}
+
+function ns:UpdateFonts()
+	local path = ns:GetFontPath(KUIDB.style.font)
+	local size = KUIDB.style.fontSize
+	ns.fonts.normal:SetFont(path, size, "")
+	ns.fonts.small:SetFont(path, size - 2, "")
+	ns.fonts.aura:SetFont(path, size - 2, "")
+end
+
+-- Single-line fontstring on the OVERLAY layer
+function ns.CreateText(parent, fontObject, justify)
+	local fs = parent:CreateFontString(nil, "OVERLAY")
+	fs:SetFontObject(fontObject)
+	fs:SetJustifyH(justify)
+	fs:SetWordWrap(false)
+	return fs
+end
+
+---------------------------------------------------------------------------
+-- Border
+---------------------------------------------------------------------------
+
+-- Applies the configured border and background to any BackdropTemplate
+-- frame; small frames get a proportionally thinner border. Returns the
+-- inner inset (border + padding) where content starts. Resets the border
+-- color, so callers with a custom one (highlights) reapply it after.
+function ns:ApplyBackdrop(f, small)
+	local style = KUIDB.style
+
+	local edge = style.borderSize
+	if small then edge = math.max(1, math.floor(edge * 2 / 3 + 0.5)) end
+	local path, insetScale = ns:GetBorder(style.border)
+	local inset = edge * insetScale
+
+	f:SetBackdrop({
+		bgFile = FLAT,
+		edgeFile = path,
+		edgeSize = edge,
+		insets = { left = inset, right = inset, top = inset, bottom = inset },
+	})
+	f:SetBackdropColor(0, 0, 0, style.bgAlpha)
+	local c = style.borderColor
+	f:SetBackdropBorderColor(c[1], c[2], c[3], 1)
+
+	return math.floor(inset + 0.5) + style.padding
+end

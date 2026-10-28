@@ -1,7 +1,13 @@
 local addonName, ns = ...
 
--- Cast bar row inside a unit frame, stacked under the power bar. When the
--- unit isn't casting it sits empty, showing just its background.
+-- Cast bar component: spell icon, progress bar with spark, spell name and
+-- remaining time. Used as a row inside the player/target frames (empty when
+-- idle) and in standalone holders under the focus frame and nameplates
+-- (hidden when idle, via cb.container).
+--
+-- The owner positions the bar and calls LayoutCastbar/StyleCastbar; this
+-- file handles the spellcast events. OnUpdate only runs while a cast is in
+-- progress or a failure is being held on screen.
 
 local SPARK = "Interface\\CastingBar\\UI-CastingBar-Spark"
 local PREVIEW_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
@@ -28,7 +34,10 @@ local function SetVisible(cb, visible)
 	if cb.container then cb.container:SetShown(visible) end
 end
 
+local OnUpdate -- defined below; set as the script only while needed
+
 local function Idle(cb)
+	cb:SetScript("OnUpdate", nil)
 	SetVisible(cb, false)
 	cb.active, cb.holdUntil = false, nil
 	cb.status:SetMinMaxValues(0, 1)
@@ -66,6 +75,7 @@ local function Start(cb, isChannel)
 	SetColor(cb, isChannel and "channel" or "cast")
 	cb.active, cb.holdUntil = true, nil
 	SetVisible(cb, true)
+	cb:SetScript("OnUpdate", OnUpdate)
 end
 
 local function Fail(cb, text)
@@ -78,11 +88,10 @@ local function Fail(cb, text)
 	cb.time:SetText("")
 	cb.spark:Hide()
 	SetVisible(cb, true)
+	cb:SetScript("OnUpdate", OnUpdate)
 end
 
-local function OnUpdate(cb)
-	if cb.preview then return end
-
+function OnUpdate(cb)
 	local now = GetTime()
 	if cb.active then
 		if now >= cb.endTime then
@@ -140,8 +149,11 @@ function ns:RefreshCastbar(cb)
 	end
 end
 
+-- Static sample cast for the config preview; ignores events until the
+-- next RefreshCastbar
 function ns:PreviewCastbar(cb)
 	cb.preview = true
+	cb:SetScript("OnUpdate", nil)
 	cb.active, cb.holdUntil = false, nil
 	cb.status:SetMinMaxValues(0, 1)
 	cb.status:SetValue(0.6)
@@ -209,7 +221,7 @@ function ns:CreateCastbar(f)
 	cb.bg:SetAllPoints()
 
 	cb.status = CreateFrame("StatusBar", nil, cb)
-	cb.status:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+	cb.status:SetStatusBarTexture(ns.FLAT_TEXTURE)
 
 	cb.spark = cb.status:CreateTexture(nil, "OVERLAY")
 	cb.spark:SetTexture(SPARK)
@@ -228,7 +240,6 @@ function ns:CreateCastbar(f)
 
 	ns:SetCastbarUnit(cb, cb.unit)
 	cb:SetScript("OnEvent", OnEvent)
-	cb:SetScript("OnUpdate", OnUpdate)
 
 	Idle(cb)
 	return cb
