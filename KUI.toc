@@ -12,4 +12,5 @@ Frames.lua
 Castbar.lua
 ActionBars.lua
 Nameplates.lua
+StatusBars.lua
 Config.lua

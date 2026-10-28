@@ -170,6 +170,11 @@ local function Lookup(kind, key)
 	return KUIDB.colors[kind][key] or ns:GetDefaultColor(kind, key)
 end
 
+-- Effective color for any palette entry, e.g. ("power", "MANA")
+function ns:GetColor(kind, key)
+	return Lookup(kind, key)
+end
+
 -- Returns { r, g, b } or nil for an unknown class
 function ns:GetClassColor(class)
 	return Lookup("class", class)

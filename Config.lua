@@ -208,6 +208,18 @@ local function CreateColorRow(panel, kind, key, label)
 		function() SetColor(kind, key, nil) end)
 end
 
+-- Not secure frames, so these apply immediately, even in combat
+local function SetStatusBars(key, value)
+	KUIDB.statusbars[key] = value
+	if key == "enabled" then
+		ns.Print("XP/reputation bar change takes effect after /reload.")
+	elseif key == "texture" then
+		ns:StyleStatusBars()
+	else
+		ns:LayoutStatusBars()
+	end
+end
+
 -- KUI's nameplate frames aren't secure, so these apply immediately
 local function SetNameplates(key, value)
 	KUIDB.nameplates[key] = value
@@ -244,6 +256,10 @@ local function ResetToDefaults()
 	wipe(KUIDB.colors.reaction)
 	wipe(KUIDB.colors.cast)
 	KUIDB.colors.palette = "Default"
+	wipe(KUIDB.statusbars)
+	for k, v in pairs(ns.statusbarDefaults) do
+		KUIDB.statusbars[k] = v
+	end
 	wipe(KUIDB.nameplates)
 	for k, v in pairs(ns.nameplateDefaults) do
 		KUIDB.nameplates[k] = v
@@ -398,6 +414,24 @@ local function BuildPanel(panel)
 	for _, key in ipairs(ns.castOrder) do
 		Place(CreateColorRow(panel, "cast", key, castLabels[key]))
 	end
+
+	y = y - 12
+	Place(CreateHeader(panel, "XP / reputation bars"), 6)
+	Place(CreateCheckbox(panel, "Replace XP/rep bars",
+		function() return KUIDB.statusbars.enabled end,
+		function(v) SetStatusBars("enabled", v) end))
+	Place(CreateDropdown(panel, "Position", function() return { "Top", "Bottom" } end,
+		function() return KUIDB.statusbars.position end,
+		function(v) SetStatusBars("position", v) end))
+	Place(CreateSlider(panel, "Width", 100, 1200, 4,
+		function() return KUIDB.statusbars.width end,
+		function(v) SetStatusBars("width", v) end))
+	Place(CreateSlider(panel, "Height", 4, 30, 1,
+		function() return KUIDB.statusbars.height end,
+		function(v) SetStatusBars("height", v) end))
+	Place(CreateDropdown(panel, "Texture", function() return ns:ListMedia("statusbar") end,
+		function() return KUIDB.statusbars.texture end,
+		function(v) SetStatusBars("texture", v) end))
 
 	y = y - 12
 	Place(CreateHeader(panel, "Nameplates"), 6)

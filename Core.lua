@@ -62,6 +62,15 @@ ns.actionbarDefaults = {
 	activeColor = { 1, 0.82, 0 }, -- border color while an action is active
 }
 
+-- XP / reputation bars replacing Blizzard's status tracking bars
+ns.statusbarDefaults = {
+	enabled = true,
+	width = 500,
+	height = 10,
+	texture = "Modern",
+	position = "Top", -- or "Bottom"; centered horizontally
+}
+
 ns.nameplateDefaults = {
 	enabled = true,
 	width = 130,
@@ -160,6 +169,7 @@ function ns:ApplyStyle()
 	end
 	ns:StyleActionBars()
 	ns:StyleNameplates()
+	ns:StyleStatusBars()
 end
 
 function ns:ApplyLayout()
@@ -175,6 +185,7 @@ function ns:ApplyLayout()
 	ns:ApplyPositions()
 	ns:StyleActionBars()
 	ns:LayoutNameplates()
+	ns:LayoutStatusBars()
 end
 
 ---------------------------------------------------------------------------
@@ -232,6 +243,8 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		KUIDB.layout = KUIDB.layout or {}
 		KUIDB.castbar = KUIDB.castbar or {}
 		KUIDB.actionbars = KUIDB.actionbars or {}
+		KUIDB.statusbars = KUIDB.statusbars or {}
+		FillDefaults(KUIDB.statusbars, ns.statusbarDefaults)
 		KUIDB.nameplates = KUIDB.nameplates or {}
 		FillDefaults(KUIDB.nameplates, ns.nameplateDefaults)
 		KUIDB.colors = KUIDB.colors or {}
@@ -259,6 +272,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		-- from a LibSharedMedia pack that wasn't registered yet
 		ns:InitActionBars()
 		ns:InitNameplates()
+		ns:InitStatusBars()
 		ns:ApplyStyle()
 	elseif event == "PLAYER_REGEN_DISABLED" and ns.preview then
 		ns:SetPreview(false)
