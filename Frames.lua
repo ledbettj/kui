@@ -347,6 +347,82 @@ local function UpdateRaidIcon(self)
 	self.nameText:SetPoint("LEFT", index and (NAME_INSET + icon:GetWidth() + 2) or NAME_INSET, 0)
 end
 
+-- Status icons: leader / master looter (player, target, party), PvP flag
+-- (player, target), resting / in combat (player)
+local STATE_TEXTURE = "Interface\\CharacterFrame\\UI-StateIcon"
+local STATE_COORDS = {
+	rest = { 0, 0.5, 0, 0.421875 },
+	combat = { 0.5, 1, 0, 0.484375 },
+}
+-- The PvP flag sits in the top-left of its 64px texture
+local PVP_COORDS = { 0, 0.62, 0, 0.62 }
+
+-- 0 for the player, 1-4 for party members, nil otherwise; matches
+-- C_PartyInfo.GetLootMethod's master looter index
+local function PartyIndex(unit)
+	if UnitIsUnit(unit, "player") then return 0 end
+	for i = 1, 4 do
+		if UnitIsUnit(unit, "party" .. i) then return i end
+	end
+end
+
+local function UpdateStatusIcons(self)
+	if not self.leaderIcon then return end
+	local unit = self.unit
+	local exists = UnitExists(unit)
+
+	local isLeader = exists and UnitIsGroupLeader(unit)
+	self.leaderIcon:SetShown(isLeader)
+
+	local isLooter = false
+	if exists and IsInGroup() and C_PartyInfo and C_PartyInfo.GetLootMethod then
+		local _, lootMaster = C_PartyInfo.GetLootMethod()
+		isLooter = lootMaster ~= nil and lootMaster == PartyIndex(unit)
+	end
+	-- Next to the leader icon, or in its place when there isn't one
+	self.looterIcon:ClearAllPoints()
+	if isLeader then
+		self.looterIcon:SetPoint("LEFT", self.leaderIcon, "RIGHT", 1, 0)
+	else
+		self.looterIcon:SetAllPoints(self.leaderIcon)
+	end
+	self.looterIcon:SetShown(isLooter)
+
+	if self.pvpIcon then
+		local faction = exists and UnitFactionGroup(unit)
+		if exists and UnitIsPVPFreeForAll(unit) then
+			self.pvpIcon:SetTexture("Interface\\TargetingFrame\\UI-PVP-FFA")
+			self.pvpIcon:Show()
+		elseif faction and faction ~= "Neutral" and UnitIsPVP(unit) then
+			self.pvpIcon:SetTexture("Interface\\TargetingFrame\\UI-PVP-" .. faction)
+			self.pvpIcon:Show()
+		else
+			self.pvpIcon:Hide()
+		end
+		self.pvpIcon:SetTexCoord(unpack(PVP_COORDS))
+	end
+
+	if self.stateIcon then
+		local state = UnitAffectingCombat("player") and "combat" or IsResting() and "rest"
+		if state then
+			self.stateIcon:SetTexCoord(unpack(STATE_COORDS[state]))
+			self.stateIcon:Show()
+		else
+			self.stateIcon:Hide()
+		end
+	end
+end
+
+local STATUS_EVENTS = {
+	PARTY_LEADER_CHANGED = true,
+	GROUP_ROSTER_UPDATE = true,
+	PARTY_LOOT_METHOD_CHANGED = true,
+	PLAYER_FLAGS_CHANGED = true,
+	PLAYER_UPDATE_RESTING = true,
+	PLAYER_REGEN_DISABLED = true,
+	PLAYER_REGEN_ENABLED = true,
+}
+
 -- Party members out of range fade (SetAlpha is allowed on secure frames in
 -- combat). Units the client can't range-check stay opaque.
 local function UpdateRange(self)
@@ -367,6 +443,7 @@ local function UpdateAll(self)
 		-- Only reachable in preview mode: show a placeholder
 		if self.portrait then self.portrait:ClearModel() end
 		UpdateRaidIcon(self)
+		UpdateStatusIcons(self)
 		HideAuras(self)
 		if self.castbar then ns:PreviewCastbar(self.castbar) end
 		self.nameText:SetText(self.label)
@@ -386,6 +463,7 @@ local function UpdateAll(self)
 	UpdateName(self)
 	UpdatePortrait(self)
 	UpdateRaidIcon(self)
+	UpdateStatusIcons(self)
 	UpdateAuras(self)
 	if self.castbar then ns:RefreshCastbar(self.castbar) end
 end
@@ -402,7 +480,11 @@ local eventHandlers = {
 	UNIT_HEALTH = UpdateHealth,
 	UNIT_MAXHEALTH = UpdateHealth,
 	UNIT_CONNECTION = UpdateHealth,
-	UNIT_FACTION = UpdateHealth,
+	-- Faction changes also cover PvP flagging
+	UNIT_FACTION = function(self)
+		UpdateHealth(self)
+		UpdateStatusIcons(self)
+	end,
 	UNIT_POWER_FREQUENT = UpdatePower,
 	UNIT_MAXPOWER = UpdatePower,
 	UNIT_DISPLAYPOWER = UpdatePower,
@@ -416,6 +498,12 @@ local eventHandlers = {
 local function OnEvent(self, event, ...)
 	if event == "RAID_TARGET_UPDATE" then
 		return UpdateRaidIcon(self)
+	elseif STATUS_EVENTS[event] then
+		-- partyN may now be a different player entirely
+		if event == "GROUP_ROSTER_UPDATE" and self.cfg.party then
+			return UpdateAll(self)
+		end
+		return UpdateStatusIcons(self)
 	end
 	local handler = eventHandlers[event]
 	if handler then
@@ -657,6 +745,40 @@ function ns:CreateUnitFrame(unit, cfg)
 			self.power:SetScript("OnUpdate", nil)
 			self.powerText:Hide()
 		end)
+	end
+
+	-- Status icons in the portrait corners, or on the top-left border for
+	-- frames without a portrait
+	if cfg.status then
+		local layer = f.overlay
+		f.leaderIcon = layer:CreateTexture(nil, "OVERLAY")
+		f.leaderIcon:SetTexture("Interface\\GroupFrame\\UI-Group-LeaderIcon")
+		f.leaderIcon:SetSize(14, 14)
+		if f.portrait then
+			f.leaderIcon:SetPoint("TOPLEFT", f.portrait, "TOPLEFT", 1, -1)
+		else
+			f.leaderIcon:SetPoint("CENTER", f, "TOPLEFT", 9, 0)
+		end
+
+		f.looterIcon = layer:CreateTexture(nil, "OVERLAY")
+		f.looterIcon:SetTexture("Interface\\GroupFrame\\UI-Group-MasterLooter")
+		f.looterIcon:SetSize(14, 14)
+
+		if cfg.status.pvp and f.portrait then
+			f.pvpIcon = layer:CreateTexture(nil, "OVERLAY")
+			f.pvpIcon:SetSize(18, 18)
+			f.pvpIcon:SetPoint("BOTTOMLEFT", f.portrait, "BOTTOMLEFT", 0, 0)
+		end
+		if cfg.status.state and f.portrait then
+			f.stateIcon = layer:CreateTexture(nil, "OVERLAY")
+			f.stateIcon:SetTexture(STATE_TEXTURE)
+			f.stateIcon:SetSize(18, 18)
+			f.stateIcon:SetPoint("BOTTOMRIGHT", f.portrait, "BOTTOMRIGHT", 0, 0)
+		end
+
+		for event in pairs(STATUS_EVENTS) do
+			pcall(f.RegisterEvent, f, event)
+		end
 	end
 
 	-- Combo points (target only)

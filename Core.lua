@@ -7,8 +7,8 @@ ns.frames = {}
 -- widthFrom: share another unit's width setting so the pair always matches.
 ns.order = { "player", "target", "targettarget", "pet", "focus", "party1", "party2", "party3", "party4" }
 ns.defaults = {
-	player       = { label = "Player", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true },
-	target       = { label = "Target", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, combo = true },
+	player       = { label = "Player", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, status = { pvp = true, state = true } },
+	target       = { label = "Target", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, combo = true, status = { pvp = true } },
 	targettarget = { label = "ToT",    w = 108, h = 22, poll = true },
 	pet          = { label = "Pet",    w = 108, h = 22, power = true },
 	focus        = { label = "Focus",  w = 108, h = 22, widthFrom = "targettarget", detachedCastbar = true },
@@ -18,7 +18,7 @@ ns.defaults = {
 for i = 1, 4 do
 	ns.defaults["party" .. i] = {
 		label = "Party " .. i, w = 150, h = 36, power = true, powerHeight = 8, auras = "right",
-		party = true, widthFrom = i > 1 and "party1" or nil,
+		party = true, widthFrom = i > 1 and "party1" or nil, status = {},
 	}
 end
 
