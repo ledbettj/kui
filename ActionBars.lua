@@ -126,6 +126,15 @@ local function StyleButton(btn)
 		pushed:SetColorTexture(c[1], c[2], c[3], 0.35)
 		FitToIcon(pushed, icon)
 	end
+	-- Auto-repeat/auto-attack pulse: Blizzard's art is pinned TOPLEFT at its
+	-- atlas size, so it sits offset once the icon is inset. A flat tint over
+	-- the icon instead, in the palette's red.
+	if btn.Flash then
+		local c = ns:GetCastColor("failed")
+		btn.Flash:SetColorTexture(c[1], c[2], c[3], 0.4)
+		FitToIcon(btn.Flash, icon)
+	end
+
 	local checked = btn:GetCheckedTexture()
 	if checked then checked:SetAlpha(0) end
 	UpdateChecked(btn)
