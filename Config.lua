@@ -213,6 +213,11 @@ local function SetNameplates(key, value)
 	end
 end
 
+local function SetHealPrediction(key, value)
+	KUIDB.healPrediction[key] = value
+	ns:ApplyStyle()
+end
+
 local function SetChat(key, value)
 	KUIDB.chat[key] = value
 	ns:ApplyChat()
@@ -278,6 +283,7 @@ local WIDTH_LABELS = {
 }
 local REACTION_LABELS = { hostile = "Hostile", neutral = "Neutral", friendly = "Friendly" }
 local CAST_LABELS = { cast = "Casting", channel = "Channeling", failed = "Failed / interrupted" }
+local HEAL_LABELS = { mine = "Your heals", others = "Others' heals" }
 
 -- Returns the content height
 local function BuildPanel(panel)
@@ -344,6 +350,12 @@ local function BuildPanel(panel)
 	Slider("Power bar height", 2, 20, 1, Bind("style", "powerHeight", SetStyle))
 	Swatch("Empty bar color", Bind("style", "emptyColor", SetStyle))
 	Slider("Empty bar opacity", 0, 100, 5, Bind("style", "emptyAlpha", SetStyle, true))
+
+	Section("Incoming heals")
+	Checkbox("Show incoming heals", Bind("healPrediction", "enabled", SetHealPrediction))
+	for _, key in ipairs(ns.healOrder) do
+		ColorRow("heal", key, HEAL_LABELS[key])
+	end
 
 	Section("Cast bar")
 	Slider("Focus cast bar height", 6, 30, 1, Bind("castbar", "focusHeight", SetCastbar))

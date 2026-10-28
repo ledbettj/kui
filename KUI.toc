@@ -16,6 +16,7 @@ Widgets.lua
 # Unit frame parts, then the frames themselves
 Auras.lua
 Indicators.lua
+HealPrediction.lua
 Castbar.lua
 Frames.lua
 

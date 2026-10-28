@@ -111,6 +111,10 @@ ns.settingsDefaults = {
 		targetColor = { 1, 0.82, 0 }, -- border color on the current target's plate
 	},
 
+	healPrediction = {
+		enabled = true, -- incoming heals on the unit frames' health bars
+	},
+
 	chat = {
 		hideButtons = true, -- the button column beside the chat windows
 	},

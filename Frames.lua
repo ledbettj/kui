@@ -2,8 +2,8 @@ local addonName, ns = ...
 
 -- The unit frames: secure click targets (Clique-compatible) with a portrait,
 -- health/power bars, name and value text, plus the optional pieces from
--- Auras, Indicators and Castbar. Also their arrangement on screen and the
--- configuration preview.
+-- Auras, Indicators, HealPrediction and Castbar. Also their arrangement on
+-- screen and the configuration preview.
 
 ---------------------------------------------------------------------------
 -- Element updates
@@ -59,6 +59,8 @@ function ns.UpdateHealth(self)
 	else
 		self.healthText:SetFormattedText("%s / %s", ShortValue(cur), ShortValue(max))
 	end
+
+	ns.UpdateHealPrediction(self)
 end
 
 local function UpdateCombo(self)
@@ -141,6 +143,7 @@ local function ShowPlaceholder(self)
 	ns.UpdateRaidIcon(self)
 	ns.UpdateStatusIcons(self)
 	ns.HideAuras(self)
+	ns.UpdateHealPrediction(self)
 	if self.castbar then ns:PreviewCastbar(self.castbar) end
 	self.nameText:SetText(self.label)
 	self.healthText:SetText("")
@@ -178,6 +181,7 @@ local unitEventHandlers = {
 	UNIT_HEALTH = ns.UpdateHealth,
 	UNIT_MAXHEALTH = ns.UpdateHealth,
 	UNIT_CONNECTION = ns.UpdateHealth,
+	UNIT_HEAL_PREDICTION = ns.UpdateHealPrediction,
 	-- Faction changes also cover PvP flagging
 	UNIT_FACTION = function(self)
 		ns.UpdateHealth(self)
@@ -271,6 +275,7 @@ end
 
 function ns:StyleFrame(f)
 	ns.StyleBar(f.health, KUIDB.style.healthTexture)
+	ns.StyleHealPrediction(f)
 	if f.power then
 		ns.StyleBar(f.power, KUIDB.style.powerTexture, true)
 		f.power.bg:SetColorTexture(ns:GetEmptyColor())
@@ -358,6 +363,8 @@ function ns:LayoutFrame(f)
 	local w = ns:GetWidth(f.unit)
 	f:SetWidth(w)
 	LayoutContents(f)
+	-- Segment widths are in pixels of the health bar
+	ns.UpdateHealPrediction(f)
 	if f.auras then
 		ns.SizeAuras(f.auras, w)
 		ns.UpdateAuras(f)
@@ -447,6 +454,7 @@ function ns:CreateUnitFrame(unit, cfg)
 		f.portrait = CreateFrame("PlayerModel", nil, f)
 	end
 	f.health = ns.CreateBar(f)
+	ns.CreateHealPrediction(f)
 	if cfg.power then
 		f.power = ns.CreateBar(f)
 	end

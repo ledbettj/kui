@@ -2,18 +2,19 @@ local addonName, ns = ...
 
 -- Colors, as { r, g, b } arrays. Lookup order: the user's override
 -- (KUIDB.colors.<kind>[key]), then the selected palette, then Blizzard's
--- tables (or KUI's cast defaults). Resetting a row removes the override,
+-- tables (or KUI's own defaults for cast bars and heal prediction). Resetting a row removes the override,
 -- falling back to the palette.
 --
 -- Returned tables are shared; callers must not modify them.
 
-ns.colorKinds = { "class", "reaction", "power", "cast" }
+ns.colorKinds = { "class", "reaction", "power", "cast", "heal" }
 
 -- Row order for each kind in the config panel
 ns.classOrder = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
 ns.powerOrder = { "MANA", "RAGE", "ENERGY", "FOCUS" }
 ns.reactionOrder = { "hostile", "neutral", "friendly" }
 ns.castOrder = { "cast", "channel", "failed" }
+ns.healOrder = { "mine", "others" }
 
 ---------------------------------------------------------------------------
 -- Palettes
@@ -54,6 +55,10 @@ ns.palettes = {
 			channel = { 0.35, 0.70, 0.42 },
 			failed  = { 0.75, 0.30, 0.30 },
 		},
+		heal = {
+			mine   = { 0.30, 0.72, 0.45 },
+			others = { 0.25, 0.55, 0.40 },
+		},
 	},
 }
 
@@ -61,11 +66,18 @@ ns.palettes = {
 -- Blizzard defaults
 ---------------------------------------------------------------------------
 
--- KUI's own cast bar colors (no Blizzard table to defer to)
-local CAST_DEFAULTS = {
-	cast = { 1, 0.7, 0 },
-	channel = { 0, 0.8, 0.2 },
-	failed = { 0.9, 0.1, 0.1 },
+-- Kinds with no Blizzard table to defer to
+local KUI_DEFAULTS = {
+	cast = {
+		cast = { 1, 0.7, 0 },
+		channel = { 0, 0.8, 0.2 },
+		failed = { 0.9, 0.1, 0.1 },
+	},
+	-- Incoming heals: the player's own brighter than other healers'
+	heal = {
+		mine = { 0, 0.85, 0.45 },
+		others = { 0, 0.6, 0.35 },
+	},
 }
 
 -- Index into FACTION_BAR_COLORS (Blizzard's classic target frame colors)
@@ -87,7 +99,7 @@ local blizzardCache = {}
 for _, kind in ipairs(ns.colorKinds) do blizzardCache[kind] = {} end
 
 local function BlizzardColor(kind, key)
-	if kind == "cast" then return CAST_DEFAULTS[key] end
+	if KUI_DEFAULTS[kind] then return KUI_DEFAULTS[kind][key] end
 	if key == nil then return end
 	local cache = blizzardCache[kind]
 	local c = cache[key]
