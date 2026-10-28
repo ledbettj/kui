@@ -9,4 +9,5 @@
 Core.lua
 Media.lua
 Frames.lua
+Castbar.lua
 Config.lua

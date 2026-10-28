@@ -77,6 +77,21 @@ local function CreateDropdown(parent, text, listMedia, get, set)
 	return row
 end
 
+local function CreateCheckbox(parent, text, get, set)
+	local row = CreateRow(parent, text)
+
+	local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+	check:SetPoint("LEFT", LABEL_WIDTH - 4, 0)
+	check:SetScript("OnClick", function(self)
+		set(self:GetChecked())
+	end)
+
+	function row:Refresh()
+		check:SetChecked(get())
+	end
+	return row
+end
+
 local function CreateColorSwatch(parent, text, get, set)
 	local row = CreateRow(parent, text)
 
@@ -145,6 +160,17 @@ local function SetStyle(key, value)
 	ns:ApplyStyle()
 end
 
+-- Cast bar rows live inside the secure unit frames, so size/icon changes go
+-- through the combat-deferred layout path
+local function SetCastbar(key, value)
+	KUIDB.castbar[key] = value
+	if key == "texture" then
+		ns:ApplyStyle()
+	else
+		ns:ApplyLayout()
+	end
+end
+
 -- Border settings re-anchor bars inside the secure frame, so they go through
 -- the combat-deferred layout path
 local function SetBorder(key, value)
@@ -156,6 +182,10 @@ local function ResetToDefaults()
 	wipe(KUIDB.widths)
 	wipe(KUIDB.style)
 	wipe(KUIDB.layout)
+	wipe(KUIDB.castbar)
+	for k, v in pairs(ns.castbarDefaults) do
+		KUIDB.castbar[k] = v
+	end
 	for k, v in pairs(ns.styleDefaults) do
 		KUIDB.style[k] = v
 	end
@@ -231,13 +261,35 @@ local function BuildPanel(panel)
 		function(v) SetStyle("fontSize", v) end))
 
 	y = y - 12
-	Place(CreateHeader(panel, "Bar textures"), 6)
+	Place(CreateHeader(panel, "Bars"), 6)
 	Place(CreateDropdown(panel, "Health bar", function() return ns:ListMedia("statusbar") end,
 		function() return KUIDB.style.healthTexture end,
 		function(v) SetStyle("healthTexture", v) end))
 	Place(CreateDropdown(panel, "Power bar", function() return ns:ListMedia("statusbar") end,
 		function() return KUIDB.style.powerTexture end,
 		function(v) SetStyle("powerTexture", v) end))
+	-- Resizes rows inside the secure frames, hence the deferred layout path
+	Place(CreateSlider(panel, "Power bar height", 2, 20, 1,
+		function() return KUIDB.style.powerHeight end,
+		function(v) SetBorder("powerHeight", v) end))
+	Place(CreateColorSwatch(panel, "Empty bar color",
+		function() return KUIDB.style.emptyColor end,
+		function(v) SetStyle("emptyColor", v) end))
+	Place(CreateSlider(panel, "Empty bar opacity", 0, 100, 5,
+		function() return math.floor(KUIDB.style.emptyAlpha * 100 + 0.5) end,
+		function(v) SetStyle("emptyAlpha", v / 100) end))
+
+	y = y - 12
+	Place(CreateHeader(panel, "Cast bar"), 6)
+	Place(CreateSlider(panel, "Height", 4, 24, 1,
+		function() return KUIDB.castbar.height end,
+		function(v) SetCastbar("height", v) end))
+	Place(CreateDropdown(panel, "Texture", function() return ns:ListMedia("statusbar") end,
+		function() return KUIDB.castbar.texture end,
+		function(v) SetCastbar("texture", v) end))
+	Place(CreateCheckbox(panel, "Show spell icon",
+		function() return KUIDB.castbar.showIcon end,
+		function(v) SetCastbar("showIcon", v) end))
 
 	y = y - 12
 	Place(CreateHeader(panel, "Border"), 6)

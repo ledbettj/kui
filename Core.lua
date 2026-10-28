@@ -7,8 +7,8 @@ ns.frames = {}
 -- widthFrom: share another unit's width setting so the pair always matches.
 ns.order = { "player", "target", "targettarget", "pet", "focus", "party1", "party2", "party3", "party4" }
 ns.defaults = {
-	player       = { label = "Player", w = 234, h = 56, power = true, powerHeight = 10, portrait = true, auras = "above" },
-	target       = { label = "Target", w = 234, h = 56, power = true, powerHeight = 10, portrait = true, auras = "above", combo = true },
+	player       = { label = "Player", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true },
+	target       = { label = "Target", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, combo = true },
 	targettarget = { label = "ToT",    w = 108, h = 22, poll = true },
 	pet          = { label = "Pet",    w = 108, h = 22, power = true },
 	focus        = { label = "Focus",  w = 108, h = 22, widthFrom = "targettarget" },
@@ -32,6 +32,10 @@ ns.styleDefaults = {
 	borderColor = { 0.5, 0.5, 0.5 },
 	bgAlpha = 0.8,
 	padding = 1, -- gap between the border and the bars/portrait
+	powerHeight = 10, -- player/target only; party and pet keep fixed sizes
+	-- Background of empty power bars and idle cast bars
+	emptyColor = { 0, 0, 0 },
+	emptyAlpha = 0.5,
 }
 
 --   [focus] [player] - - | - - [target] [tot]
@@ -46,6 +50,13 @@ ns.layoutDefaults = {
 	partyX = 20,
 	partyY = -180,
 	partySpacing = 14,
+}
+
+-- Cast bar row inside the player/target frames, under the power bar
+ns.castbarDefaults = {
+	height = 12,
+	texture = "Modern",
+	showIcon = true,
 }
 
 function ns:GetWidth(unit)
@@ -160,6 +171,16 @@ function ns:HideBlizzard()
 			f:SetParent(hider)
 		end
 	end
+
+	-- Cast bars are Edit Mode-managed; clearing the unit unregisters their
+	-- events so they never show, without reparenting them
+	for _, name in ipairs({ "PlayerCastingBarFrame", "PetCastingBarFrame" }) do
+		local f = _G[name]
+		if f and f.SetUnit then
+			f:SetUnit(nil)
+			f:Hide()
+		end
+	end
 end
 
 ---------------------------------------------------------------------------
@@ -185,8 +206,11 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		KUIDB.widths.focus = nil -- focus now shares the ToT width
 		KUIDB.style = KUIDB.style or {}
 		KUIDB.layout = KUIDB.layout or {}
+		KUIDB.castbar = KUIDB.castbar or {}
 		FillDefaults(KUIDB.style, ns.styleDefaults)
 		FillDefaults(KUIDB.layout, ns.layoutDefaults)
+		KUIDB.castbar.width = nil -- from the old standalone cast bar
+		FillDefaults(KUIDB.castbar, ns.castbarDefaults)
 
 		ns:UpdateFonts()
 		ns:HideBlizzard()

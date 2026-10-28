@@ -60,6 +60,7 @@ local function StyleBar(bar, textureName, solidBg)
 	end
 	bar.bg:SetVertexColor(0.15, 0.15, 0.15)
 end
+ns.StyleBar = StyleBar
 
 -- Shared font objects: changing one restyles every fontstring using it.
 -- Styling (shadow, color) follows the nameplate font.
@@ -307,6 +308,7 @@ local function UpdateAll(self)
 		-- Only reachable in preview mode: show a placeholder
 		if self.portrait then self.portrait:ClearModel() end
 		HideAuras(self)
+		if self.castbar then ns:PreviewCastbar(self.castbar) end
 		self.nameText:SetText(self.label)
 		self.healthText:SetText("")
 		self.health:SetMinMaxValues(0, 1)
@@ -324,6 +326,7 @@ local function UpdateAll(self)
 	UpdateName(self)
 	UpdatePortrait(self)
 	UpdateAuras(self)
+	if self.castbar then ns:RefreshCastbar(self.castbar) end
 end
 ns.UpdateAll = UpdateAll
 
@@ -375,20 +378,30 @@ function ns:StyleFrame(f)
 	StyleBar(f.health, KUIDB.style.healthTexture)
 	if f.power then
 		StyleBar(f.power, KUIDB.style.powerTexture, true)
+		f.power.bg:SetColorTexture(ns:GetEmptyColor())
+	end
+	if f.castbar then
+		ns:StyleCastbar(f.castbar)
 	end
 	-- Swapping textures drops vertex colors, so recolor
 	UpdateAll(f)
 end
 
 -- Width changes touch a secure frame; callers handle combat deferral
--- Border, background and everything inside it. The border's inset decides
--- where the portrait and bars sit, so they're anchored here too.
-local function LayoutContents(f)
-	local cfg, style = f.cfg, KUIDB.style
+-- r, g, b, a for the background of empty power bars and idle cast bars
+function ns:GetEmptyColor()
+	local c = KUIDB.style.emptyColor
+	return c[1], c[2], c[3], KUIDB.style.emptyAlpha
+end
+
+-- Applies the configured border and background to any BackdropTemplate
+-- frame. Returns the inner inset (border + padding) where content starts.
+function ns:ApplyBackdrop(f, small)
+	local style = KUIDB.style
 
 	-- Small frames get a proportionally thinner border
 	local edge = style.borderSize
-	if f.small then edge = math.max(1, math.floor(edge * 2 / 3 + 0.5)) end
+	if small then edge = math.max(1, math.floor(edge * 2 / 3 + 0.5)) end
 	local path, insetScale = ns:GetBorder(style.border)
 	local inset = edge * insetScale
 
@@ -402,8 +415,20 @@ local function LayoutContents(f)
 	local c = style.borderColor
 	f:SetBackdropBorderColor(c[1], c[2], c[3], 1)
 
-	local powerHeight = cfg.power and (cfg.powerHeight or math.floor(cfg.h * 0.25)) or 0
-	inset = math.floor(inset + 0.5) + style.padding
+	return math.floor(inset + 0.5) + style.padding
+end
+
+-- Border, background and everything inside it. The border's inset decides
+-- where the portrait and bars sit, so they're anchored here too.
+local function LayoutContents(f)
+	local cfg = f.cfg
+	local inset = ns:ApplyBackdrop(f, f.small)
+	local powerHeight = 0
+	if cfg.powerFromSettings then
+		powerHeight = KUIDB.style.powerHeight
+	elseif cfg.power then
+		powerHeight = cfg.powerHeight or math.floor(cfg.h * 0.25)
+	end
 	local gap = 1
 	local left = inset
 
@@ -416,17 +441,31 @@ local function LayoutContents(f)
 		left = inset + size + gap
 	end
 
-	f.health:ClearAllPoints()
-	f.health:SetPoint("TOPLEFT", left, -inset)
-	f.health:SetPoint("TOPRIGHT", -inset, -inset)
-	f.health:SetPoint("BOTTOM", 0, f.power and (powerHeight + inset + gap) or inset)
+	-- Stacked bottom-up beside the portrait: cast bar, power, then health
+	-- takes whatever height is left
+	local bottom = inset
+
+	if f.castbar then
+		f.castbar:ClearAllPoints()
+		f.castbar:SetPoint("BOTTOMLEFT", left, bottom)
+		f.castbar:SetPoint("BOTTOMRIGHT", -inset, bottom)
+		f.castbar:SetHeight(KUIDB.castbar.height)
+		ns:LayoutCastbar(f.castbar)
+		bottom = bottom + KUIDB.castbar.height + gap
+	end
 
 	if f.power then
 		f.power:ClearAllPoints()
-		f.power:SetPoint("BOTTOMLEFT", left, inset)
-		f.power:SetPoint("BOTTOMRIGHT", -inset, inset)
+		f.power:SetPoint("BOTTOMLEFT", left, bottom)
+		f.power:SetPoint("BOTTOMRIGHT", -inset, bottom)
 		f.power:SetHeight(powerHeight)
+		bottom = bottom + powerHeight + gap
 	end
+
+	f.health:ClearAllPoints()
+	f.health:SetPoint("TOPLEFT", left, -inset)
+	f.health:SetPoint("TOPRIGHT", -inset, -inset)
+	f.health:SetPoint("BOTTOM", 0, bottom)
 end
 
 function ns:LayoutFrame(f)
@@ -473,7 +512,10 @@ function ns:CreateUnitFrame(unit, cfg)
 
 	if cfg.power then
 		f.power = CreateBar(f)
-		f.power.bg:SetColorTexture(0, 0, 0, 0.5)
+	end
+
+	if cfg.castbar then
+		f.castbar = ns:CreateCastbar(f)
 	end
 
 	-- Buffs/debuffs
