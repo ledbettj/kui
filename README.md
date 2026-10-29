@@ -11,7 +11,7 @@ Anniversary.
 - Incoming heals shown on the health bar, yours and other healers' separately
 - Aggro border: player, pet and party frames turn yellow, orange or red as a
   mob comes after them
-- Buffs and debuffs above the player and target, and beside party members
+- Buffs and debuffs above the player and target, and below party members
 - Cast bars built into the player and target frames, and under the focus
   frame
 - Raid target markers, leader and master looter icons, PvP flag, and

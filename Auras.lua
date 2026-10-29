@@ -13,7 +13,7 @@ local SPACING = 2
 -- tooltips, so the icons don't block clicks.
 local LAYOUTS = {
 	above = { size = 22, maxBuffs = 32, maxDebuffs = 16, growUp = true },
-	right = { size = 16, maxBuffs = 8, maxDebuffs = 8, perRow = 8 },
+	below = { size = 16, maxBuffs = 8, maxDebuffs = 8, perRow = 8 },
 	nameplate = { size = 18, maxBuffs = 4, maxDebuffs = 6, growUp = true, debuffFilter = "HARMFUL|PLAYER", buffsByReaction = true, noMouse = true },
 }
 
@@ -182,6 +182,14 @@ function ns.CreateAuras(owner, layoutKey)
 	container:SetHeight(layout.size)
 	owner.auras = container
 	return container
+end
+
+-- Height of the container when full: the debuff rows plus the buff rows.
+-- Needs a fixed perRow.
+function ns.AurasMaxHeight(container)
+	local layout = container.layout
+	local rows = math.ceil(layout.maxDebuffs / layout.perRow) + math.ceil(layout.maxBuffs / layout.perRow)
+	return rows * (layout.size + SPACING) - SPACING
 end
 
 -- Icons per row for an owner of the given width

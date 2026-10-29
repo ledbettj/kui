@@ -388,13 +388,15 @@ local function CreateCastbar(f, unit, cfg)
 	end
 end
 
+local AURA_GAP = 3 -- between a frame and auras below it
+
 local function CreateAuras(f, cfg)
 	if not cfg.auras then return end
 	local auras = ns.CreateAuras(f, cfg.auras)
 	if auras.layout.growUp then
 		auras:SetPoint("BOTTOMLEFT", f, "TOPLEFT", 0, 4)
 	else
-		auras:SetPoint("TOPLEFT", f, "TOPRIGHT", 4, 0)
+		auras:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -AURA_GAP)
 	end
 end
 
@@ -490,8 +492,8 @@ function ns:GetWidth(unit)
 end
 
 --   [focus] [player] - - | - - [target] [tot]
--- pet under the player; party column at the top left, each member followed
--- by its pet and then its auras
+-- pet under the player; party column at the top left, each member with its
+-- pet to the right and its auras underneath
 function ns:ApplyPositions()
 	local L, F = KUIDB.layout, ns.frames
 	for _, f in pairs(F) do
@@ -504,17 +506,16 @@ function ns:ApplyPositions()
 	F.targettarget:SetPoint("LEFT", F.target, "RIGHT", L.sideGap, 0)
 	F.pet:SetPoint("TOPLEFT", F.player, "BOTTOMLEFT", 0, -4)
 
+	-- Room for a full set of auras stays reserved under each member, since
+	-- the secure frames can't move in combat as auras come and go
+	local auraSpace = AURA_GAP + ns.AurasMaxHeight(F.party1.auras)
 	F.party1:SetPoint("TOPLEFT", UIParent, "TOPLEFT", L.partyX, L.partyY)
 	for i = 1, 4 do
 		local member, pet = F["party" .. i], F["partypet" .. i]
 		if i > 1 then
-			member:SetPoint("TOPLEFT", F["party" .. (i - 1)], "BOTTOMLEFT", 0, -L.partySpacing)
+			member:SetPoint("TOPLEFT", F["party" .. (i - 1)], "BOTTOMLEFT", 0, -(auraSpace + L.partySpacing))
 		end
 		pet:SetPoint("TOPLEFT", member, "TOPRIGHT", 4, 0)
-		-- The pet's slot stays reserved even with no pet out, so the auras
-		-- don't jump around as pets come and go
-		member.auras:ClearAllPoints()
-		member.auras:SetPoint("TOPLEFT", pet, "TOPRIGHT", 4, 0)
 	end
 end
 

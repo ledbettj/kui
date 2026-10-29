@@ -44,7 +44,7 @@ ns.units = {
 -- party1's width; pets are focus/ToT sized and share that width.
 for i = 1, 4 do
 	ns.units["party" .. i] = {
-		label = "Party " .. i, w = 170, h = 36, power = true, powerHeight = 8, portrait = true, auras = "right",
+		label = "Party " .. i, w = 170, h = 36, power = true, powerHeight = 8, portrait = true, auras = "below",
 		party = true, widthFrom = i > 1 and "party1" or nil, status = {}, threat = true,
 	}
 	ns.units["partypet" .. i] = {
