@@ -1,8 +1,8 @@
 local addonName, ns = ...
 
 -- Cosmetic restyle of Blizzard's action buttons: border, square icons,
--- fonts, range coloring. Layout (size, padding, rows) is left to Edit Mode,
--- which owns the positions of these protected buttons.
+-- fonts, range coloring, lower-rank marker. Layout (size, padding, rows) is
+-- left to Edit Mode, which owns the positions of these protected buttons.
 
 local BUTTON_SETS = {
 	{ "ActionButton", 12 },
@@ -76,6 +76,89 @@ local function PollChecked(_, elapsed)
 		end
 	end
 end
+
+---------------------------------------------------------------------------
+-- Lower-rank marker: a dot in the corner of buttons holding a spell below
+-- the highest rank trained, to catch bars not updated after visiting the
+-- trainer. Deliberate downranks are marked too.
+---------------------------------------------------------------------------
+
+local RANK_MARK_COLOR = { 0.3, 1, 0.3 }
+
+local maxRank = {} -- spell name -> highest rank known
+
+local GetName = C_Spell and C_Spell.GetSpellName or GetSpellInfo
+
+-- Rank number from a "Rank N" subtext; nil for spells without one
+-- (racials, passives, single-rank abilities)
+local function ParseRank(subtext)
+	return subtext and tonumber(subtext:match("%d+"))
+end
+
+-- The highest rank is always in the spellbook. Lower ranks only are while
+-- the ShowAllSpellRanks setting is on, so buttons look theirs up by ID.
+local function ScanSpellbook()
+	wipe(maxRank)
+	for tab = 1, GetNumSpellTabs() do
+		local _, _, offset, numSpells = GetSpellTabInfo(tab)
+		for i = offset + 1, offset + numSpells do
+			local name, subtext = GetSpellBookItemName(i, "spell")
+			local rank = GetSpellBookItemInfo(i, "spell") == "SPELL" and ParseRank(subtext)
+			if rank and name and rank > (maxRank[name] or 0) then
+				maxRank[name] = rank
+			end
+		end
+	end
+end
+
+-- The spell an action casts: placed directly, or a macro's current spell
+local function ActionSpellID(action)
+	local kind, id = GetActionInfo(action)
+	if kind == "spell" then
+		return id
+	elseif kind == "macro" and GetMacroSpell then
+		return GetMacroSpell(id)
+	end
+end
+
+local function UpdateRankMark(btn)
+	local show = false
+	if KUIDB.actionbars.markLowRank and btn.action then
+		local id = ActionSpellID(btn.action)
+		local best = id and maxRank[GetName(id)]
+		local rank = best and ParseRank(GetSpellSubtext(id))
+		show = rank ~= nil and rank < best
+	end
+	btn.kuiRankMark:SetShown(show)
+end
+
+-- A colored dot with a 1px black outline. Child of the border overlay, so
+-- it draws above the cooldown swipe; StyleButton anchors it to the icon.
+local function CreateRankMark(btn)
+	local mark = CreateFrame("Frame", nil, btn.kuiBorder)
+	mark:SetSize(7, 7)
+	local outline = mark:CreateTexture(nil, "BACKGROUND")
+	outline:SetAllPoints()
+	outline:SetColorTexture(0, 0, 0, 1)
+	local dot = mark:CreateTexture(nil, "ARTWORK")
+	dot:SetPoint("TOPLEFT", 1, -1)
+	dot:SetPoint("BOTTOMRIGHT", -1, 1)
+	dot:SetColorTexture(unpack(RANK_MARK_COLOR))
+	mark:Hide()
+	btn.kuiRankMark = mark
+end
+
+local rankEvents = CreateFrame("Frame")
+rankEvents:SetScript("OnEvent", function()
+	ScanSpellbook()
+	for btn in pairs(buttons) do
+		if btn.kuiRankMark then UpdateRankMark(btn) end
+	end
+end)
+
+---------------------------------------------------------------------------
+-- Styling
+---------------------------------------------------------------------------
 
 local function FitToIcon(region, icon)
 	if not region then return end
@@ -152,6 +235,12 @@ local function StyleButton(btn)
 		btn.Count:SetFontObject(ns.fonts.normal)
 	end
 
+	if btn.kuiRankMark then
+		btn.kuiRankMark:ClearAllPoints()
+		btn.kuiRankMark:SetPoint("TOPLEFT", icon, "TOPLEFT", 1, -1)
+		UpdateRankMark(btn)
+	end
+
 	UpdateIconColor(btn)
 end
 
@@ -186,6 +275,12 @@ function ns:InitActionBars()
 				end
 				-- Blizzard's state updates go through SetChecked
 				hooksecurefunc(btn, "SetChecked", UpdateChecked)
+
+				-- Spell buttons only: Update runs on slot changes and paging
+				if btn.Update and btn.action then
+					CreateRankMark(btn)
+					hooksecurefunc(btn, "Update", UpdateRankMark)
+				end
 			end
 		end
 	end
@@ -194,6 +289,10 @@ function ns:InitActionBars()
 		if buttons[btn] then UpdateIconColor(btn) end
 	end)
 	checkPoller:SetScript("OnUpdate", PollChecked)
+
+	-- Training a rank changes the spellbook
+	ScanSpellbook()
+	rankEvents:RegisterEvent("SPELLS_CHANGED")
 
 	ns:StyleActionBars()
 end

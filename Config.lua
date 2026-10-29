@@ -444,6 +444,7 @@ local function BuildActionBars(b)
 	b.Checkbox("Show keybinds", Bind("actionbars", "showHotkeys", SetActionBars))
 	b.Checkbox("Show macro names", Bind("actionbars", "showMacroNames", SetActionBars))
 	b.Checkbox("Red icons out of range", Bind("actionbars", "rangeColor", SetActionBars))
+	b.Checkbox("Mark lower-rank spells", Bind("actionbars", "markLowRank", SetActionBars))
 	b.Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
 
 	b.Section("Buff bar")

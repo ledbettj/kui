@@ -101,6 +101,7 @@ ns.settingsDefaults = {
 		showMacroNames = true,
 		rangeColor = true,
 		activeColor = { 1, 0.82, 0 }, -- border color while an action is active
+		markLowRank = true, -- dot on buttons with a spell below its highest trained rank
 	},
 
 	-- XP / reputation bars replacing Blizzard's status tracking bars
