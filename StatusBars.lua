@@ -153,7 +153,7 @@ local function CreateStatusBar(withRested)
 		bar.status.bg:SetDrawLayer("BACKGROUND")
 	end
 
-	-- Numbers only on hover, like the player power bar
+	-- Numbers only on hover, to keep the screen edge quiet
 	bar.text = ns.CreateText(bar.status, ns.fonts.small, "CENTER")
 	bar.text:SetPoint("CENTER")
 	bar.text:Hide()

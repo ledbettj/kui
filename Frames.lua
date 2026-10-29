@@ -84,20 +84,8 @@ local function UpdatePower(self)
 	self.power:SetValue(cur)
 	self.power:SetStatusBarColor(c[1], c[2], c[3])
 
-	if self.powerText and self.powerText:IsShown() then
-		self.powerText:SetFormattedText("%d / %d", cur, max)
-	end
-end
-
--- Power text appears only while the mouse is over the power bar. The bar
--- itself doesn't take mouse input (that would swallow clicks meant for
--- targeting/Clique), so check IsMouseOver while the frame is hovered.
-local function PowerHover_OnUpdate(bar)
-	local f = bar:GetParent()
-	local over = bar:IsMouseOver()
-	if over ~= f.powerText:IsShown() then
-		f.powerText:SetShown(over)
-		if over then UpdatePower(f) end
+	if self.powerText then
+		self.powerText:SetFormattedText("%s / %s", ShortValue(cur), ShortValue(max))
 	end
 end
 
@@ -154,6 +142,7 @@ local function ShowPlaceholder(self)
 		self.power:SetMinMaxValues(0, 1)
 		self.power:SetValue(0)
 	end
+	if self.powerText then self.powerText:SetText("") end
 end
 
 function ns.UpdateAll(self)
@@ -408,18 +397,10 @@ local function CreateTexts(f)
 	f.healthText:SetPoint("RIGHT", -4, 0)
 	f.nameText:SetPoint("RIGHT", f.healthText, "LEFT", -4, 0)
 
-	-- Player power numbers, shown on hover
+	-- Player power numbers, right-aligned under the health numbers
 	if f.unit == "player" and f.power then
-		f.powerText = ns.CreateText(f.power, ns.fonts.small, "CENTER")
-		f.powerText:SetPoint("CENTER")
-		f.powerText:Hide()
-		f:HookScript("OnEnter", function(self)
-			self.power:SetScript("OnUpdate", PowerHover_OnUpdate)
-		end)
-		f:HookScript("OnLeave", function(self)
-			self.power:SetScript("OnUpdate", nil)
-			self.powerText:Hide()
-		end)
+		f.powerText = ns.CreateText(f.power, ns.fonts.small, "RIGHT")
+		f.powerText:SetPoint("RIGHT", -4, 0)
 	end
 end
 
