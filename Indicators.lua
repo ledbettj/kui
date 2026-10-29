@@ -1,7 +1,8 @@
 local addonName, ns = ...
 
 -- Small unit frame indicators: raid target marker, leader / master looter /
--- PvP / rest-combat status icons, and the party out-of-range fade.
+-- PvP / rest-combat status icons, the aggro border, and the party
+-- out-of-range fade.
 
 local NAME_INSET = 4 -- name text's left inset in the health bar
 ns.NAME_INSET = NAME_INSET
@@ -153,16 +154,35 @@ function ns.UpdateStatusIcons(f)
 end
 
 ---------------------------------------------------------------------------
+-- Aggro border (frames with cfg.threat)
+---------------------------------------------------------------------------
+
+-- Threat color while any mob is on, or about to pull off, the unit
+-- (status 1-3, as Blizzard's frames show it), else the normal border.
+-- ApplyBackdrop resets the border, so layout calls this again afterwards.
+function ns.UpdateThreat(f)
+	if not f.cfg.threat then return end
+	local status = KUIDB.aggro.enabled and UnitExists(f.unit) and UnitThreatSituation(f.unit)
+	local c = (status and status > 0) and ns:GetColor("threat", ns.threatOrder[status])
+		or KUIDB.style.borderColor
+	f:SetBackdropBorderColor(c[1], c[2], c[3], 1)
+end
+
+---------------------------------------------------------------------------
 -- Party range fade
 ---------------------------------------------------------------------------
 
 local RANGE_INTERVAL = 0.25
 
 -- SetAlpha is allowed on secure frames in combat. Units the client can't
--- range-check stay opaque.
+-- range-check stay opaque. Also loads the portrait once a member comes
+-- into visual range, which fires no event.
 function ns.UpdateRange(f)
 	local inRange, checkedRange = UnitInRange(f.unit)
 	f:SetAlpha((checkedRange and not inRange) and KUIDB.style.outOfRangeAlpha or 1)
+	if f.portrait and f.portraitVisible ~= UnitIsVisible(f.unit) then
+		ns.UpdatePortrait(f)
+	end
 end
 
 -- OnUpdate script for party frames

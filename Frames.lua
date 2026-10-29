@@ -111,12 +111,14 @@ function ns.UpdateName(self)
 	self.nameText:SetFormattedText("%s%s%s|r %s", hex, level > 0 and level or "??", suffix, name)
 end
 
-local function UpdatePortrait(self)
+function ns.UpdatePortrait(self)
 	local portrait = self.portrait
 	if not portrait then return end
 
 	local unit = self.unit
-	if UnitIsVisible(unit) and UnitIsConnected(unit) then
+	-- Remembered so the party range check can tell when it changes
+	self.portraitVisible = UnitIsVisible(unit)
+	if self.portraitVisible and UnitIsConnected(unit) then
 		portrait:SetUnit(unit)
 		portrait:SetPortraitZoom(1)
 	else
@@ -124,11 +126,13 @@ local function UpdatePortrait(self)
 		portrait:ClearModel()
 	end
 end
+local UpdatePortrait = ns.UpdatePortrait
 
 -- Stand-in contents for a unit that doesn't exist (preview mode only)
 local function ShowPlaceholder(self)
 	if self.portrait then self.portrait:ClearModel() end
 	ns.UpdateRaidIcon(self)
+	ns.UpdateThreat(self)
 	ns.UpdateStatusIcons(self)
 	ns.HideAuras(self)
 	ns.UpdateHealPrediction(self)
@@ -156,6 +160,7 @@ function ns.UpdateAll(self)
 	UpdatePortrait(self)
 	ns.UpdateRaidIcon(self)
 	ns.UpdateStatusIcons(self)
+	ns.UpdateThreat(self)
 	ns.UpdateAuras(self)
 	if self.castbar then ns:RefreshCastbar(self.castbar) end
 end
@@ -184,6 +189,7 @@ local unitEventHandlers = {
 	UNIT_MODEL_CHANGED = UpdatePortrait,
 	UNIT_PORTRAIT_UPDATE = UpdatePortrait,
 	UNIT_AURA = ns.UpdateAuras,
+	UNIT_THREAT_SITUATION_UPDATE = ns.UpdateThreat, -- cfg.threat frames only
 }
 
 -- Events meaning the frame's unit is now a different entity
@@ -233,7 +239,9 @@ end
 
 local function RegisterEvents(f, unit, cfg)
 	for event in pairs(unitEventHandlers) do
-		if cfg.combo and event == "UNIT_POWER_FREQUENT" then
+		if event == "UNIT_THREAT_SITUATION_UPDATE" and not cfg.threat then
+			-- No aggro border on this frame
+		elseif cfg.combo and event == "UNIT_POWER_FREQUENT" then
 			-- Combo points are the player's power
 			SafeRegister(f, event, unit, "player")
 		else
@@ -357,6 +365,7 @@ function ns:LayoutFrame(f)
 	LayoutContents(f)
 	-- Segment widths are in pixels of the health bar
 	ns.UpdateHealPrediction(f)
+	ns.UpdateThreat(f) -- the backdrop was just reset
 	if f.auras then
 		ns.SizeAuras(f.auras, w)
 		ns.UpdateAuras(f)

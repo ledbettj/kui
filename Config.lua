@@ -219,6 +219,11 @@ local function SetHealPrediction(key, value)
 	ns:ApplyStyle()
 end
 
+local function SetAggro(key, value)
+	KUIDB.aggro[key] = value
+	ns:ApplyStyle()
+end
+
 local function SetBuffs(key, value)
 	KUIDB.buffs[key] = value
 	NeedsReload("buff bar styling")
@@ -384,6 +389,9 @@ local function BuildUnitFrames(b)
 
 	b.Section("Incoming heals")
 	b.Checkbox("Show incoming heals", Bind("healPrediction", "enabled", SetHealPrediction))
+
+	b.Section("Aggro")
+	b.Checkbox("Threat border (player, pet, party)", Bind("aggro", "enabled", SetAggro))
 end
 
 local function BuildColors(b)

@@ -30,12 +30,13 @@ ns.unitOrder = {
 --   poll               no reliable events, refresh on a timer
 --   party              party unit: raid-hidden, roster-aware, range fade
 --   owner              a pet: refresh when this unit's pet changes
+--   threat             border in the threat color while it has aggro
 --   widthFrom          share another unit's width setting
 ns.units = {
-	player       = { label = "Player", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, status = { pvp = true, state = true } },
+	player       = { label = "Player", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, status = { pvp = true, state = true }, threat = true },
 	target       = { label = "Target", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, combo = true, status = { pvp = true } },
 	targettarget = { label = "ToT",    w = 108, h = 22, poll = true },
-	pet          = { label = "Pet",    w = 108, h = 22, power = true, owner = "player" },
+	pet          = { label = "Pet",    w = 108, h = 22, power = true, owner = "player", threat = true },
 	focus        = { label = "Focus",  w = 108, h = 22, widthFrom = "targettarget", detachedCastbar = true },
 }
 -- Party: the other four members (like Blizzard's classic party frames, the
@@ -43,12 +44,12 @@ ns.units = {
 -- party1's width; pets are focus/ToT sized and share that width.
 for i = 1, 4 do
 	ns.units["party" .. i] = {
-		label = "Party " .. i, w = 150, h = 36, power = true, powerHeight = 8, auras = "right",
-		party = true, widthFrom = i > 1 and "party1" or nil, status = {},
+		label = "Party " .. i, w = 170, h = 36, power = true, powerHeight = 8, portrait = true, auras = "right",
+		party = true, widthFrom = i > 1 and "party1" or nil, status = {}, threat = true,
 	}
 	ns.units["partypet" .. i] = {
 		label = "Pet " .. i, w = 108, h = 22,
-		party = true, owner = "party" .. i, widthFrom = "targettarget",
+		party = true, owner = "party" .. i, widthFrom = "targettarget", threat = true,
 	}
 end
 
@@ -128,6 +129,10 @@ ns.settingsDefaults = {
 	-- Edit Mode)
 	buffs = {
 		enabled = true,
+	},
+
+	aggro = {
+		enabled = true, -- threat-colored border on player, pet and party frames
 	},
 
 	healPrediction = {
