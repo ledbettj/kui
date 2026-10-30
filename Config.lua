@@ -302,6 +302,12 @@ local function SetInfoBar(key, value)
 	ns:LayoutStatusBars() -- they sit on top of it
 end
 
+local function SetUIFont(key, value)
+	KUIDB.uifont[key] = value
+	ns:ApplyUIFont()
+	ns.Print("names over heads and combat text change after a relog.")
+end
+
 local function SetMinimap(key, value)
 	KUIDB.minimap[key] = value
 	ns:LayoutMinimap()
@@ -422,6 +428,8 @@ end
 local function BuildGeneral(b)
 	b.Section("Text")
 	b.Dropdown("Font", FontList, Bind("style", "font", SetStyle))
+	b.Checkbox("Use one font for the whole UI", Bind("uifont", "enabled", SetUIFont))
+	b.Dropdown("Whole UI font", FontList, Bind("uifont", "font", SetUIFont))
 	b.Slider("Font size", 8, 16, 1, Bind("style", "fontSize", SetStyle))
 
 	b.Section("Bar textures")

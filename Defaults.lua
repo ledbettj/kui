@@ -140,6 +140,12 @@ ns.settingsDefaults = {
 		threatPercent = true, -- threat % beside the plate while on its threat list
 	},
 
+	-- One font for the whole UI, not just KUI's own text
+	uifont = {
+		enabled = true,
+		font = "Arial Narrow",
+	},
+
 	-- Restyling of Blizzard's player buff/debuff frames (layout stays with
 	-- Edit Mode)
 	buffs = {

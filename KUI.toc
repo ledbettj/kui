@@ -12,6 +12,7 @@ Core.lua
 Media.lua
 Colors.lua
 Widgets.lua
+UIFont.lua
 
 # Unit frame parts, then the frames themselves
 Auras.lua

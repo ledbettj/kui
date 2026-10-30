@@ -90,6 +90,8 @@ Anniversary.
 
 Open the settings with `/kui`, or go to Options → AddOns → KUI.
 
+- One font for the whole Blizzard UI (Arial Narrow by default), keeping
+  each text's own size
 - Fonts, font size, bar textures, border style, size and color, and
   background opacity, with LibSharedMedia textures and fonts supported
 - Frame widths, positions and spacing, power and cast bar heights

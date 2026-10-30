@@ -72,6 +72,7 @@ function ns:ResetSettings()
 	ns:ApplyStyle()
 	ns:ApplyLayout()
 	ns:ApplyChat()
+	ns:ApplyUIFont()
 	ns:ApplyMenuBar()
 	ns:ApplyMeter()
 end
@@ -162,6 +163,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		self:UnregisterEvent("ADDON_LOADED")
 		InitDB()
 		ns:UpdateFonts()
+		ns:InitWorldFonts()
 		HideBlizzard()
 		for _, unit in ipairs(ns.unitOrder) do
 			ns.frames[unit] = ns:CreateUnitFrame(unit, ns.units[unit])
@@ -172,6 +174,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		-- Blizzard's action buttons, nameplate driver and status bars exist by
 		-- now. Styling again also picks up saved media from LibSharedMedia
 		-- packs that registered after us.
+		ns:InitUIFont()
 		ns:InitActionBars()
 		ns:InitBuffs()
 		ns:InitNameplates()
