@@ -3,11 +3,13 @@ local addonName, ns = ...
 -- A small damage/healing meter for the group: one window with a bar per
 -- player, for the current (or last) fight or everything since the last
 -- reset. Pets and summons count as their owner. Healing is what actually
--- landed (no overhealing) plus damage absorbed by shields.
+-- landed (no overhealing) plus damage absorbed by shields. The current
+-- fight is named after the enemy the group hit hardest.
 --
 -- Title bar: left-click switches damage/healing, right-click current/
--- overall, drag to move. The corner grip resizes, snapping the height to
--- whole rows.
+-- overall, drag to move. Clicking a player's bar breaks their total down
+-- by spell (their pets' spells listed separately); right-clicking goes
+-- back. The corner grip resizes, snapping the height to whole rows.
 
 local MODE_LABELS = { damage = "Damage", healing = "Healing" }
 local SEGMENT_LABELS = { current = "Current", overall = "Overall" }
@@ -40,9 +42,17 @@ local rows = {}
 -- Data
 ---------------------------------------------------------------------------
 
--- actors: owner GUID -> { guid, name, class, damage, healing }
+-- spell id -> combat log school mask, for coloring the breakdown
+local spellSchools = { [0] = 1 } -- melee is physical
+
+-- actors: owner GUID -> { guid, name, class, damage, healing, spells }
+--   spells: "damage"/"healing" -> caster -> spell id -> amount, the caster
+--   being "" for the player and the name of a pet or summon. Melee swings
+--   are spell id 0.
+-- enemies (current fight only): name -> { damage, count }, with
+--   enemyGUIDs telling which enemies were already counted
 local function NewSegment()
-	return { actors = {}, duration = 0 }
+	return { actors = {}, duration = 0, enemies = {}, enemyGUIDs = {} }
 end
 
 local segments = { current = NewSegment(), overall = NewSegment() }
@@ -88,25 +98,52 @@ end
 local function Actor(seg, guid)
 	local a = seg.actors[guid]
 	if not a then
-		a = { guid = guid, damage = 0, healing = 0 }
+		a = { guid = guid, damage = 0, healing = 0, spells = { damage = {}, healing = {} } }
 		seg.actors[guid] = a
 	end
 	return a
 end
 
-local function Add(guid, key, amount)
-	if not amount or amount <= 0 then return end
+-- Credits amount to owner, from spellID (of school) cast by srcGUID (the
+-- owner or their pet). Returns whether it counted.
+local function Add(owner, key, amount, srcGUID, srcName, spellID, school)
+	if not amount or amount <= 0 then return false end
+	if school then spellSchools[spellID] = school end
 	-- Events outside combat (topping people off afterwards) would otherwise
 	-- start a new fight and replace the last one
 	if not fightStart then
-		if not GroupInCombat() then return end
+		if not GroupInCombat() then return false end
 		segments.current = NewSegment()
 		fightStart = GetTime()
 	end
+	local caster = srcGUID == owner and "" or (srcName or "?")
 	for _, seg in pairs(segments) do
-		local a = Actor(seg, guid)
+		local a = Actor(seg, owner)
 		a[key] = a[key] + amount
+		local byCaster = a.spells[key]
+		local spells = byCaster[caster]
+		if not spells then
+			spells = {}
+			byCaster[caster] = spells
+		end
+		spells[spellID] = (spells[spellID] or 0) + amount
 	end
+	return true
+end
+
+-- Damage the group dealt to an enemy, for naming the current fight
+local function AddEnemy(guid, name, amount)
+	local seg = segments.current
+	local e = seg.enemies[name or "?"]
+	if not e then
+		e = { damage = 0, count = 0 }
+		seg.enemies[name or "?"] = e
+	end
+	if not seg.enemyGUIDs[guid] then
+		seg.enemyGUIDs[guid] = true
+		e.count = e.count + 1
+	end
+	e.damage = e.damage + amount
 end
 
 local function EndFight()
@@ -118,8 +155,8 @@ local function EndFight()
 end
 
 local function OnCombatLog()
-	local _, event, _, srcGUID, _, srcFlags, _, dstGUID, _, dstFlags, _,
-		a12, _, a14, a15, a16, a17, _, a19, _, _, a22 = GetEventInfo()
+	local _, event, _, srcGUID, srcName, srcFlags, _, dstGUID, dstName, dstFlags, _,
+		a12, a13, a14, a15, a16, a17, a18, a19, _, a21, a22 = GetEventInfo()
 
 	if event == "SPELL_SUMMON" then
 		local owner = Owner(srcGUID, srcFlags)
@@ -132,26 +169,36 @@ local function OnCombatLog()
 		-- Hitting friendlies (mind control, duels inside the group) isn't damage done
 		if bit.band(dstFlags, CLO.ReactionFriendly) ~= 0 then return end
 		local owner = Owner(srcGUID, srcFlags)
-		if owner then Add(owner, "damage", arg == 12 and a12 or a15) end
+		if not owner then return end
+		-- Swings have no spell; everything else starts with its id and school
+		local amount, spellID, school = a15, a12, a14
+		if arg == 12 then amount, spellID, school = a12, 0, nil end
+		if Add(owner, "damage", amount, srcGUID, srcName, spellID, school) then
+			AddEnemy(dstGUID, dstName, amount)
+		end
 	elseif HEAL_EVENTS[event] then
 		local owner = Owner(srcGUID, srcFlags)
-		if owner then Add(owner, "healing", a15 - (a16 or 0)) end
+		if owner then Add(owner, "healing", a15 - (a16 or 0), srcGUID, srcName, a12, a14) end
 	elseif event == "SPELL_ABSORBED" then
-		-- The shield's caster comes after the attacking spell's id, name and
-		-- school when the absorbed hit was a spell, first for a melee swing
+		-- The shield's caster and spell come after the attacking spell's id,
+		-- name and school when the absorbed hit was a spell, first for a
+		-- melee swing
 		if type(a12) == "number" then
 			local owner = Owner(a15, a17)
-			if owner then Add(owner, "healing", a22) end
+			if owner then Add(owner, "healing", a22, a15, a16, a19, a21) end
 		else
 			local owner = Owner(a12, a14)
-			if owner then Add(owner, "healing", a19) end
+			if owner then Add(owner, "healing", a19, a12, a13, a16, a18) end
 		end
 	end
 end
 
+local viewGUID -- the player whose breakdown is shown, nil for the list
+
 function ns:ResetMeter()
 	segments.current, segments.overall = NewSegment(), NewSegment()
 	fightStart = nil
+	viewGUID = nil
 	ns:RefreshMeter()
 end
 
@@ -175,20 +222,84 @@ end
 
 local UNKNOWN_COLOR = { 0.6, 0.6, 0.6 } -- class not cached yet
 
--- Reused every refresh, with a static comparator reading the mode
+local function ClassColor(a)
+	return (a.class and ns:GetClassColor(a.class)) or UNKNOWN_COLOR
+end
+
+local AUTO_ATTACK = 6603 -- for the melee icon
+
+local function SpellName(id)
+	if id == 0 then return "Melee" end
+	return C_Spell.GetSpellName(id) or ("Spell " .. id)
+end
+
+local function SpellIcon(id)
+	return C_Spell.GetSpellTexture(id == 0 and AUTO_ATTACK or id)
+end
+
+-- The enemy the group did the most damage to in seg, with how many others
+-- there were
+local function MainEnemy(seg)
+	local name, damage, total = nil, 0, 0
+	for n, e in pairs(seg.enemies) do
+		total = total + e.count
+		if e.damage > damage then name, damage = n, e.damage end
+	end
+	return name, name and total - 1 or 0
+end
+
+-- "Current" fights are named after their main enemy
+local function SegmentLabel(segment)
+	if segment == "current" then
+		local name, others = MainEnemy(segments.current)
+		if name then
+			return others > 0 and format("%s +%d", name, others) or name
+		end
+	end
+	return SEGMENT_LABELS[segment]
+end
+
+-- Reused every refresh, with a static comparator reading sortKey
 local sorted, sortKey = {}, nil
 local function ByValue(x, y)
 	return x[sortKey] > y[sortKey]
 end
 
--- Redraws the title and rows from the data; does nothing while hidden
-function ns:RefreshMeter()
-	if not window or not window:IsShown() then return end
-	local M = KUIDB.meter
-	local seg, key = segments[M.segment], M.mode
+-- One player's spells (and their pets', labelled with the pet), reusing
+-- entry tables between refreshes
+local entries = {}
+local function CollectSpells(a, key)
+	wipe(sorted)
+	local n = 0
+	for caster, spells in pairs(a.spells[key]) do
+		for id, amount in pairs(spells) do
+			n = n + 1
+			local e = entries[n] or {}
+			entries[n] = e
+			e.id, e.caster, e.amount = id, caster, amount
+			sorted[n] = e
+		end
+	end
+	sortKey = "amount"
+	table.sort(sorted, ByValue)
+end
 
-	window.title:SetFormattedText("%s - %s  |cffaaaaaa%s|r",
-		MODE_LABELS[key], SEGMENT_LABELS[M.segment], FormatTime(Duration(seg)))
+-- icon: shown at the bar's left end with the name after it; nil for none
+local function ShowRow(row, value, top, c, name, valueText, icon)
+	row.icon:SetTexture(icon)
+	row.icon:SetShown(icon ~= nil)
+	row.name:SetPoint("LEFT", icon and KUIDB.meter.rowHeight + 3 or 3, 0)
+	row:SetMinMaxValues(0, top)
+	row:SetValue(value)
+	row:SetStatusBarColor(c[1], c[2], c[3])
+	row.name:SetText(name)
+	row.value:SetText(valueText)
+	row:Show()
+end
+
+-- The players in the group, highest first
+local function RefreshList(seg, key, numRows)
+	window.title:SetFormattedText("%s - %s", MODE_LABELS[key], SegmentLabel(KUIDB.meter.segment))
 
 	wipe(sorted)
 	for _, a in pairs(seg.actors) do
@@ -199,20 +310,56 @@ function ns:RefreshMeter()
 
 	local top = sorted[1] and sorted[1][key] or 1
 	local seconds = math.max(1, Duration(seg))
-	for i = 1, M.rows do
+	for i = 1, numRows do
 		local row, a = rows[i], sorted[i]
+		row.actor = a
 		if a then
 			Identify(a)
-			local c = (a.class and ns:GetClassColor(a.class)) or UNKNOWN_COLOR
-			row:SetMinMaxValues(0, top)
-			row:SetValue(a[key])
-			row:SetStatusBarColor(c[1], c[2], c[3])
-			row.name:SetFormattedText("%d. %s", i, a.name or "?")
-			row.value:SetFormattedText("%s (%s)", ShortValue(a[key]), ShortValue(a[key] / seconds))
-			row:Show()
+			ShowRow(row, a[key], top, ClassColor(a), format("%d. %s", i, a.name or "?"),
+				format("%s (%s)", ShortValue(a[key]), ShortValue(a[key] / seconds)))
 		else
 			row:Hide()
 		end
+	end
+end
+
+-- The viewed player's total split by spell, highest first
+local function RefreshBreakdown(seg, key, numRows)
+	local a = seg.actors[viewGUID]
+	local total = a and a[key] or 0
+	if a then
+		Identify(a)
+		CollectSpells(a, key)
+	else
+		wipe(sorted) -- not in this segment
+	end
+	window.title:SetFormattedText("< %s - %s", (a and a.name) or "?", MODE_LABELS[key])
+
+	local top = sorted[1] and sorted[1].amount or 1
+	for i = 1, numRows do
+		local row, e = rows[i], sorted[i]
+		row.actor = nil
+		if e then
+			local name = SpellName(e.id)
+			if e.caster ~= "" then name = format("%s (%s)", name, e.caster) end
+			ShowRow(row, e.amount, top, ns:GetSchoolColor(spellSchools[e.id]), format("%d. %s", i, name),
+				format("%s (%d%%)", ShortValue(e.amount), e.amount / total * 100 + 0.5), SpellIcon(e.id))
+		else
+			row:Hide()
+		end
+	end
+end
+
+-- Redraws the title and rows from the data; does nothing while hidden
+function ns:RefreshMeter()
+	if not window or not window:IsShown() then return end
+	local M = KUIDB.meter
+	local seg = segments[M.segment]
+	window.timer:SetText(FormatTime(Duration(seg)))
+	if viewGUID then
+		RefreshBreakdown(seg, M.mode, M.rows)
+	else
+		RefreshList(seg, M.mode, M.rows)
 	end
 end
 
@@ -231,8 +378,39 @@ end
 -- Layout / style
 ---------------------------------------------------------------------------
 
+local function Row_OnMouseUp(self, button)
+	if viewGUID then
+		-- Any click in the breakdown goes back to the list
+		viewGUID = nil
+	elseif button == "LeftButton" and self.actor then
+		viewGUID = self.actor.guid
+	else
+		return
+	end
+	GameTooltip_Hide()
+	ns:RefreshMeter()
+end
+
+local function Row_OnEnter(self)
+	GameTooltip:SetOwner(self, "ANCHOR_TOP")
+	if viewGUID then
+		GameTooltip:AddLine("Click: back to everyone", 1, 1, 1)
+	elseif self.actor then
+		GameTooltip:AddLine("Click: breakdown by spell", 1, 1, 1)
+	end
+	GameTooltip:Show()
+end
+
 local function CreateRow()
 	local row = ns.CreateBar(window)
+	row:EnableMouse(true)
+	row:SetScript("OnMouseUp", Row_OnMouseUp)
+	row:SetScript("OnEnter", Row_OnEnter)
+	row:SetScript("OnLeave", GameTooltip_Hide)
+	row.icon = row:CreateTexture(nil, "ARTWORK", nil, 1) -- above the fill
+	row.icon:SetPoint("LEFT")
+	ns.CropIcon(row.icon)
+	row.icon:Hide()
 	row.name = ns.CreateText(row, ns.fonts.normal, "LEFT")
 	row.name:SetPoint("LEFT", 3, 0)
 	row.value = ns.CreateText(row, ns.fonts.normal, "RIGHT")
@@ -259,6 +437,7 @@ local function LayoutRows()
 			row:SetPoint("TOPLEFT", window.titleBar, "BOTTOMLEFT", 0, -ROW_GAP - (i - 1) * (M.rowHeight + ROW_GAP))
 			row:SetPoint("RIGHT", -inset, 0)
 			row:SetHeight(M.rowHeight)
+			row.icon:SetSize(M.rowHeight, M.rowHeight)
 		else
 			row:Hide()
 		end
@@ -302,18 +481,47 @@ local function TitleBar_OnClick(_, button)
 	local M = KUIDB.meter
 	if button == "LeftButton" then
 		M.mode = M.mode == "damage" and "healing" or "damage"
+	elseif viewGUID then
+		viewGUID = nil
 	else
 		M.segment = M.segment == "current" and "overall" or "current"
 	end
 	ns:RefreshMeter()
 end
 
+-- Enemies sorted by damage taken, for the title tooltip
+local enemyNames = {}
+local function ByEnemyDamage(x, y)
+	local enemies = segments.current.enemies
+	return enemies[x].damage > enemies[y].damage
+end
+
+local function AddEnemyLines()
+	local enemies = segments.current.enemies
+	wipe(enemyNames)
+	for name in pairs(enemies) do enemyNames[#enemyNames + 1] = name end
+	if #enemyNames == 0 then return end
+	table.sort(enemyNames, ByEnemyDamage)
+	GameTooltip:AddLine(" ")
+	GameTooltip:AddLine("Enemies this fight")
+	for _, name in ipairs(enemyNames) do
+		local e = enemies[name]
+		local label = e.count > 1 and format("%s x%d", name, e.count) or name
+		GameTooltip:AddDoubleLine(label, ShortValue(e.damage), 1, 1, 1, 1, 1, 1)
+	end
+end
+
 local function TitleBar_OnEnter(self)
 	GameTooltip:SetOwner(self, "ANCHOR_TOP")
 	GameTooltip:AddLine("KUI meter")
 	GameTooltip:AddLine("Left-click: damage / healing", 1, 1, 1)
-	GameTooltip:AddLine("Right-click: current fight / overall", 1, 1, 1)
+	if viewGUID then
+		GameTooltip:AddLine("Right-click: back to everyone", 1, 1, 1)
+	else
+		GameTooltip:AddLine("Right-click: current fight / overall", 1, 1, 1)
+	end
 	GameTooltip:AddLine("Drag: move", 1, 1, 1)
+	AddEnemyLines()
 	GameTooltip:Show()
 end
 
@@ -388,9 +596,14 @@ local function CreateWindow()
 	reset:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 1, 1) end)
 	reset:SetScript("OnLeave", function(self) self.text:SetTextColor(0.7, 0.7, 0.7) end)
 
+	window.timer = ns.CreateText(titleBar, ns.fonts.normal, "RIGHT")
+	window.timer:SetPoint("RIGHT", reset, "LEFT", -6, 0)
+	window.timer:SetTextColor(0.67, 0.67, 0.67)
+
+	-- Cut short with "..." before it runs into the timer
 	window.title = ns.CreateText(titleBar, ns.fonts.normal, "LEFT")
 	window.title:SetPoint("LEFT", 3, 0)
-	window.title:SetPoint("RIGHT", reset, "LEFT", -4, 0)
+	window.title:SetPoint("RIGHT", window.timer, "LEFT", -4, 0)
 
 	window:SetScript("OnUpdate", OnUpdate)
 	window:SetScript("OnShow", function() ns:RefreshMeter() end)

@@ -2,12 +2,13 @@ local addonName, ns = ...
 
 -- Colors, as { r, g, b } arrays. Lookup order: the user's override
 -- (KUIDB.colors.<kind>[key]), then the selected palette, then Blizzard's
--- tables (or KUI's own defaults for cast bars, heal prediction and threat). Resetting a row removes the override,
--- falling back to the palette.
+-- tables (or KUI's own defaults for cast bars, heal prediction, threat and
+-- spell schools). Resetting a row removes the override, falling back to the
+-- palette.
 --
 -- Returned tables are shared; callers must not modify them.
 
-ns.colorKinds = { "class", "reaction", "power", "cast", "heal", "threat" }
+ns.colorKinds = { "class", "reaction", "power", "cast", "heal", "threat", "school" }
 
 -- Row order for each kind in the config panel
 ns.classOrder = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
@@ -17,6 +18,7 @@ ns.castOrder = { "cast", "channel", "failed" }
 ns.healOrder = { "mine", "others" }
 -- Indexed by UnitThreatSituation status (1-3)
 ns.threatOrder = { "pulling", "insecure", "tanking" }
+ns.schoolOrder = { "physical", "holy", "fire", "nature", "frost", "shadow", "arcane" }
 
 ---------------------------------------------------------------------------
 -- Palettes
@@ -66,6 +68,15 @@ ns.palettes = {
 			insecure = { 0.88, 0.58, 0.30 },
 			tanking  = { 0.80, 0.30, 0.30 },
 		},
+		school = {
+			physical = { 0.62, 0.56, 0.48 },
+			holy     = { 0.88, 0.80, 0.52 },
+			fire     = { 0.86, 0.50, 0.28 },
+			nature   = { 0.40, 0.70, 0.40 },
+			frost    = { 0.45, 0.70, 0.82 },
+			shadow   = { 0.52, 0.45, 0.78 },
+			arcane   = { 0.80, 0.52, 0.80 },
+		},
 	},
 }
 
@@ -90,6 +101,17 @@ local KUI_DEFAULTS = {
 		pulling = { 1, 1, 0.47 },
 		insecure = { 1, 0.6, 0 },
 		tanking = { 1, 0, 0 },
+	},
+	-- Blizzard's combat log school colors, except physical: theirs is a
+	-- bright yellow that reads badly as a bar
+	school = {
+		physical = { 0.75, 0.65, 0.50 },
+		holy = { 1, 0.9, 0.5 },
+		fire = { 1, 0.5, 0 },
+		nature = { 0.3, 1, 0.3 },
+		frost = { 0.5, 1, 1 },
+		shadow = { 0.5, 0.5, 1 },
+		arcane = { 1, 0.5, 1 },
 	},
 }
 
@@ -153,6 +175,23 @@ end
 
 function ns:GetCastColor(key)
 	return ns:GetColor("cast", key)
+end
+
+-- Combat log school bits; a spell of several schools (Shadowfrost) takes the
+-- first magic one it has, so physical goes last
+local SCHOOL_BITS = {
+	{ 2, "holy" }, { 4, "fire" }, { 8, "nature" }, { 16, "frost" },
+	{ 32, "shadow" }, { 64, "arcane" }, { 1, "physical" },
+}
+
+-- Color for a combat log school mask; physical if unknown
+function ns:GetSchoolColor(mask)
+	for _, entry in ipairs(SCHOOL_BITS) do
+		if mask and bit.band(mask, entry[1]) ~= 0 then
+			return ns:GetColor("school", entry[2])
+		end
+	end
+	return ns:GetColor("school", "physical")
 end
 
 -- NPC health color by reaction; unfriendly (3) counts as hostile, units

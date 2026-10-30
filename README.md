@@ -24,6 +24,8 @@ Anniversary.
 
 - Spell icon, name and remaining time
 - Separate colors for casts, channels and interrupted or failed casts
+- Pushback shown in red beside the time: how much later a cast will finish
+  (+0.5s), or how much was cut off a channel (-0.5s)
 
 ## Nameplates
 
@@ -84,6 +86,11 @@ Anniversary.
 - Pets, totems and summons count toward their owner
 - Healing counts only what landed, plus damage absorbed by shields
 - Totals and per-second numbers on class-colored bars
+- The current fight is named after the enemy you hit hardest; hover the
+  title for every enemy in it
+- Click a player's bar to split their total by spell, with their pets'
+  spells listed separately; each spell has its icon and a bar colored by
+  its school (fire, shadow, ...). Right-click to go back
 - Click the title to switch views, drag it to move
 
 ## Customization
@@ -96,7 +103,7 @@ Open the settings with `/kui`, or go to Options → AddOns → KUI.
   background opacity, with LibSharedMedia textures and fonts supported
 - Frame widths, positions and spacing, power and cast bar heights
 - Color palettes (Default and Muted), plus per-color overrides for classes,
-  reactions, power types, cast bars, heals and threat
+  reactions, power types, cast bars, heals, threat and spell schools
 - Every feature can be switched on or off individually
 - `/kui preview` shows every frame with placeholder contents so you can
   arrange the layout outside a group

@@ -520,6 +520,11 @@ local function BuildColors(b)
 	for _, key in ipairs(ns.threatOrder) do
 		b.ColorRow("threat", key, THREAT_LABELS[key])
 	end
+
+	b.Section("Spell schools (meter breakdown)")
+	for _, key in ipairs(ns.schoolOrder) do
+		b.ColorRow("school", key, key:sub(1, 1):upper() .. key:sub(2))
+	end
 end
 
 local function BuildNameplates(b)
