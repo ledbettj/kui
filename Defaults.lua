@@ -33,8 +33,14 @@ ns.unitOrder = {
 --   threat             border in the threat color while it has aggro
 --   widthFrom          share another unit's width setting
 ns.units = {
-	player       = { label = "Player", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, status = { pvp = true, state = true }, threat = true },
-	target       = { label = "Target", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true, auras = "above", castbar = true, combo = true, status = { pvp = true } },
+	player       = {
+		label = "Player", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true,
+		auras = "above", castbar = true, status = { pvp = true, state = true }, threat = true,
+	},
+	target       = {
+		label = "Target", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true,
+		auras = "above", castbar = true, combo = true, status = { pvp = true },
+	},
 	targettarget = { label = "ToT",    w = 108, h = 22, poll = true },
 	pet          = { label = "Pet",    w = 108, h = 22, power = true, owner = "player", threat = true },
 	focus        = { label = "Focus",  w = 108, h = 22, widthFrom = "targettarget", detachedCastbar = true },

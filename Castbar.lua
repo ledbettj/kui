@@ -108,7 +108,7 @@ function OnUpdate(cb)
 	end
 end
 
-local function OnEvent(cb, event, unit, castID)
+local function OnEvent(cb, event, _, castID)
 	if cb.preview then return end
 
 	if event == "UNIT_SPELLCAST_START" then

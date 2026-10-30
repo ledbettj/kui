@@ -236,12 +236,11 @@ end
 
 local function RegisterEvents(f, unit, cfg)
 	for event in pairs(unitEventHandlers) do
-		if event == "UNIT_THREAT_SITUATION_UPDATE" and not cfg.threat then
-			-- No aggro border on this frame
-		elseif cfg.combo and event == "UNIT_POWER_FREQUENT" then
+		if cfg.combo and event == "UNIT_POWER_FREQUENT" then
 			-- Combo points are the player's power
 			SafeRegister(f, event, unit, "player")
-		else
+		elseif cfg.threat or event ~= "UNIT_THREAT_SITUATION_UPDATE" then
+			-- (only frames with an aggro border want threat updates)
 			SafeRegister(f, event, unit)
 		end
 	end

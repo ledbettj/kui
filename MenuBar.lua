@@ -7,7 +7,9 @@ local addonName, ns = ...
 
 ns.bagOptions = { "All", "Backpack only", "None" }
 
-local BAG_SLOTS = { "CharacterBag0Slot", "CharacterBag1Slot", "CharacterBag2Slot", "CharacterBag3Slot", "KeyRingButton" }
+local BAG_SLOTS = {
+	"CharacterBag0Slot", "CharacterBag1Slot", "CharacterBag2Slot", "CharacterBag3Slot", "KeyRingButton",
+}
 
 -- Hides or restores each piece to match the settings
 function ns:ApplyMenuBar()

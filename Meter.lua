@@ -119,7 +119,7 @@ end
 
 local function OnCombatLog()
 	local _, event, _, srcGUID, _, srcFlags, _, dstGUID, _, dstFlags, _,
-		a12, a13, a14, a15, a16, a17, a18, a19, a20, a21, a22 = GetEventInfo()
+		a12, _, a14, a15, a16, a17, _, a19, _, _, a22 = GetEventInfo()
 
 	if event == "SPELL_SUMMON" then
 		local owner = Owner(srcGUID, srcFlags)

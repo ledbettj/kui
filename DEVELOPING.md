@@ -13,7 +13,10 @@ Notes for working on the code. For what the addon does, see the README.
   client (the `ExportInterfaceFiles code` console command) and search it
   before relying on memory; many things differ from both retail and the
   original 2007 client.
-- Syntax check before reloading: `luac5.1 -p *.lua`.
+- Lint before reloading: `luacheck .` (settings in `.luacheckrc`). It
+  catches typos in names, stray globals and unused variables. When code
+  starts using a WoW API it doesn't know yet, add the name to
+  `read_globals` there.
 - Saved settings live in `WTF/Account/<account>/SavedVariables/KUI.lua`.
 
 ## Layout

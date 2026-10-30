@@ -14,7 +14,10 @@ local SPACING = 2
 local LAYOUTS = {
 	above = { size = 22, maxBuffs = 32, maxDebuffs = 16, growUp = true },
 	below = { size = 16, maxBuffs = 8, maxDebuffs = 8, perRow = 8 },
-	nameplate = { size = 18, maxBuffs = 4, maxDebuffs = 6, growUp = true, debuffFilter = "HARMFUL|PLAYER", buffsByReaction = true, noMouse = true },
+	nameplate = {
+		size = 18, maxBuffs = 4, maxDebuffs = 6, growUp = true,
+		debuffFilter = "HARMFUL|PLAYER", buffsByReaction = true, noMouse = true,
+	},
 }
 
 -- Buff types each class can remove from enemies (TBC): Dispel Magic,
