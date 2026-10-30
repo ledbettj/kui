@@ -1,7 +1,7 @@
 local addonName, ns = ...
 
 -- Colors, as { r, g, b } arrays. Lookup order: the user's override
--- (KUIDB.colors.<kind>[key]), then the selected palette, then Blizzard's
+-- (ns.db.colors.<kind>[key]), then the selected palette, then Blizzard's
 -- tables (or KUI's own defaults for cast bars, heal prediction, threat and
 -- spell schools). Resetting a row removes the override, falling back to the
 -- palette.
@@ -152,13 +152,13 @@ end
 
 -- The color a row shows with no user override: palette, else Blizzard
 function ns:GetDefaultColor(kind, key)
-	local palette = ns.palettes[KUIDB.colors.palette] or ns.palettes.Default
+	local palette = ns.palettes[ns.db.colors.palette] or ns.palettes.Default
 	return (palette[kind] and palette[kind][key]) or BlizzardColor(kind, key)
 end
 
 -- Effective color for any entry, e.g. ("power", "MANA"); nil if unknown
 function ns:GetColor(kind, key)
-	return (key ~= nil and KUIDB.colors[kind][key]) or ns:GetDefaultColor(kind, key)
+	return (key ~= nil and ns.db.colors[kind][key]) or ns:GetDefaultColor(kind, key)
 end
 
 function ns:GetClassColor(class)

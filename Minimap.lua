@@ -31,7 +31,7 @@ local fadedRings = {} -- texture -> true
 local squared -- only undo what was changed, so the default look is never touched
 
 local function IsSquare()
-	return KUIDB.minimap.style == "Square"
+	return ns.db.minimap.style == "Square"
 end
 
 ---------------------------------------------------------------------------

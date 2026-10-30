@@ -13,7 +13,7 @@ local BAG_SLOTS = {
 
 -- Hides or restores each piece to match the settings
 function ns:ApplyMenuBar()
-	local M = KUIDB.menubar
+	local M = ns.db.menubar
 	for _, name in ipairs(BAG_SLOTS) do
 		ns.SetHidden(_G[name], M.bags ~= "All")
 	end

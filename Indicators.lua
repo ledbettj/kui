@@ -162,9 +162,9 @@ end
 -- ApplyBackdrop resets the border, so layout calls this again afterwards.
 function ns.UpdateAggro(f)
 	if not f.cfg.threat then return end
-	local status = KUIDB.aggro.enabled and UnitExists(f.unit) and UnitThreatSituation(f.unit)
+	local status = ns.db.aggro.enabled and UnitExists(f.unit) and UnitThreatSituation(f.unit)
 	local c = (status and status > 0) and ns:GetColor("threat", ns.threatOrder[status])
-		or KUIDB.style.borderColor
+		or ns.db.style.borderColor
 	f:SetBackdropBorderColor(c[1], c[2], c[3], 1)
 end
 
@@ -179,7 +179,7 @@ local RANGE_INTERVAL = 0.25
 -- into visual range, which fires no event.
 function ns.UpdateRange(f)
 	local inRange, checkedRange = UnitInRange(f.unit)
-	f:SetAlpha((checkedRange and not inRange) and KUIDB.style.outOfRangeAlpha or 1)
+	f:SetAlpha((checkedRange and not inRange) and ns.db.style.outOfRangeAlpha or 1)
 	if f.portrait and f.portraitVisible ~= UnitIsVisible(f.unit) then
 		ns.UpdatePortrait(f)
 	end

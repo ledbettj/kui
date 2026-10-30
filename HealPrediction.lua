@@ -26,7 +26,7 @@ end
 function ns.StyleHealPrediction(f)
 	local hp = f.healPrediction
 	if not hp then return end
-	local atlas, path = ns:GetStatusbar(KUIDB.style.healthTexture)
+	local atlas, path = ns:GetStatusbar(ns.db.style.healthTexture)
 	for key, seg in pairs(hp) do
 		if atlas then
 			seg:SetAtlas(atlas)
@@ -62,7 +62,7 @@ function ns.UpdateHealPrediction(f)
 
 	local unit = f.unit
 	local maxHealth = UnitHealthMax(unit)
-	if not KUIDB.healPrediction.enabled or not UnitExists(unit) or UnitIsDeadOrGhost(unit) or maxHealth <= 0 then
+	if not ns.db.healPrediction.enabled or not UnitExists(unit) or UnitIsDeadOrGhost(unit) or maxHealth <= 0 then
 		hp.mine:Hide()
 		hp.others:Hide()
 		return

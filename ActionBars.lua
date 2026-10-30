@@ -22,7 +22,7 @@ local buttons = {}
 -- Icon tint, following ActionBarActionButtonMixin:UpdateUsable plus red
 -- when out of range
 local function UpdateIconColor(btn)
-	if not KUIDB.actionbars.rangeColor or not btn.action or not btn.icon then return end
+	if not ns.db.actionbars.rangeColor or not btn.action or not btn.icon then return end
 
 	if IsActionInRange(btn.action) == false then
 		btn.icon:SetVertexColor(0.8, 0.1, 0.1)
@@ -43,7 +43,7 @@ end
 -- border instead of showing Blizzard's gold checked square
 local function UpdateChecked(btn)
 	btn.kuiChecked = btn:GetChecked() and true or false
-	local c = btn.kuiChecked and KUIDB.actionbars.activeColor or KUIDB.style.borderColor
+	local c = btn.kuiChecked and ns.db.actionbars.activeColor or ns.db.style.borderColor
 	btn.kuiBorder:SetBackdropBorderColor(c[1], c[2], c[3], 1)
 end
 
@@ -121,7 +121,7 @@ end
 
 local function UpdateRankMark(btn)
 	local show = false
-	if KUIDB.actionbars.markLowRank and btn.action then
+	if ns.db.actionbars.markLowRank and btn.action then
 		local id = ActionSpellID(btn.action)
 		local best = id and maxRank[GetName(id)]
 		local rank = best and ParseRank(GetSpellSubtext(id))
@@ -172,7 +172,7 @@ local function StyleButton(btn)
 		ns.pendingLayout = true
 		return
 	end
-	local settings = KUIDB.actionbars
+	local settings = ns.db.actionbars
 	local icon = btn.icon
 
 	-- Blizzard's square frame art; replaced by our border
@@ -246,7 +246,7 @@ local function StyleButton(btn)
 end
 
 function ns:StyleActionBars()
-	if not KUIDB.actionbars.enabled then return end
+	if not ns.db.actionbars.enabled then return end
 	for btn in pairs(buttons) do
 		StyleButton(btn)
 	end
@@ -254,7 +254,7 @@ end
 
 -- Only when enabled at login (see the lifecycle notes in Core.lua)
 function ns:InitActionBars()
-	if not KUIDB.actionbars.enabled then return end
+	if not ns.db.actionbars.enabled then return end
 
 	for _, set in ipairs(BUTTON_SETS) do
 		local prefix, count = set[1], set[2]

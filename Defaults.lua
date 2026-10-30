@@ -60,8 +60,8 @@ for i = 1, 4 do
 end
 
 ---------------------------------------------------------------------------
--- Saved settings: KUIDB[section][key]. Sections missing keys are filled
--- from here on load, and "Reset to defaults" restores them.
+-- Settings in each profile: ns.db[section][key]. Sections missing keys are
+-- filled from here on load, and "Reset profile" restores them.
 ---------------------------------------------------------------------------
 
 ns.settingsDefaults = {
@@ -186,8 +186,9 @@ ns.settingsDefaults = {
 		rows = 6,
 		rowHeight = 14,
 		texture = "Modern",
-		mode = "damage", -- or "healing"
+		mode = "damage", -- or "healing", "overhealing"
 		segment = "current", -- or "overall"
+		autoReset = true, -- on entering a different instance
 		point = { "BOTTOMRIGHT", "BOTTOMRIGHT", -20, 220 }, -- point, UIParent point, x, y
 	},
 }

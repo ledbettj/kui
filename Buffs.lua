@@ -18,7 +18,7 @@ local function UpdateBorderColor(b)
 		b.kuiBorder:SetBackdropBorderColor(r, g, bl, 1)
 		return
 	end
-	local c = b.auraType == "TempEnchant" and TEMP_ENCHANT_COLOR or KUIDB.style.borderColor
+	local c = b.auraType == "TempEnchant" and TEMP_ENCHANT_COLOR or ns.db.style.borderColor
 	b.kuiBorder:SetBackdropBorderColor(c[1], c[2], c[3], 1)
 end
 
@@ -46,7 +46,7 @@ end
 
 -- Only when enabled at login (see the lifecycle notes in Core.lua)
 function ns:InitBuffs()
-	if not KUIDB.buffs.enabled then return end
+	if not ns.db.buffs.enabled then return end
 
 	-- Each frame creates its fixed pool of buttons at load
 	for _, frame in ipairs({ BuffFrame, DebuffFrame }) do

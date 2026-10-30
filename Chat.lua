@@ -8,7 +8,7 @@ local SetHidden = ns.SetHidden
 
 -- Covers temporary (whisper) windows too, which are created on demand
 function ns:ApplyChat()
-	local hidden = KUIDB.chat.hideButtons
+	local hidden = ns.db.chat.hideButtons
 	for _, name in ipairs(CHAT_FRAMES) do
 		local chatFrame = _G[name]
 		if chatFrame then SetHidden(chatFrame.buttonFrame, hidden) end

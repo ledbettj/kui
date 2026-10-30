@@ -14,7 +14,7 @@ local addonName, ns = ...
 --   Apply*           a module's on/off state and settings in one go
 --
 -- Lifecycle (see the loader at the bottom):
---   ADDON_LOADED     saved variables, unit frames, config panel
+--   ADDON_LOADED     saved variables and profile, unit frames, config panel
 --   PLAYER_LOGIN     everything restyling Blizzard UI, which exists by then
 --   Init*            runs once. Modules that restyle Blizzard frames are
 --                    only built if enabled at login; toggling them later
@@ -30,8 +30,17 @@ function ns.Print(...)
 end
 
 ---------------------------------------------------------------------------
--- Saved variables
+-- Saved variables and profiles
+--
+-- KUIDB (account-wide) holds named profiles and which one each character
+-- uses: { profiles = { name -> settings }, chars = { "Name - Realm" -> name } }.
+-- ns.db is the current character's profile; everything else reads its
+-- settings there, fresh on every use, so switching profiles is just
+-- pointing ns.db elsewhere and reapplying.
 ---------------------------------------------------------------------------
+
+local DEFAULT_PROFILE = "Default"
+local charKey -- this character's key in KUIDB.chars
 
 -- Tables are copied so saved settings never alias the defaults
 local function FillDefaults(t, defaults)
@@ -42,10 +51,8 @@ local function FillDefaults(t, defaults)
 	end
 end
 
-local function InitDB()
-	KUIDB = KUIDB or {}
-	local db = KUIDB
-
+-- Brings a profile up to date: old settings migrated, missing ones filled in
+local function InitProfile(db)
 	-- Settings from earlier versions
 	db.positions = nil -- per-frame drag positions, replaced by layout
 	if db.widths then db.widths.focus = nil end -- focus shares the ToT width
@@ -69,25 +76,141 @@ local function InitDB()
 	db.colors.palette = db.colors.palette or "Default"
 end
 
--- Every setting back to its default, including widths and color overrides,
--- then reapplied
-function ns:ResetSettings()
-	wipe(KUIDB.widths)
-	for section, defaults in pairs(ns.settingsDefaults) do
-		wipe(KUIDB[section])
-		FillDefaults(KUIDB[section], defaults)
+local function InitDB()
+	KUIDB = KUIDB or {}
+	-- Before profiles, the settings sat at the top level: they become the
+	-- Default profile
+	if not KUIDB.profiles then
+		KUIDB = { profiles = { [DEFAULT_PROFILE] = KUIDB } }
 	end
-	for _, kind in ipairs(ns.colorKinds) do
-		wipe(KUIDB.colors[kind])
-	end
-	KUIDB.colors.palette = "Default"
+	KUIDB.chars = KUIDB.chars or {}
 
+	charKey = UnitName("player") .. " - " .. GetRealmName()
+	local name = KUIDB.chars[charKey]
+	if not KUIDB.profiles[name] then name = DEFAULT_PROFILE end
+	KUIDB.chars[charKey] = name
+	KUIDB.profiles[name] = KUIDB.profiles[name] or {}
+	ns.db = KUIDB.profiles[name]
+	InitProfile(ns.db)
+end
+
+-- Settings only read when KUI starts; changing them asks for a /reload
+local LOGIN_ONLY = {
+	{ "statusbars", "enabled", "XP/reputation bar" },
+	{ "nameplates", "enabled", "nameplate" },
+	{ "buffs", "enabled", "buff bar styling" },
+	{ "actionbars", "enabled", "action bar styling" },
+}
+
+local function LoginOnlyValues()
+	local values = {}
+	for i, entry in ipairs(LOGIN_ONLY) do
+		values[i] = ns.db[entry[1]][entry[2]]
+	end
+	return values
+end
+
+-- Applies settings that all changed at once (a reset or a different
+-- profile). before: LoginOnlyValues() from ahead of the change.
+local function ApplyAll(before)
 	ns:ApplyStyle()
-	ns:ApplyLayout()
+	if not ns:ApplyLayout() then
+		ns.Print("frame layout will update after combat.")
+	end
 	ns:ApplyChat()
 	ns:ApplyUIFont()
 	ns:ApplyMenuBar()
 	ns:ApplyMeter()
+	for i, entry in ipairs(LOGIN_ONLY) do
+		if ns.db[entry[1]][entry[2]] ~= before[i] then
+			ns.Print(entry[3] .. " change takes effect after /reload.")
+		end
+	end
+end
+
+-- Every setting in the current profile back to its default, including
+-- widths and color overrides, then reapplied
+function ns:ResetSettings()
+	local before = LoginOnlyValues()
+	wipe(ns.db.widths)
+	for section, defaults in pairs(ns.settingsDefaults) do
+		wipe(ns.db[section])
+		FillDefaults(ns.db[section], defaults)
+	end
+	for _, kind in ipairs(ns.colorKinds) do
+		wipe(ns.db.colors[kind])
+	end
+	ns.db.colors.palette = "Default"
+	ApplyAll(before)
+end
+
+function ns:ProfileName()
+	return KUIDB.chars[charKey]
+end
+
+local profileNames = {}
+-- Every profile's name, alphabetically; the table is reused
+function ns:ProfileList()
+	wipe(profileNames)
+	for name in pairs(KUIDB.profiles) do profileNames[#profileNames + 1] = name end
+	table.sort(profileNames)
+	return profileNames
+end
+
+-- This character switches to an existing profile
+function ns:SetProfile(name)
+	if not KUIDB.profiles[name] or name == ns:ProfileName() then return end
+	local before = LoginOnlyValues()
+	KUIDB.chars[charKey] = name
+	ns.db = KUIDB.profiles[name]
+	InitProfile(ns.db)
+	ApplyAll(before)
+end
+
+-- A new profile starting as a copy of the current one, which this
+-- character switches to. Returns an error message if it can't.
+function ns:CreateProfile(name)
+	name = strtrim(name or "")
+	if name == "" then return "the profile needs a name." end
+	if KUIDB.profiles[name] then return "there's already a profile called " .. name .. "." end
+	KUIDB.profiles[name] = CopyTable(ns.db)
+	ns:SetProfile(name)
+end
+
+-- Replaces the current profile's settings with a copy of another's
+function ns:CopyProfile(from)
+	local source = KUIDB.profiles[from]
+	if not source or source == ns.db then return end
+	local before = LoginOnlyValues()
+	-- Filled in place: ns.db stays the same table
+	wipe(ns.db)
+	for k, v in pairs(CopyTable(source)) do ns.db[k] = v end
+	InitProfile(ns.db)
+	ApplyAll(before)
+end
+
+-- Profiles other than the current one and Default can be deleted;
+-- characters that used it go back to Default
+function ns:CanDeleteProfile(name)
+	return KUIDB.profiles[name] ~= nil and name ~= DEFAULT_PROFILE and name ~= ns:ProfileName()
+end
+
+function ns:DeleteProfile(name)
+	if not ns:CanDeleteProfile(name) then return end
+	KUIDB.profiles[name] = nil
+	for char, profile in pairs(KUIDB.chars) do
+		if profile == name then KUIDB.chars[char] = DEFAULT_PROFILE end
+	end
+end
+
+-- Character keys using a profile, for showing in the settings
+function ns:ProfileUsers(name)
+	local users = {}
+	for char, profile in pairs(KUIDB.chars) do
+		if profile == name then users[#users + 1] = char end
+	end
+	table.sort(users)
+	return users
 end
 
 ---------------------------------------------------------------------------

@@ -44,19 +44,19 @@ local function SetWorldFonts(path)
 end
 
 local function Enabled()
-	return KUIDB.uifont.enabled
+	return ns.db.uifont.enabled
 end
 
 -- Called from ADDON_LOADED, before the world fonts are first read
 function ns:InitWorldFonts()
 	for _, fo in pairs(ns.fonts) do ownFonts[fo] = true end
-	if Enabled() then SetWorldFonts(ns:GetFontPath(KUIDB.uifont.font)) end
+	if Enabled() then SetWorldFonts(ns:GetFontPath(ns.db.uifont.font)) end
 end
 
 -- Replaces or restores the fonts to match the settings
 function ns:ApplyUIFont()
 	if Enabled() then
-		local path = ns:GetFontPath(KUIDB.uifont.font)
+		local path = ns:GetFontPath(ns.db.uifont.font)
 		SetWorldFonts(path)
 		SetFontObjects(path)
 	elseif next(originals) then

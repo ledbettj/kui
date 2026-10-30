@@ -72,7 +72,7 @@ end
 -- Shows whichever bars apply and stacks them away from the screen edge:
 -- XP against the edge, reputation just inside it
 local function Arrange()
-	local S = KUIDB.statusbars
+	local S = ns.db.statusbars
 	local showXP, showRep = CanShowXP(), WatchedFaction() ~= nil
 
 	bars.xp:SetShown(showXP)
@@ -101,7 +101,7 @@ end
 
 function ns:LayoutStatusBars()
 	if not holder then return end
-	local S = KUIDB.statusbars
+	local S = ns.db.statusbars
 	holder:SetSize(S.width, S.height)
 	holder:ClearAllPoints()
 	if S.position == "Top" then
@@ -123,7 +123,7 @@ end
 
 function ns:StyleStatusBars()
 	if not holder then return end
-	local texture = KUIDB.statusbars.texture
+	local texture = ns.db.statusbars.texture
 
 	ns.StyleBar(bars.xp.status, texture)
 	ns.StyleBar(bars.xp.rested, texture, true)
@@ -174,7 +174,7 @@ end
 
 -- Only when enabled at login (see the lifecycle notes in Core.lua)
 function ns:InitStatusBars()
-	if not KUIDB.statusbars.enabled then return end
+	if not ns.db.statusbars.enabled then return end
 
 	HideBlizzard()
 

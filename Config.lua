@@ -101,7 +101,7 @@ end
 -- that slot. The list is grouped by slot, so every row can change.
 local function CreateReadoutRow(parent, index)
 	local row = CreateRow(parent, "")
-	local function Id() return KUIDB.infobar.order[index] end
+	local function Id() return ns.db.infobar.order[index] end
 
 	local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
 	dropdown:SetPoint("LEFT", LABEL_WIDTH, 0)
@@ -109,7 +109,7 @@ local function CreateReadoutRow(parent, index)
 	dropdown:SetupMenu(function(_, root)
 		for _, slot in ipairs(ns.infoBarSlots) do
 			root:CreateRadio(slot,
-				function() return KUIDB.infobar.slots[Id()] == slot end,
+				function() return ns.db.infobar.slots[Id()] == slot end,
 				function()
 					ns:SetReadoutSlot(Id(), slot)
 					RefreshAll()
@@ -196,6 +196,44 @@ local function CreateColorSwatch(parent, text, get, set, reset)
 	return row
 end
 
+-- A dropdown for picking something to act on rather than a setting: it
+-- shows placeholder until opened, and greys out while list() is empty
+local function CreatePicker(parent, text, placeholder, list, onPick)
+	local row = CreateRow(parent, text)
+
+	local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
+	dropdown:SetPoint("LEFT", LABEL_WIDTH, 0)
+	dropdown:SetWidth(CONTROL_WIDTH)
+	dropdown:SetDefaultText(placeholder)
+	dropdown:SetupMenu(function(_, root)
+		for _, name in ipairs(list()) do
+			root:CreateButton(name, onPick, name)
+		end
+	end)
+
+	function row:Refresh()
+		dropdown:GenerateMenu()
+		dropdown:SetEnabled(#list() > 0)
+	end
+	return row
+end
+
+-- Read-only text in the control column
+local function CreateInfo(parent, text, get)
+	local row = CreateRow(parent, text)
+
+	local value = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	value:SetPoint("LEFT", LABEL_WIDTH, 0)
+	value:SetWidth(CONTROL_WIDTH)
+	value:SetJustifyH("LEFT")
+	value:SetWordWrap(true)
+
+	function row:Refresh()
+		value:SetText(get())
+	end
+	return row
+end
+
 local function CreateHeader(parent, text)
 	local fs = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 	fs:SetText(text)
@@ -214,7 +252,7 @@ local function Relayout()
 end
 
 local function SetLayout(key, value)
-	KUIDB.layout[key] = value
+	ns.db.layout[key] = value
 	Relayout()
 end
 
@@ -226,7 +264,7 @@ local STYLE_LAYOUT_KEYS = {
 }
 
 local function SetStyle(key, value)
-	KUIDB.style[key] = value
+	ns.db.style[key] = value
 	if STYLE_LAYOUT_KEYS[key] then
 		Relayout()
 	else
@@ -235,7 +273,7 @@ local function SetStyle(key, value)
 end
 
 local function SetCastbar(key, value)
-	KUIDB.castbar[key] = value
+	ns.db.castbar[key] = value
 	if key == "texture" then
 		ns:ApplyStyle()
 	else
@@ -250,7 +288,7 @@ end
 
 -- Not secure frames, so these apply immediately, even in combat
 local function SetStatusBars(key, value)
-	KUIDB.statusbars[key] = value
+	ns.db.statusbars[key] = value
 	if key == "enabled" then
 		NeedsReload("XP/reputation bar")
 	elseif key == "texture" then
@@ -261,7 +299,7 @@ local function SetStatusBars(key, value)
 end
 
 local function SetNameplates(key, value)
-	KUIDB.nameplates[key] = value
+	ns.db.nameplates[key] = value
 	if key == "enabled" then
 		NeedsReload("nameplate")
 	else
@@ -271,22 +309,22 @@ local function SetNameplates(key, value)
 end
 
 local function SetHealPrediction(key, value)
-	KUIDB.healPrediction[key] = value
+	ns.db.healPrediction[key] = value
 	ns:ApplyStyle()
 end
 
 local function SetAggro(key, value)
-	KUIDB.aggro[key] = value
+	ns.db.aggro[key] = value
 	ns:ApplyStyle()
 end
 
 local function SetBuffs(key, value)
-	KUIDB.buffs[key] = value
+	ns.db.buffs[key] = value
 	NeedsReload("buff bar styling")
 end
 
 local function SetMeter(key, value)
-	KUIDB.meter[key] = value
+	ns.db.meter[key] = value
 	if key == "enabled" then
 		ns:ApplyMeter()
 	elseif key == "texture" then
@@ -297,34 +335,34 @@ local function SetMeter(key, value)
 end
 
 local function SetInfoBar(key, value)
-	KUIDB.infobar[key] = value
+	ns.db.infobar[key] = value
 	ns:LayoutInfoBar()
 	ns:LayoutStatusBars() -- they sit on top of it
 end
 
 local function SetUIFont(key, value)
-	KUIDB.uifont[key] = value
+	ns.db.uifont[key] = value
 	ns:ApplyUIFont()
 	ns.Print("names over heads and combat text change after a relog.")
 end
 
 local function SetMinimap(key, value)
-	KUIDB.minimap[key] = value
+	ns.db.minimap[key] = value
 	ns:LayoutMinimap()
 end
 
 local function SetMenuBar(key, value)
-	KUIDB.menubar[key] = value
+	ns.db.menubar[key] = value
 	ns:ApplyMenuBar()
 end
 
 local function SetChat(key, value)
-	KUIDB.chat[key] = value
+	ns.db.chat[key] = value
 	ns:ApplyChat()
 end
 
 local function SetActionBars(key, value)
-	KUIDB.actionbars[key] = value
+	ns.db.actionbars[key] = value
 	if key == "enabled" then
 		NeedsReload("action bar styling")
 	else
@@ -332,29 +370,29 @@ local function SetActionBars(key, value)
 	end
 end
 
--- get/set pair for KUIDB[section][key], for the trailing get, set arguments
+-- get/set pair for ns.db[section][key], for the trailing get, set arguments
 -- of the widgets. percent: stored as 0-1, shown as 0-100.
 local function Bind(section, key, setter, percent)
 	if percent then
-		return function() return math.floor(KUIDB[section][key] * 100 + 0.5) end,
+		return function() return math.floor(ns.db[section][key] * 100 + 0.5) end,
 			function(v) setter(key, v / 100) end
 	end
-	return function() return KUIDB[section][key] end,
+	return function() return ns.db[section][key] end,
 		function(v) setter(key, v) end
 end
 
 -- Color overrides; kind is one of ns.colorKinds, a nil value removes the
 -- override
 local function SetColor(kind, key, value)
-	KUIDB.colors[kind][key] = value
+	ns.db.colors[kind][key] = value
 	ns:ApplyStyle()
 end
 
 -- Choosing a palette clears individual overrides so it shows as designed
 local function SetPalette(name)
-	KUIDB.colors.palette = name
+	ns.db.colors.palette = name
 	for _, kind in ipairs(ns.colorKinds) do
-		wipe(KUIDB.colors[kind])
+		wipe(ns.db.colors[kind])
 	end
 	ns:ApplyStyle()
 	RefreshAll()
@@ -407,6 +445,8 @@ local function NewBuilder(content)
 	function b.Checkbox(...) Place(CreateCheckbox(content, ...)) end
 	function b.ReadoutRow(...) Place(CreateReadoutRow(content, ...)) end
 	function b.Swatch(...) Place(CreateColorSwatch(content, ...)) end
+	function b.Picker(...) Place(CreatePicker(content, ...)) end
+	function b.Info(...) Place(CreateInfo(content, ...)) end
 	function b.ColorRow(kind, key, label)
 		b.Swatch(label,
 			function() return ns:GetColor(kind, key) end,
@@ -445,7 +485,7 @@ local function BuildGeneral(b)
 	b.Slider("Padding", 0, 6, 1, Bind("style", "padding", SetStyle))
 	b.Slider("Background opacity", 0, 100, 5, Bind("style", "bgAlpha", SetStyle, true))
 
-	b.Button("Reset to defaults", ResetToDefaults)
+	b.Button("Reset profile", ResetToDefaults)
 end
 
 local function BuildUnitFrames(b)
@@ -460,7 +500,7 @@ local function BuildUnitFrames(b)
 			b.Slider(WIDTH_LABELS[unit] or unit, 60, 400, 2,
 				function() return ns:GetWidth(unit) end,
 				function(v)
-					KUIDB.widths[unit] = v
+					ns.db.widths[unit] = v
 					Relayout()
 				end)
 		end
@@ -489,7 +529,7 @@ end
 local function BuildColors(b)
 	b.Section("Palette")
 	b.Dropdown("Palette", function() return ns.paletteOrder end,
-		function() return KUIDB.colors.palette end, SetPalette)
+		function() return ns.db.colors.palette end, SetPalette)
 
 	b.Section("Class (player health)")
 	for _, class in ipairs(ns.classOrder) do
@@ -590,7 +630,105 @@ local function BuildOther(b)
 	b.Slider("Rows", 1, 25, 1, Bind("meter", "rows", SetMeter))
 	b.Slider("Row height", 8, 24, 1, Bind("meter", "rowHeight", SetMeter))
 	b.Dropdown("Texture", StatusbarList, Bind("meter", "texture", SetMeter))
-	b.Button("Reset meter data", function() ns:ResetMeter() end)
+	b.Checkbox("Reset on entering a new instance", Bind("meter", "autoReset", SetMeter))
+	b.Button("Reset meter data", function() ns:ConfirmResetMeter() end)
+end
+
+---------------------------------------------------------------------------
+-- Profiles. Switching, copying or resetting replaces every setting at once,
+-- so each refreshes the whole panel.
+---------------------------------------------------------------------------
+
+local function CreateProfile(name)
+	local err = ns:CreateProfile(name)
+	if err then ns.Print(err) end
+	RefreshAll()
+end
+
+StaticPopupDialogs.KUI_NEW_PROFILE = {
+	text = "Name for the new profile. It starts as a copy of your current settings.",
+	button1 = ACCEPT,
+	button2 = CANCEL,
+	hasEditBox = 1,
+	maxLetters = 32,
+	OnShow = function(dialog)
+		local editBox = dialog:GetEditBox()
+		editBox:SetText(UnitName("player"))
+		editBox:HighlightText()
+		editBox:SetFocus()
+	end,
+	OnAccept = function(dialog) CreateProfile(dialog:GetEditBox():GetText()) end,
+	EditBoxOnEnterPressed = function(editBox)
+		CreateProfile(editBox:GetText())
+		editBox:GetParent():Hide()
+	end,
+	EditBoxOnEscapePressed = function(editBox) editBox:GetParent():Hide() end,
+	timeout = 0,
+	whileDead = 1,
+	hideOnEscape = 1,
+}
+
+-- data: the profile picked
+StaticPopupDialogs.KUI_COPY_PROFILE = {
+	text = "Replace every setting in %s with a copy of %s?",
+	button1 = YES,
+	button2 = NO,
+	OnAccept = function(_, from)
+		ns:CopyProfile(from)
+		RefreshAll()
+	end,
+	timeout = 0,
+	whileDead = 1,
+	hideOnEscape = 1,
+}
+
+StaticPopupDialogs.KUI_DELETE_PROFILE = {
+	text = "Delete the profile %s? Characters using it go back to Default.",
+	button1 = YES,
+	button2 = NO,
+	OnAccept = function(_, name)
+		ns:DeleteProfile(name)
+		RefreshAll()
+	end,
+	timeout = 0,
+	whileDead = 1,
+	hideOnEscape = 1,
+}
+
+local function OtherProfiles()
+	local list = {}
+	for _, name in ipairs(ns:ProfileList()) do
+		if name ~= ns:ProfileName() then list[#list + 1] = name end
+	end
+	return list
+end
+
+local function DeletableProfiles()
+	local list = {}
+	for _, name in ipairs(ns:ProfileList()) do
+		if ns:CanDeleteProfile(name) then list[#list + 1] = name end
+	end
+	return list
+end
+
+local function BuildProfiles(b)
+	b.Section("This character")
+	b.Dropdown("Profile", function() return ns:ProfileList() end,
+		function() return ns:ProfileName() end,
+		function(name)
+			ns:SetProfile(name)
+			RefreshAll()
+		end)
+	b.Info("Used by", function() return table.concat(ns:ProfileUsers(ns:ProfileName()), ", ") end)
+	b.Button("New profile...", function() StaticPopup_Show("KUI_NEW_PROFILE") end)
+
+	b.Section("Other profiles")
+	b.Picker("Copy settings from", "Choose a profile", OtherProfiles, function(from)
+		StaticPopup_Show("KUI_COPY_PROFILE", ns:ProfileName(), from, from)
+	end)
+	b.Picker("Delete", "Choose a profile", DeletableProfiles, function(name)
+		StaticPopup_Show("KUI_DELETE_PROFILE", name, nil, name)
+	end)
 end
 
 -- Order is the sidebar order; the first page is the KUI category itself
@@ -607,6 +745,9 @@ local PAGES = {
 		description = "Cosmetic only: positions and sizes stay with Edit Mode." },
 	{ name = "Other", build = BuildOther,
 		description = "XP/reputation bars, info bar, minimap, chat window tweaks and the damage meter." },
+	{ name = "Profiles", build = BuildProfiles,
+		description = "Profiles are shared by all your characters, and each character uses one. "
+			.. "New characters start on Default; make a new profile to give one its own settings." },
 }
 
 ---------------------------------------------------------------------------

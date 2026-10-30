@@ -84,7 +84,9 @@ Anniversary.
 
 - Damage and healing for everyone in your group, current fight or overall
 - Pets, totems and summons count toward their owner
-- Healing counts only what landed, plus damage absorbed by shields
+- Healing counts only what landed, plus damage absorbed by shields;
+  overhealing has its own view, with how much of each player's and each
+  spell's healing was wasted
 - Totals and per-second numbers on class-colored bars
 - The current fight is named after the enemy you hit hardest; hover the
   title for every enemy in it
@@ -92,10 +94,16 @@ Anniversary.
   spells listed separately; each spell has its icon and a bar colored by
   its school (fire, shadow, ...). Right-click to go back
 - Click the title to switch views, drag it to move
+- Resets itself when you enter a different instance (optional); the Reset
+  button asks first
 
 ## Customization
 
 Open the settings with `/kui`, or go to Options → AddOns → KUI.
+
+- Profiles: every character uses Default until you give it its own
+  profile (a copy of the current settings). Characters can share a
+  profile, copy settings from another one, or switch at any time
 
 - One font for the whole Blizzard UI (Arial Narrow by default), keeping
   each text's own size

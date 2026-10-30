@@ -27,7 +27,7 @@ end
 
 local function ShowIcon(cb, texture)
 	cb.icon:SetTexture(texture)
-	cb.icon:SetShown(KUIDB.castbar.showIcon)
+	cb.icon:SetShown(ns.db.castbar.showIcon)
 end
 
 -- cb.container (optional): a frame shown only while there's something to
@@ -189,13 +189,13 @@ function ns:LayoutCastbar(cb)
 	cb.icon:SetSize(h, h)
 
 	cb.status:ClearAllPoints()
-	cb.status:SetPoint("TOPLEFT", KUIDB.castbar.showIcon and (h + 1) or 0, 0)
+	cb.status:SetPoint("TOPLEFT", ns.db.castbar.showIcon and (h + 1) or 0, 0)
 	cb.status:SetPoint("BOTTOMRIGHT")
 	cb.spark:SetSize(12, h * 2.2)
 
 	if cb.preview then
 		ns:PreviewCastbar(cb)
-	elseif not KUIDB.castbar.showIcon then
+	elseif not ns.db.castbar.showIcon then
 		cb.icon:Hide()
 	end
 end
@@ -246,7 +246,7 @@ function ns:LayoutDetachedCastbar(cb, anchor, height)
 end
 
 function ns:StyleCastbar(cb)
-	ns.StyleBar(cb.status, KUIDB.castbar.texture, true)
+	ns.StyleBar(cb.status, ns.db.castbar.texture, true)
 	cb.bg:SetColorTexture(ns:GetEmptyColor())
 end
 

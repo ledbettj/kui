@@ -7,7 +7,7 @@ local addonName, ns = ...
 -- It holds small readouts (gold, bag slots, durability, coordinates, fps,
 -- latency, clock) in three slots:
 -- left, center and right. Each readout is assigned a slot or hidden.
--- KUIDB.infobar.order is kept grouped by slot (left, center, right,
+-- ns.db.infobar.order is kept grouped by slot (left, center, right,
 -- hidden) and is the left-to-right order within each one.
 
 ns.infoBarSlots = { "Left", "Center", "Right", "Hidden" }
@@ -116,8 +116,10 @@ ns.readouts = {
 	},
 }
 
+local SyncSavedReadouts -- defined with the ordering code below
+
 local function SlotOf(id)
-	return KUIDB.infobar.slots[id]
+	return ns.db.infobar.slots[id]
 end
 
 ---------------------------------------------------------------------------
@@ -126,7 +128,7 @@ end
 
 -- Readouts left to right in the list order, each as wide as its text
 local function LayoutSlot(slot)
-	local I = KUIDB.infobar
+	local I = ns.db.infobar
 	local frame, x = slotFrames[slot], 0
 	for _, id in ipairs(I.order) do
 		local button = buttons[id]
@@ -149,17 +151,18 @@ end
 
 -- Screen height the bar takes up, for anything stacked above it
 function ns:InfoBarHeight()
-	return (bar and KUIDB.infobar.enabled) and KUIDB.infobar.height or 0
+	return (bar and ns.db.infobar.enabled) and ns.db.infobar.height or 0
 end
 
 -- Positions the bar and slots and refreshes every shown readout
 function ns:LayoutInfoBar()
 	if not bar then return end
-	local I = KUIDB.infobar
+	SyncSavedReadouts() -- a different profile may be from an older version
+	local I = ns.db.infobar
 	bar:SetShown(I.enabled)
 
 	-- Sides and bottom edge pushed just off screen so only the top border shows
-	local edge = ns:ApplyBackdrop(bar) - KUIDB.style.padding
+	local edge = ns:ApplyBackdrop(bar) - ns.db.style.padding
 	bar:ClearAllPoints()
 	bar:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", -edge, -edge)
 	bar:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", edge, -edge)
@@ -218,16 +221,12 @@ local function OnEvent(_, event)
 end
 
 ---------------------------------------------------------------------------
--- Init
----------------------------------------------------------------------------
-
----------------------------------------------------------------------------
 -- Order
 ---------------------------------------------------------------------------
 
 -- Regroups the order by slot, keeping each readout's place within its slot
 local function GroupBySlot()
-	local I = KUIDB.infobar
+	local I = ns.db.infobar
 	local position = {}
 	for i, id in ipairs(I.order) do position[id] = i end
 	table.sort(I.order, function(a, b)
@@ -239,8 +238,8 @@ end
 
 -- Saved order/slots get readouts added in later versions, and lose any
 -- that no longer exist
-local function SyncSavedReadouts()
-	local I, defaults = KUIDB.infobar, ns.settingsDefaults.infobar
+function SyncSavedReadouts()
+	local I, defaults = ns.db.infobar, ns.settingsDefaults.infobar
 	local order, seen = {}, {}
 	for _, id in ipairs(I.order) do
 		if ns.readouts[id] and not seen[id] then
@@ -261,21 +260,21 @@ end
 -- Whether the readout at index can move one place earlier (-1) or later
 -- (+1): only past a neighbor in the same slot
 function ns:CanMoveReadout(index, step)
-	local I = KUIDB.infobar
+	local I = ns.db.infobar
 	local id, other = I.order[index], I.order[index + step]
 	return other ~= nil and I.slots[id] == I.slots[other]
 end
 
 function ns:MoveReadout(index, step)
 	if not ns:CanMoveReadout(index, step) then return end
-	local order = KUIDB.infobar.order
+	local order = ns.db.infobar.order
 	order[index], order[index + step] = order[index + step], order[index]
 	ns:LayoutInfoBar()
 end
 
 -- A readout moving to another slot goes to the end of it
 function ns:SetReadoutSlot(id, slot)
-	local I = KUIDB.infobar
+	local I = ns.db.infobar
 	if I.slots[id] == slot then return end
 	tDeleteItem(I.order, id)
 	tinsert(I.order, id)
@@ -285,8 +284,6 @@ function ns:SetReadoutSlot(id, slot)
 end
 
 function ns:InitInfoBar()
-	SyncSavedReadouts()
-
 	bar = CreateFrame("Frame", "KUI_InfoBar", UIParent, "BackdropTemplate")
 	bar:SetFrameStrata("BACKGROUND")
 

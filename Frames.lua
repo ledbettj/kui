@@ -270,10 +270,10 @@ end
 ---------------------------------------------------------------------------
 
 function ns:StyleFrame(f)
-	ns.StyleBar(f.health, KUIDB.style.healthTexture)
+	ns.StyleBar(f.health, ns.db.style.healthTexture)
 	ns.StyleHealPrediction(f)
 	if f.power then
-		ns.StyleBar(f.power, KUIDB.style.powerTexture, true)
+		ns.StyleBar(f.power, ns.db.style.powerTexture, true)
 		f.power.bg:SetColorTexture(ns:GetEmptyColor())
 	end
 	if f.castbar then
@@ -285,7 +285,7 @@ end
 
 local function PowerHeight(cfg)
 	if cfg.powerFromSettings then
-		return KUIDB.style.powerHeight
+		return ns.db.style.powerHeight
 	elseif cfg.power then
 		return cfg.powerHeight or math.floor(cfg.h * 0.25)
 	end
@@ -321,7 +321,7 @@ local function LayoutContents(f)
 	end
 
 	if f.castbar and not f.castbar.container then
-		Row(f.castbar, KUIDB.castbar.height)
+		Row(f.castbar, ns.db.castbar.height)
 		ns:LayoutCastbar(f.castbar)
 	end
 	if f.power then
@@ -334,7 +334,7 @@ local function LayoutContents(f)
 	f.health:SetPoint("BOTTOM", 0, bottom)
 
 	if f.castbar and f.castbar.container then
-		ns:LayoutDetachedCastbar(f.castbar, f, KUIDB.castbar.focusHeight)
+		ns:LayoutDetachedCastbar(f.castbar, f, ns.db.castbar.focusHeight)
 	end
 end
 
@@ -466,14 +466,14 @@ end
 -- Width setting, following widthFrom so linked units always match
 function ns:GetWidth(unit)
 	local key = ns.units[unit].widthFrom or unit
-	return KUIDB.widths[key] or ns.units[key].w
+	return ns.db.widths[key] or ns.units[key].w
 end
 
 --   [focus] [player] - - | - - [target] [tot]
 -- pet under the player; party column at the top left, each member with its
 -- pet to the right and its auras underneath
 function ns:ApplyPositions()
-	local L, F = KUIDB.layout, ns.frames
+	local L, F = ns.db.layout, ns.frames
 	for _, f in pairs(F) do
 		f:ClearAllPoints()
 	end

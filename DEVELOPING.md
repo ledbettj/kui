@@ -17,7 +17,8 @@ Notes for working on the code. For what the addon does, see the README.
   catches typos in names, stray globals and unused variables. When code
   starts using a WoW API it doesn't know yet, add the name to
   `read_globals` there.
-- Saved settings live in `WTF/Account/<account>/SavedVariables/KUI.lua`.
+- Saved settings live in `WTF/Account/<account>/SavedVariables/KUI.lua`,
+  as named profiles plus which one each character uses (see `Core.lua`).
 
 ## Layout
 
@@ -62,11 +63,15 @@ The header of `Core.lua` has the full list; in short:
 **A new setting**
 1. Add it with its default to the right section of `ns.settingsDefaults`.
    Existing users get it filled in on load.
-2. Read it as `KUIDB.<section>.<key>` where it's used.
+2. Read it as `ns.db.<section>.<key>` where it's used. `ns.db` is the
+   current profile and is replaced when the player switches, so look it up
+   each time rather than keeping a reference.
 3. Add a control in `Config.lua` with `Bind(section, key, setter)`. The
    setter stores the value and calls the cheapest correct apply function.
 4. If a setting is renamed or changes meaning, migrate the old value in
-   `InitDB` (`Core.lua`).
+   `InitProfile` (`Core.lua`), which runs on every profile as it's loaded.
+5. If it only takes effect at login, add it to `LOGIN_ONLY` in `Core.lua`
+   so switching profiles asks for a /reload.
 
 **A new info bar readout**
 Add an entry to `ns.readouts` in `InfoBar.lua` (a label, an `update`

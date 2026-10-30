@@ -3,15 +3,17 @@ local addonName, ns = ...
 -- A small damage/healing meter for the group: one window with a bar per
 -- player, for the current (or last) fight or everything since the last
 -- reset. Pets and summons count as their owner. Healing is what actually
--- landed (no overhealing) plus damage absorbed by shields. The current
--- fight is named after the enemy the group hit hardest.
+-- landed plus damage absorbed by shields; overhealing is its own view. The
+-- current fight is named after the enemy the group hit hardest. Entering a
+-- different instance than last time can reset everything.
 --
--- Title bar: left-click switches damage/healing, right-click current/
+-- Title bar: left-click cycles damage/healing/overhealing, right-click current/
 -- overall, drag to move. Clicking a player's bar breaks their total down
 -- by spell (their pets' spells listed separately); right-clicking goes
 -- back. The corner grip resizes, snapping the height to whole rows.
 
-local MODE_LABELS = { damage = "Damage", healing = "Healing" }
+local MODES = { "damage", "healing", "overhealing" }
+local MODE_LABELS = { damage = "Damage", healing = "Healing", overhealing = "Overhealing" }
 local SEGMENT_LABELS = { current = "Current", overall = "Overall" }
 local TITLE_HEIGHT = 16
 local ROW_GAP = 1
@@ -45,8 +47,8 @@ local rows = {}
 -- spell id -> combat log school mask, for coloring the breakdown
 local spellSchools = { [0] = 1 } -- melee is physical
 
--- actors: owner GUID -> { guid, name, class, damage, healing, spells }
---   spells: "damage"/"healing" -> caster -> spell id -> amount, the caster
+-- actors: owner GUID -> { guid, name, class, damage, healing, overhealing, spells }
+--   spells: mode -> caster -> spell id -> amount, the caster
 --   being "" for the player and the name of a pet or summon. Melee swings
 --   are spell id 0.
 -- enemies (current fight only): name -> { damage, count }, with
@@ -98,7 +100,10 @@ end
 local function Actor(seg, guid)
 	local a = seg.actors[guid]
 	if not a then
-		a = { guid = guid, damage = 0, healing = 0, spells = { damage = {}, healing = {} } }
+		a = {
+			guid = guid, damage = 0, healing = 0, overhealing = 0,
+			spells = { damage = {}, healing = {}, overhealing = {} },
+		}
 		seg.actors[guid] = a
 	end
 	return a
@@ -178,7 +183,11 @@ local function OnCombatLog()
 		end
 	elseif HEAL_EVENTS[event] then
 		local owner = Owner(srcGUID, srcFlags)
-		if owner then Add(owner, "healing", a15 - (a16 or 0), srcGUID, srcName, a12, a14) end
+		if owner then
+			local over = a16 or 0
+			Add(owner, "healing", a15 - over, srcGUID, srcName, a12, a14)
+			Add(owner, "overhealing", over, srcGUID, srcName, a12, a14)
+		end
 	elseif event == "SPELL_ABSORBED" then
 		-- The shield's caster and spell come after the attacking spell's id,
 		-- name and school when the absorbed hit was a spell, first for a
@@ -200,6 +209,32 @@ function ns:ResetMeter()
 	fightStart = nil
 	viewGUID = nil
 	ns:RefreshMeter()
+end
+
+StaticPopupDialogs.KUI_RESET_METER = {
+	text = "Reset the damage meter?",
+	button1 = YES,
+	button2 = NO,
+	OnAccept = function() ns:ResetMeter() end,
+	timeout = 0,
+	whileDead = 1,
+	hideOnEscape = 1,
+}
+
+function ns:ConfirmResetMeter()
+	StaticPopup_Show("KUI_RESET_METER")
+end
+
+-- Instance map last entered; going back into the same one (running back
+-- after a wipe) keeps the data
+local lastInstance
+
+local function OnEnteringWorld()
+	ScanPets()
+	if not IsInInstance() then return end
+	local instance = select(8, GetInstanceInfo())
+	if instance ~= lastInstance and ns.db.meter.autoReset then ns:ResetMeter() end
+	lastInstance = instance
 end
 
 ---------------------------------------------------------------------------
@@ -285,10 +320,16 @@ local function CollectSpells(a, key)
 end
 
 -- icon: shown at the bar's left end with the name after it; nil for none
+-- Share of a heal that was wasted, as a whole percent
+local function OverhealPercent(over, effective)
+	local total = over + (effective or 0)
+	return total > 0 and math.floor(over / total * 100 + 0.5) or 0
+end
+
 local function ShowRow(row, value, top, c, name, valueText, icon)
 	row.icon:SetTexture(icon)
 	row.icon:SetShown(icon ~= nil)
-	row.name:SetPoint("LEFT", icon and KUIDB.meter.rowHeight + 3 or 3, 0)
+	row.name:SetPoint("LEFT", icon and ns.db.meter.rowHeight + 3 or 3, 0)
 	row:SetMinMaxValues(0, top)
 	row:SetValue(value)
 	row:SetStatusBarColor(c[1], c[2], c[3])
@@ -299,7 +340,7 @@ end
 
 -- The players in the group, highest first
 local function RefreshList(seg, key, numRows)
-	window.title:SetFormattedText("%s - %s", MODE_LABELS[key], SegmentLabel(KUIDB.meter.segment))
+	window.title:SetFormattedText("%s - %s", MODE_LABELS[key], SegmentLabel(ns.db.meter.segment))
 
 	wipe(sorted)
 	for _, a in pairs(seg.actors) do
@@ -315,8 +356,12 @@ local function RefreshList(seg, key, numRows)
 		row.actor = a
 		if a then
 			Identify(a)
+			-- Overhealing shows how much of each player's healing it was
+			local detail = key == "overhealing"
+				and format("%d%%", OverhealPercent(a.overhealing, a.healing))
+				or ShortValue(a[key] / seconds)
 			ShowRow(row, a[key], top, ClassColor(a), format("%d. %s", i, a.name or "?"),
-				format("%s (%s)", ShortValue(a[key]), ShortValue(a[key] / seconds)))
+				format("%s (%s)", ShortValue(a[key]), detail))
 		else
 			row:Hide()
 		end
@@ -342,8 +387,17 @@ local function RefreshBreakdown(seg, key, numRows)
 		if e then
 			local name = SpellName(e.id)
 			if e.caster ~= "" then name = format("%s (%s)", name, e.caster) end
+			-- Share of the player's total, or for overhealing, how much of
+			-- that spell's healing was wasted
+			local percent
+			if key == "overhealing" then
+				local healed = a.spells.healing[e.caster]
+				percent = OverhealPercent(e.amount, healed and healed[e.id])
+			else
+				percent = e.amount / total * 100 + 0.5
+			end
 			ShowRow(row, e.amount, top, ns:GetSchoolColor(spellSchools[e.id]), format("%d. %s", i, name),
-				format("%s (%d%%)", ShortValue(e.amount), e.amount / total * 100 + 0.5), SpellIcon(e.id))
+				format("%s (%d%%)", ShortValue(e.amount), percent), SpellIcon(e.id))
 		else
 			row:Hide()
 		end
@@ -353,7 +407,7 @@ end
 -- Redraws the title and rows from the data; does nothing while hidden
 function ns:RefreshMeter()
 	if not window or not window:IsShown() then return end
-	local M = KUIDB.meter
+	local M = ns.db.meter
 	local seg = segments[M.segment]
 	window.timer:SetText(FormatTime(Duration(seg)))
 	if viewGUID then
@@ -416,17 +470,17 @@ local function CreateRow()
 	row.value = ns.CreateText(row, ns.fonts.normal, "RIGHT")
 	row.value:SetPoint("RIGHT", -3, 0)
 	row.name:SetPoint("RIGHT", row.value, "LEFT", -4, 0)
-	ns.StyleBar(row, KUIDB.meter.texture)
+	ns.StyleBar(row, ns.db.meter.texture)
 	return row
 end
 
 local function WindowHeight(numRows)
-	return window.inset * 2 + TITLE_HEIGHT + numRows * (KUIDB.meter.rowHeight + ROW_GAP)
+	return window.inset * 2 + TITLE_HEIGHT + numRows * (ns.db.meter.rowHeight + ROW_GAP)
 end
 
 -- Rows under the title bar; they follow the window's width by anchoring
 local function LayoutRows()
-	local M = KUIDB.meter
+	local M = ns.db.meter
 	local inset = window.inset
 	for i = 1, math.max(M.rows, #rows) do
 		local row = rows[i]
@@ -447,7 +501,7 @@ end
 
 function ns:LayoutMeter()
 	if not window then return end
-	local M = KUIDB.meter
+	local M = ns.db.meter
 	local inset = ns:ApplyBackdrop(window, true)
 	window.inset = inset
 	window:SetSize(M.width, WindowHeight(M.rows))
@@ -468,7 +522,7 @@ end
 function ns:StyleMeter()
 	if not window then return end
 	for _, row in ipairs(rows) do
-		ns.StyleBar(row, KUIDB.meter.texture)
+		ns.StyleBar(row, ns.db.meter.texture)
 	end
 	ns:RefreshMeter() -- texture swaps drop the class colors
 end
@@ -478,9 +532,9 @@ end
 ---------------------------------------------------------------------------
 
 local function TitleBar_OnClick(_, button)
-	local M = KUIDB.meter
+	local M = ns.db.meter
 	if button == "LeftButton" then
-		M.mode = M.mode == "damage" and "healing" or "damage"
+		M.mode = MODES[(tIndexOf(MODES, M.mode) or 0) % #MODES + 1]
 	elseif viewGUID then
 		viewGUID = nil
 	else
@@ -514,7 +568,7 @@ end
 local function TitleBar_OnEnter(self)
 	GameTooltip:SetOwner(self, "ANCHOR_TOP")
 	GameTooltip:AddLine("KUI meter")
-	GameTooltip:AddLine("Left-click: damage / healing", 1, 1, 1)
+	GameTooltip:AddLine("Left-click: damage / healing / overhealing", 1, 1, 1)
 	if viewGUID then
 		GameTooltip:AddLine("Right-click: back to everyone", 1, 1, 1)
 	else
@@ -527,7 +581,7 @@ end
 
 local function SavePosition()
 	local point, _, relPoint, x, y = window:GetPoint()
-	KUIDB.meter.point = { point, relPoint, x, y }
+	ns.db.meter.point = { point, relPoint, x, y }
 end
 
 local function OnDragStop()
@@ -538,7 +592,7 @@ end
 -- Rows are added or dropped live while dragging the grip
 local function OnSizeChanged(self, width, height)
 	if not self.sizing then return end
-	local M = KUIDB.meter
+	local M = ns.db.meter
 	local rowsFit = math.floor((height - WindowHeight(0)) / (M.rowHeight + ROW_GAP) + 0.5)
 	M.width = math.floor(width + 0.5)
 	M.rows = math.max(1, math.min(MAX_ROWS, rowsFit))
@@ -592,7 +646,7 @@ local function CreateWindow()
 	reset.text:SetPoint("RIGHT")
 	reset.text:SetText("Reset")
 	reset.text:SetTextColor(0.7, 0.7, 0.7)
-	reset:SetScript("OnClick", function() ns:ResetMeter() end)
+	reset:SetScript("OnClick", function() ns:ConfirmResetMeter() end)
 	reset:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 1, 1) end)
 	reset:SetScript("OnLeave", function(self) self.text:SetTextColor(0.7, 0.7, 0.7) end)
 
@@ -610,6 +664,8 @@ local function CreateWindow()
 	window:SetScript("OnEvent", function(_, event)
 		if event == "COMBAT_LOG_EVENT_UNFILTERED" then
 			OnCombatLog()
+		elseif event == "PLAYER_ENTERING_WORLD" then
+			OnEnteringWorld()
 		else
 			ScanPets()
 		end
@@ -621,7 +677,7 @@ local EVENTS = { "COMBAT_LOG_EVENT_UNFILTERED", "GROUP_ROSTER_UPDATE", "UNIT_PET
 -- Shows or hides the window; hidden, it records nothing
 function ns:ApplyMeter()
 	if not window then return end
-	local enabled = KUIDB.meter.enabled
+	local enabled = ns.db.meter.enabled
 	-- Nothing would notice the fight ending while switched off
 	if not enabled and fightStart then EndFight() end
 	for _, event in ipairs(EVENTS) do

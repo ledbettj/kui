@@ -65,8 +65,8 @@ end
 
 -- r, g, b, a for the background of empty power bars and idle cast bars
 function ns:GetEmptyColor()
-	local c = KUIDB.style.emptyColor
-	return c[1], c[2], c[3], KUIDB.style.emptyAlpha
+	local c = ns.db.style.emptyColor
+	return c[1], c[2], c[3], ns.db.style.emptyAlpha
 end
 
 ---------------------------------------------------------------------------
@@ -91,8 +91,8 @@ ns.fonts = {
 }
 
 function ns:UpdateFonts()
-	local path = ns:GetFontPath(KUIDB.style.font)
-	local size = KUIDB.style.fontSize
+	local path = ns:GetFontPath(ns.db.style.font)
+	local size = ns.db.style.fontSize
 	ns.fonts.normal:SetFont(path, size, "")
 	ns.fonts.small:SetFont(path, size - 2, "")
 	ns.fonts.aura:SetFont(path, size - 2, "")
@@ -141,7 +141,7 @@ end
 -- inner inset (border + padding) where content starts. Resets the border
 -- color, so callers with a custom one (highlights) reapply it after.
 function ns:ApplyBackdrop(f, small)
-	local style = KUIDB.style
+	local style = ns.db.style
 
 	local edge = style.borderSize
 	if small then edge = math.max(1, math.floor(edge * 2 / 3 + 0.5)) end

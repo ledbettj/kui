@@ -45,7 +45,7 @@ end
 -- urgent than the target highlight), else the target color, else the
 -- normal border
 local function UpdateBorder(kp)
-	local N = KUIDB.nameplates
+	local N = ns.db.nameplates
 	local status = N.threatBorder and kp.threatStatus
 	local c
 	if status then
@@ -53,7 +53,7 @@ local function UpdateBorder(kp)
 	elseif N.highlightTarget and UnitIsUnit(kp.unit, "target") then
 		c = N.targetColor
 	else
-		c = KUIDB.style.borderColor
+		c = ns.db.style.borderColor
 	end
 	kp:SetBackdropBorderColor(c[1], c[2], c[3], 1)
 end
@@ -64,7 +64,7 @@ local function UpdateThreat(kp)
 	local status, percent = PlayerThreat(kp.unit)
 	kp.threatStatus = status
 
-	if KUIDB.nameplates.threatPercent and percent and percent > 0 then
+	if ns.db.nameplates.threatPercent and percent and percent > 0 then
 		local c = status and ns:GetColor("threat", ns.threatOrder[status])
 		kp.threatText:SetFormattedText("%d%%", percent)
 		if c then
@@ -104,7 +104,7 @@ end
 ---------------------------------------------------------------------------
 
 local function LayoutPlate(kp)
-	local N = KUIDB.nameplates
+	local N = ns.db.nameplates
 
 	kp:SetSize(N.width, N.height)
 	kp.raidMark:SetSize(N.height + 8, N.height + 8)
@@ -123,7 +123,7 @@ local function LayoutPlate(kp)
 end
 
 local function StylePlate(kp)
-	ns.StyleBar(kp.health, KUIDB.style.healthTexture)
+	ns.StyleBar(kp.health, ns.db.style.healthTexture)
 	ns:StyleCastbar(kp.castbar)
 	if kp.unit then UpdatePlate(kp) end
 end
@@ -241,7 +241,7 @@ end
 
 -- Only when enabled at login (see the lifecycle notes in Core.lua)
 function ns:InitNameplates()
-	if not KUIDB.nameplates.enabled or not NamePlateDriverFrame then return end
+	if not ns.db.nameplates.enabled or not NamePlateDriverFrame then return end
 
 	-- After Blizzard has acquired and set up its unit frame for the plate
 	hooksecurefunc(NamePlateDriverFrame, "OnNamePlateAdded", function(_, unit) OnPlateAdded(unit) end)
