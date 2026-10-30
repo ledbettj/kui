@@ -63,6 +63,8 @@ Anniversary.
 
 - Optional square minimap in the KUI border; minimap buttons from other
   addons follow the square edge
+- Round button rings around the square map are cleaned up, and the mouse
+  wheel zooms in place of the zoom buttons
 
 ## Chat
 
