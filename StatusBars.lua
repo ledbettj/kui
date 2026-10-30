@@ -1,7 +1,8 @@
 local addonName, ns = ...
 
 -- XP and reputation bars replacing Blizzard's segmented status tracking
--- bars, centered at the top or bottom edge of the screen. Colors come from
+-- bars, centered at the top or bottom edge of the screen (on top of the
+-- info bar, if shown). Colors come from
 -- the palette: class Warlock purple for XP, mana for pending rested XP,
 -- friendly green for rep.
 
@@ -106,7 +107,7 @@ function ns:LayoutStatusBars()
 	if S.position == "Top" then
 		holder:SetPoint("TOP", UIParent, "TOP", 0, -EDGE_OFFSET)
 	else
-		holder:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, EDGE_OFFSET)
+		holder:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, ns:InfoBarHeight() + EDGE_OFFSET)
 	end
 
 	for _, bar in pairs(bars) do

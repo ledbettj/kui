@@ -24,6 +24,7 @@ Frames.lua
 ActionBars.lua
 Buffs.lua
 Nameplates.lua
+InfoBar.lua
 StatusBars.lua
 Chat.lua
 MenuBar.lua

@@ -105,6 +105,21 @@ ns.settingsDefaults = {
 		markLowRank = true, -- dot on buttons with a spell below its highest trained rank
 	},
 
+	-- Full-width strip along the bottom of the screen
+	infobar = {
+		enabled = true,
+		height = 20,
+		spacing = 16, -- between readouts in a slot
+		edgePadding = 8, -- screen edge to the left/right slots
+		-- Readouts (see InfoBar.lua): left to right within each slot
+		order = { "gold", "bags", "durability", "coords", "fps", "latency", "clock" },
+		slots = { -- or "Hidden"
+			gold = "Left", bags = "Left", durability = "Left",
+			coords = "Center",
+			fps = "Right", latency = "Right", clock = "Right",
+		},
+	},
+
 	-- XP / reputation bars replacing Blizzard's status tracking bars
 	statusbars = {
 		enabled = true,

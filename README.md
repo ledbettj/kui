@@ -59,6 +59,14 @@ Anniversary.
 - Rested XP shown on the XP bar
 - Numbers appear when you hover the bar
 
+## Info bar
+
+- A full-width strip along the bottom of the screen in the KUI style, with
+  the XP and reputation bars resting on top of it
+- Readouts for gold, bag slots, durability, map coordinates, fps, latency
+  and the clock, each placed on the left, center or right (or hidden) and
+  reorderable, with adjustable spacing
+
 ## Minimap
 
 - Optional square minimap in the KUI border; minimap buttons from other

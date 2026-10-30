@@ -96,6 +96,57 @@ local function CreateCheckbox(parent, text, get, set)
 	return row
 end
 
+-- One entry of the info bar's readout list: the readout at this position
+-- (the label follows reordering), its slot, and buttons to move it within
+-- that slot. The list is grouped by slot, so every row can change.
+local function CreateReadoutRow(parent, index)
+	local row = CreateRow(parent, "")
+	local function Id() return KUIDB.infobar.order[index] end
+
+	local dropdown = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
+	dropdown:SetPoint("LEFT", LABEL_WIDTH, 0)
+	dropdown:SetWidth(CONTROL_WIDTH - 60)
+	dropdown:SetupMenu(function(_, root)
+		for _, slot in ipairs(ns.infoBarSlots) do
+			root:CreateRadio(slot,
+				function() return KUIDB.infobar.slots[Id()] == slot end,
+				function()
+					ns:SetReadoutSlot(Id(), slot)
+					RefreshAll()
+				end)
+		end
+	end)
+
+	local arrows = {}
+
+	local function Arrow(direction, step, x)
+		local button = CreateFrame("Button", nil, row)
+		button:SetSize(24, 24)
+		button:SetPoint("LEFT", dropdown, "RIGHT", x, 0)
+		button:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-Scroll" .. direction .. "-Up")
+		button:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-Scroll" .. direction .. "-Down")
+		button:SetDisabledTexture("Interface\\ChatFrame\\UI-ChatIcon-Scroll" .. direction .. "-Disabled")
+		button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+		button.step = step
+		arrows[#arrows + 1] = button
+		button:SetScript("OnClick", function()
+			ns:MoveReadout(index, step)
+			RefreshAll() -- every row's label and slot shift
+		end)
+	end
+	Arrow("Up", -1, 6)
+	Arrow("Down", 1, 30)
+
+	function row:Refresh()
+		row.label:SetText(ns.readouts[Id()].label)
+		dropdown:GenerateMenu()
+		for _, arrow in ipairs(arrows) do
+			arrow:SetEnabled(ns:CanMoveReadout(index, arrow.step))
+		end
+	end
+	return row
+end
+
 -- reset: optional; adds a Reset button that calls it
 local function CreateColorSwatch(parent, text, get, set, reset)
 	local row = CreateRow(parent, text)
@@ -245,6 +296,12 @@ local function SetMeter(key, value)
 	end
 end
 
+local function SetInfoBar(key, value)
+	KUIDB.infobar[key] = value
+	ns:LayoutInfoBar()
+	ns:LayoutStatusBars() -- they sit on top of it
+end
+
 local function SetMinimap(key, value)
 	KUIDB.minimap[key] = value
 	ns:LayoutMinimap()
@@ -342,6 +399,7 @@ local function NewBuilder(content)
 	function b.Slider(...) Place(CreateSlider(content, ...)) end
 	function b.Dropdown(...) Place(CreateDropdown(content, ...)) end
 	function b.Checkbox(...) Place(CreateCheckbox(content, ...)) end
+	function b.ReadoutRow(...) Place(CreateReadoutRow(content, ...)) end
 	function b.Swatch(...) Place(CreateColorSwatch(content, ...)) end
 	function b.ColorRow(kind, key, label)
 		b.Swatch(label,
@@ -497,6 +555,16 @@ local function BuildOther(b)
 	b.Slider("Height", 4, 30, 1, Bind("statusbars", "height", SetStatusBars))
 	b.Dropdown("Texture", StatusbarList, Bind("statusbars", "texture", SetStatusBars))
 
+	b.Section("Info bar")
+	b.Checkbox("Show info bar", Bind("infobar", "enabled", SetInfoBar))
+	b.Slider("Height", 10, 40, 1, Bind("infobar", "height", SetInfoBar))
+	b.Slider("Spacing between readouts", 0, 60, 1, Bind("infobar", "spacing", SetInfoBar))
+	b.Slider("Padding from screen edges", 0, 100, 1, Bind("infobar", "edgePadding", SetInfoBar))
+	-- One row per readout; the list order is the left-to-right order
+	for i = 1, #ns.settingsDefaults.infobar.order do
+		b.ReadoutRow(i)
+	end
+
 	b.Section("Minimap")
 	b.Dropdown("Style", function() return { "Blizzard", "Square" } end, Bind("minimap", "style", SetMinimap))
 
@@ -525,7 +593,7 @@ local PAGES = {
 	{ name = "Action Bars & Buffs", build = BuildActionBars,
 		description = "Cosmetic only: positions and sizes stay with Edit Mode." },
 	{ name = "Other", build = BuildOther,
-		description = "XP/reputation bars, minimap, chat window tweaks and the damage meter." },
+		description = "XP/reputation bars, info bar, minimap, chat window tweaks and the damage meter." },
 }
 
 ---------------------------------------------------------------------------

@@ -91,6 +91,7 @@ function ns:ApplyStyle()
 	ns:StyleNameplates()
 	ns:StyleStatusBars()
 	ns:StyleMeter()
+	ns:LayoutInfoBar() -- readout widths follow the font
 end
 
 -- Sizes, borders and positions everywhere. Moving/resizing secure frames
@@ -110,6 +111,7 @@ function ns:ApplyLayout()
 	ns:StyleActionBars()
 	ns:StyleBuffs()
 	ns:LayoutNameplates()
+	ns:LayoutInfoBar()
 	ns:LayoutStatusBars()
 	ns:LayoutMinimap()
 	ns:LayoutMeter()
@@ -173,6 +175,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		ns:InitActionBars()
 		ns:InitBuffs()
 		ns:InitNameplates()
+		ns:InitInfoBar()
 		ns:InitStatusBars()
 		ns:InitChat()
 		ns:ApplyMenuBar()
