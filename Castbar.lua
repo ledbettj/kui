@@ -203,17 +203,46 @@ function ns:SetCastbarUnit(cb, unit)
 	end
 end
 
+-- Detached cast bars (focus, nameplates) live in their own bordered holder
+-- (cb.container) under the owner, shown only while casting
+function ns:CreateDetachedCastbar(owner)
+	local holder = CreateFrame("Frame", nil, owner, "BackdropTemplate")
+	holder.unit = owner.unit
+	local cb = ns:CreateCastbar(holder)
+	cb.container = holder
+	holder:Hide()
+	return cb
+end
+
+-- Sizes a detached cast bar's holder and attaches it under anchor. The
+-- holder is usually hidden when this runs, so the bar gets an explicit
+-- height for LayoutCastbar to size the icon from.
+function ns:LayoutDetachedCastbar(cb, anchor, height)
+	local holder = cb.container
+	holder:ClearAllPoints()
+	holder:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+	holder:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2)
+	holder:SetHeight(height)
+	local inset = ns:ApplyBackdrop(holder, true)
+	cb:ClearAllPoints()
+	cb:SetPoint("TOPLEFT", inset, -inset)
+	cb:SetPoint("TOPRIGHT", -inset, -inset)
+	cb:SetHeight(math.max(1, height - inset * 2))
+	ns:LayoutCastbar(cb)
+end
+
 function ns:StyleCastbar(cb)
 	ns.StyleBar(cb.status, KUIDB.castbar.texture, true)
 	cb.bg:SetColorTexture(ns:GetEmptyColor())
 end
 
+-- f: the frame the bar belongs to; its unit (if any) is watched
 function ns:CreateCastbar(f)
 	local cb = CreateFrame("Frame", nil, f)
 	cb.unit = f.unit
 
 	cb.icon = cb:CreateTexture(nil, "ARTWORK")
-	cb.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	ns.CropIcon(cb.icon)
 
 	-- Empty background spans the whole row, icon slot included, so an idle
 	-- row reads as one even strip

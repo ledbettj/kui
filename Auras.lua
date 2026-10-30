@@ -66,7 +66,7 @@ local function CreateButton(container)
 	b.icon = b:CreateTexture(nil, "ARTWORK")
 	b.icon:SetPoint("TOPLEFT", 1, -1)
 	b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
-	b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	ns.CropIcon(b.icon)
 
 	b.cooldown = CreateFrame("Cooldown", nil, b, "CooldownFrameTemplate")
 	b.cooldown:SetAllPoints(b.icon)
@@ -162,6 +162,7 @@ function ns.UpdateAuras(self)
 	pass.container = nil
 end
 
+-- Hides every icon (placeholder frames in preview have no unit to read)
 function ns.HideAuras(self)
 	if not self.auras then return end
 	for _, b in ipairs(self.auras.buttons) do

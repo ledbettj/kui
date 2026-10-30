@@ -172,6 +172,7 @@ local function HideBlizzard()
 	hooksecurefunc(manager, "Show", manager.Hide)
 end
 
+-- Only when enabled at login (see the lifecycle notes in Core.lua)
 function ns:InitStatusBars()
 	if not KUIDB.statusbars.enabled then return end
 

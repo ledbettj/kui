@@ -11,6 +11,17 @@ local addonName, ns = ...
 --   Layout*          sizes/anchors; touches secure frames, so it is
 --                    deferred while in combat
 --   Style*           textures/colors/fonts; safe at any time
+--   Apply*           a module's on/off state and settings in one go
+--
+-- Lifecycle (see the loader at the bottom):
+--   ADDON_LOADED     saved variables, unit frames, config panel
+--   PLAYER_LOGIN     everything restyling Blizzard UI, which exists by then
+--   Init*            runs once. Modules that restyle Blizzard frames are
+--                    only built if enabled at login; toggling them later
+--                    asks for a /reload.
+--   Layout/Style/Apply  rerun whenever settings change, so they must be
+--                    safe to call repeatedly (and before Init: they return
+--                    early while their frames don't exist)
 
 ns.frames = {} -- unit -> unit frame
 
@@ -58,6 +69,8 @@ local function InitDB()
 	db.colors.palette = db.colors.palette or "Default"
 end
 
+-- Every setting back to its default, including widths and color overrides,
+-- then reapplied
 function ns:ResetSettings()
 	wipe(KUIDB.widths)
 	for section, defaults in pairs(ns.settingsDefaults) do
@@ -123,18 +136,17 @@ end
 -- Blizzard frames
 ---------------------------------------------------------------------------
 
-local hider = CreateFrame("Frame")
-hider:Hide()
-
+-- Runs at ADDON_LOADED, before combat lockdown can apply
 local function HideBlizzard()
 	-- ComboFrame is parented to UIParent, not TargetFrame, so it needs hiding
 	-- on its own. PartyFrame holds all four Blizzard party member frames.
+	-- Unregistering their events stops them doing work while hidden.
 	for _, name in ipairs({ "PlayerFrame", "TargetFrame", "FocusFrame", "PetFrame", "ComboFrame", "PartyFrame" }) do
 		local f = _G[name]
 		if f then
 			f:UnregisterAllEvents()
 			f:Hide()
-			f:SetParent(hider)
+			ns.SetHidden(f, true)
 		end
 	end
 

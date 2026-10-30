@@ -17,8 +17,6 @@ local BUTTON_SETS = {
 	{ "StanceButton", 10 },
 }
 
-local ICON_CROP = { 0.08, 0.92, 0.08, 0.92 }
-
 local buttons = {}
 
 -- Icon tint, following ActionBarActionButtonMixin:UpdateUsable plus red
@@ -166,6 +164,9 @@ local function FitToIcon(region, icon)
 	region:SetAllPoints(icon)
 end
 
+-- Re-anchors regions of protected buttons, so it can't run in combat;
+-- instead it flags a relayout, which ns:ApplyLayout catches up on (and
+-- which restyles the action bars) when combat ends
 local function StyleButton(btn)
 	if InCombatLockdown() then
 		ns.pendingLayout = true
@@ -191,7 +192,7 @@ local function StyleButton(btn)
 	icon:ClearAllPoints()
 	icon:SetPoint("TOPLEFT", inset, -inset)
 	icon:SetPoint("BOTTOMRIGHT", -inset, inset)
-	icon:SetTexCoord(unpack(ICON_CROP))
+	ns.CropIcon(icon)
 
 	if btn.SlotBackground then
 		btn.SlotBackground:SetColorTexture(ns:GetEmptyColor())
@@ -251,6 +252,7 @@ function ns:StyleActionBars()
 	end
 end
 
+-- Only when enabled at login (see the lifecycle notes in Core.lua)
 function ns:InitActionBars()
 	if not KUIDB.actionbars.enabled then return end
 

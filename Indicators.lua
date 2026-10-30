@@ -160,7 +160,7 @@ end
 -- Threat color while any mob is on, or about to pull off, the unit
 -- (status 1-3, as Blizzard's frames show it), else the normal border.
 -- ApplyBackdrop resets the border, so layout calls this again afterwards.
-function ns.UpdateThreat(f)
+function ns.UpdateAggro(f)
 	if not f.cfg.threat then return end
 	local status = KUIDB.aggro.enabled and UnitExists(f.unit) and UnitThreatSituation(f.unit)
 	local c = (status and status > 0) and ns:GetColor("threat", ns.threatOrder[status])

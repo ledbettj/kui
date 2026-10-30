@@ -53,6 +53,7 @@ function ns:InitWorldFonts()
 	if Enabled() then SetWorldFonts(ns:GetFontPath(KUIDB.uifont.font)) end
 end
 
+-- Replaces or restores the fonts to match the settings
 function ns:ApplyUIFont()
 	if Enabled() then
 		local path = ns:GetFontPath(KUIDB.uifont.font)

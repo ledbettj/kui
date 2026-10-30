@@ -9,14 +9,7 @@ local addonName, ns = ...
 -- Element updates
 ---------------------------------------------------------------------------
 
-local function ShortValue(v)
-	if v >= 1e6 then
-		return format("%.1fm", v / 1e6)
-	elseif v >= 1e4 then
-		return format("%.1fk", v / 1e3)
-	end
-	return tostring(v)
-end
+local ShortValue = ns.ShortValue
 
 local DEAD_COLOR = { 0.5, 0.5, 0.5 }
 -- Near-white: the bar atlas darkens it to a neutral grey
@@ -111,6 +104,8 @@ function ns.UpdateName(self)
 	self.nameText:SetFormattedText("%s%s%s|r %s", hex, level > 0 and level or "??", suffix, name)
 end
 
+-- 3D model of the unit; cleared while it's out of visual range, where the
+-- model can't load
 function ns.UpdatePortrait(self)
 	local portrait = self.portrait
 	if not portrait then return end
@@ -132,7 +127,7 @@ local UpdatePortrait = ns.UpdatePortrait
 local function ShowPlaceholder(self)
 	if self.portrait then self.portrait:ClearModel() end
 	ns.UpdateRaidIcon(self)
-	ns.UpdateThreat(self)
+	ns.UpdateAggro(self)
 	ns.UpdateStatusIcons(self)
 	ns.HideAuras(self)
 	ns.UpdateHealPrediction(self)
@@ -149,6 +144,8 @@ local function ShowPlaceholder(self)
 	if self.powerText then self.powerText:SetText("") end
 end
 
+-- Refreshes every element. A unit that doesn't exist gets placeholder
+-- contents, which only show in preview (otherwise the frame is hidden).
 function ns.UpdateAll(self)
 	if not UnitExists(self.unit) then
 		return ShowPlaceholder(self)
@@ -160,7 +157,7 @@ function ns.UpdateAll(self)
 	UpdatePortrait(self)
 	ns.UpdateRaidIcon(self)
 	ns.UpdateStatusIcons(self)
-	ns.UpdateThreat(self)
+	ns.UpdateAggro(self)
 	ns.UpdateAuras(self)
 	if self.castbar then ns:RefreshCastbar(self.castbar) end
 end
@@ -189,7 +186,7 @@ local unitEventHandlers = {
 	UNIT_MODEL_CHANGED = UpdatePortrait,
 	UNIT_PORTRAIT_UPDATE = UpdatePortrait,
 	UNIT_AURA = ns.UpdateAuras,
-	UNIT_THREAT_SITUATION_UPDATE = ns.UpdateThreat, -- cfg.threat frames only
+	UNIT_THREAT_SITUATION_UPDATE = ns.UpdateAggro, -- cfg.threat frames only
 }
 
 -- Events meaning the frame's unit is now a different entity
@@ -296,24 +293,6 @@ local function PowerHeight(cfg)
 	return 0
 end
 
--- Detached cast bar (focus): own bordered holder under the frame, only
--- shown while casting
-local function LayoutDetachedCastbar(f)
-	local holder, h = f.castHolder, KUIDB.castbar.focusHeight
-	holder:ClearAllPoints()
-	holder:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -2)
-	holder:SetPoint("TOPRIGHT", f, "BOTTOMRIGHT", 0, -2)
-	holder:SetHeight(h)
-	local inset = ns:ApplyBackdrop(holder, true)
-	-- Explicit height: LayoutCastbar sizes the icon from it, and the holder
-	-- is usually hidden when this runs
-	f.castbar:ClearAllPoints()
-	f.castbar:SetPoint("TOPLEFT", inset, -inset)
-	f.castbar:SetPoint("TOPRIGHT", -inset, -inset)
-	f.castbar:SetHeight(math.max(1, h - inset * 2))
-	ns:LayoutCastbar(f.castbar)
-end
-
 -- Border, background and everything inside it. The border's inset decides
 -- where the portrait and bars sit, so they're anchored here too.
 local function LayoutContents(f)
@@ -342,7 +321,7 @@ local function LayoutContents(f)
 		bottom = bottom + height + gap
 	end
 
-	if f.castbar and not f.castHolder then
+	if f.castbar and not f.castbar.container then
 		Row(f.castbar, KUIDB.castbar.height)
 		ns:LayoutCastbar(f.castbar)
 	end
@@ -355,7 +334,9 @@ local function LayoutContents(f)
 	f.health:SetPoint("TOPRIGHT", -inset, -inset)
 	f.health:SetPoint("BOTTOM", 0, bottom)
 
-	if f.castHolder then LayoutDetachedCastbar(f) end
+	if f.castbar and f.castbar.container then
+		ns:LayoutDetachedCastbar(f.castbar, f, KUIDB.castbar.focusHeight)
+	end
 end
 
 -- Resizes a secure frame; ns:ApplyLayout handles combat deferral
@@ -365,7 +346,7 @@ function ns:LayoutFrame(f)
 	LayoutContents(f)
 	-- Segment widths are in pixels of the health bar
 	ns.UpdateHealPrediction(f)
-	ns.UpdateThreat(f) -- the backdrop was just reset
+	ns.UpdateAggro(f) -- the backdrop was just reset
 	if f.auras then
 		ns.SizeAuras(f.auras, w)
 		ns.UpdateAuras(f)
@@ -376,15 +357,11 @@ end
 -- Creation
 ---------------------------------------------------------------------------
 
-local function CreateCastbar(f, unit, cfg)
+local function CreateCastbar(f, cfg)
 	if cfg.castbar then
 		f.castbar = ns:CreateCastbar(f)
 	elseif cfg.detachedCastbar then
-		f.castHolder = CreateFrame("Frame", nil, f, "BackdropTemplate")
-		f.castHolder.unit = unit
-		f.castbar = ns:CreateCastbar(f.castHolder)
-		f.castbar.container = f.castHolder
-		f.castHolder:Hide()
+		f.castbar = ns:CreateDetachedCastbar(f)
 	end
 end
 
@@ -428,6 +405,8 @@ local function CreateComboPips(f)
 	end
 end
 
+-- Builds the secure frame for unit from its ns.units entry. Secure frames
+-- can only be created out of combat, so this runs at ADDON_LOADED.
 function ns:CreateUnitFrame(unit, cfg)
 	local f = CreateFrame("Button", "KUI_" .. unit, UIParent, "SecureUnitButtonTemplate,BackdropTemplate")
 	f.unit = unit
@@ -453,7 +432,7 @@ function ns:CreateUnitFrame(unit, cfg)
 	if cfg.power then
 		f.power = ns.CreateBar(f)
 	end
-	CreateCastbar(f, unit, cfg)
+	CreateCastbar(f, cfg)
 	CreateAuras(f, cfg)
 
 	-- Child frame above the bars for icons and pips; textures on f itself

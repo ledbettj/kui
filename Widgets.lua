@@ -1,11 +1,31 @@
 local addonName, ns = ...
 
 -- Building blocks shared by the unit frames, nameplates, cast bars, action
--- buttons and XP bars: status bars, text, fonts, hiding Blizzard frames and
--- the bordered backdrop.
+-- buttons and XP bars: status bars, text, fonts, icons, hiding Blizzard
+-- frames and the bordered backdrop.
 
 local FLAT = "Interface\\Buttons\\WHITE8X8"
 ns.FLAT_TEXTURE = FLAT
+
+---------------------------------------------------------------------------
+-- Icons and numbers
+---------------------------------------------------------------------------
+
+-- Trims the built-in border off a spell/item icon texture so it can sit in
+-- a square KUI border
+function ns.CropIcon(texture)
+	texture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+end
+
+-- Compact number for bars and meters: 9876, 12.3k, 1.2m
+function ns.ShortValue(v)
+	if v >= 1e6 then
+		return format("%.1fm", v / 1e6)
+	elseif v >= 1e4 then
+		return format("%.1fk", v / 1e3)
+	end
+	return format("%d", v)
+end
 
 ---------------------------------------------------------------------------
 -- Status bars
@@ -139,4 +159,14 @@ function ns:ApplyBackdrop(f, small)
 	f:SetBackdropBorderColor(c[1], c[2], c[3], 1)
 
 	return math.floor(inset + 0.5) + style.padding
+end
+
+-- Draws the KUI border around target from the outside (target keeps its
+-- size) with a see-through background. border: a BackdropTemplate frame.
+function ns.WrapBorder(border, target, small)
+	local inset = ns:ApplyBackdrop(border, small)
+	border:SetBackdropColor(0, 0, 0, 0)
+	border:ClearAllPoints()
+	border:SetPoint("TOPLEFT", target, "TOPLEFT", -inset, inset)
+	border:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", inset, -inset)
 end

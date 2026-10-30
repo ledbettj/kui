@@ -113,18 +113,7 @@ local function LayoutPlate(kp)
 	kp.health:SetPoint("TOPLEFT", inset, -inset)
 	kp.health:SetPoint("BOTTOMRIGHT", -inset, inset)
 
-	local holder = kp.castHolder
-	holder:SetSize(N.width, N.castHeight)
-	holder:ClearAllPoints()
-	holder:SetPoint("TOP", kp, "BOTTOM", 0, -2)
-	inset = ns:ApplyBackdrop(holder, true)
-	-- Explicit height: LayoutCastbar sizes the icon from it, and the holder
-	-- is usually hidden when this runs
-	kp.castbar:ClearAllPoints()
-	kp.castbar:SetPoint("TOPLEFT", inset, -inset)
-	kp.castbar:SetPoint("TOPRIGHT", -inset, -inset)
-	kp.castbar:SetHeight(math.max(1, N.castHeight - inset * 2))
-	ns:LayoutCastbar(kp.castbar)
+	ns:LayoutDetachedCastbar(kp.castbar, kp, N.castHeight)
 
 	ns.SizeAuras(kp.auras, N.width)
 
@@ -169,11 +158,8 @@ local function CreatePlate(base)
 	ns.CreateAuras(kp, "nameplate")
 	kp.auras:SetPoint("BOTTOMLEFT", kp, "TOPLEFT", 0, 3)
 
-	-- Cast bar below, in its own bordered holder that hides when idle
-	kp.castHolder = CreateFrame("Frame", nil, kp, "BackdropTemplate")
-	kp.castbar = ns:CreateCastbar(kp.castHolder)
-	kp.castbar.container = kp.castHolder
-	kp.castHolder:Hide()
+	-- Cast bar below, hidden when idle
+	kp.castbar = ns:CreateDetachedCastbar(kp)
 
 	base.kui = kp
 	LayoutPlate(kp)
@@ -253,6 +239,7 @@ function ns:StyleNameplates()
 	for _, kp in pairs(plates) do StylePlate(kp) end
 end
 
+-- Only when enabled at login (see the lifecycle notes in Core.lua)
 function ns:InitNameplates()
 	if not KUIDB.nameplates.enabled or not NamePlateDriverFrame then return end
 

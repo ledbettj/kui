@@ -5,7 +5,6 @@ local addonName, ns = ...
 -- and KUI fonts. Layout stays with Edit Mode, and Blizzard keeps handling
 -- clicks (right-click to cancel), so nothing here replaces a script.
 
-local ICON_CROP = { 0.08, 0.92, 0.08, 0.92 }
 local TEMP_ENCHANT_COLOR = { 0.6, 0.3, 0.9 } -- weapon oils, poisons, stones
 
 local buttons = {}
@@ -24,19 +23,14 @@ local function UpdateBorderColor(b)
 end
 
 local function StyleButton(b)
-	b.Icon:SetTexCoord(unpack(ICON_CROP))
+	ns.CropIcon(b.Icon)
 	-- Blizzard shows/hides these per aura type; alpha keeps them invisible
 	-- whatever it does
 	b.DebuffBorder:SetAlpha(0)
 	b.TempEnchantBorder:SetAlpha(0)
 
-	-- Border wraps the icon from outside, so the icon keeps its size and the
-	-- duration text below stays where Blizzard put it
-	local inset = ns:ApplyBackdrop(b.kuiBorder, true)
-	b.kuiBorder:SetBackdropColor(0, 0, 0, 0)
-	b.kuiBorder:ClearAllPoints()
-	b.kuiBorder:SetPoint("TOPLEFT", b.Icon, "TOPLEFT", -inset, inset)
-	b.kuiBorder:SetPoint("BOTTOMRIGHT", b.Icon, "BOTTOMRIGHT", inset, -inset)
+	-- Outside the icon, so the duration text below stays where Blizzard put it
+	ns.WrapBorder(b.kuiBorder, b.Icon, true)
 	UpdateBorderColor(b)
 
 	-- Blizzard recolors the duration every tick, so only the font is ours
@@ -50,6 +44,7 @@ function ns:StyleBuffs()
 	end
 end
 
+-- Only when enabled at login (see the lifecycle notes in Core.lua)
 function ns:InitBuffs()
 	if not KUIDB.buffs.enabled then return end
 

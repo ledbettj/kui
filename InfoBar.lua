@@ -152,6 +152,7 @@ function ns:InfoBarHeight()
 	return (bar and KUIDB.infobar.enabled) and KUIDB.infobar.height or 0
 end
 
+-- Positions the bar and slots and refreshes every shown readout
 function ns:LayoutInfoBar()
 	if not bar then return end
 	local I = KUIDB.infobar

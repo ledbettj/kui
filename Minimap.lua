@@ -87,14 +87,7 @@ function ns:LayoutMinimap()
 	end
 
 	border:SetShown(square)
-	if square then
-		-- Wraps the map from outside so the map keeps its size
-		local inset = ns:ApplyBackdrop(border)
-		border:SetBackdropColor(0, 0, 0, 0)
-		border:ClearAllPoints()
-		border:SetPoint("TOPLEFT", Minimap, "TOPLEFT", -inset, inset)
-		border:SetPoint("BOTTOMRIGHT", Minimap, "BOTTOMRIGHT", inset, -inset)
-	end
+	if square then ns.WrapBorder(border, Minimap) end
 end
 
 ---------------------------------------------------------------------------
@@ -127,7 +120,8 @@ function ns:InitMinimap()
 	end
 	probe:SetTexture(nil)
 
-	Minimap:SetScript("OnMouseWheel", OnMouseWheel)
+	-- Only reachable while square: the wheel is enabled in LayoutMinimap
+	Minimap:HookScript("OnMouseWheel", OnMouseWheel)
 
 	-- Leave it alone if another addon already claims the shape
 	if not GetMinimapShape then

@@ -78,6 +78,8 @@ end
 
 -- The group member to credit for a combat log source, if any
 local function Owner(guid, flags)
+	-- Guards against event layouts other than the ones parsed below
+	if not guid or type(flags) ~= "number" then return end
 	if bit.band(flags, GROUP_MASK) == 0 then return end
 	if bit.band(flags, CLO.TypePlayer) ~= 0 then return guid end
 	return petOwners[guid]
@@ -157,14 +159,7 @@ end
 -- Display
 ---------------------------------------------------------------------------
 
-local function ShortValue(v)
-	if v >= 1e6 then
-		return format("%.2fm", v / 1e6)
-	elseif v >= 1e3 then
-		return format("%.1fk", v / 1e3)
-	end
-	return format("%d", v)
-end
+local ShortValue = ns.ShortValue
 
 local function FormatTime(seconds)
 	return format("%d:%02d", seconds / 60, seconds % 60)
@@ -186,6 +181,7 @@ local function ByValue(x, y)
 	return x[sortKey] > y[sortKey]
 end
 
+-- Redraws the title and rows from the data; does nothing while hidden
 function ns:RefreshMeter()
 	if not window or not window:IsShown() then return end
 	local M = KUIDB.meter
@@ -422,6 +418,7 @@ function ns:ApplyMeter()
 	window:SetShown(enabled)
 end
 
+-- Always built, so it can be switched on without a /reload
 function ns:InitMeter()
 	CreateWindow()
 	ns:LayoutMeter()
