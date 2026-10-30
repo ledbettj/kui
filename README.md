@@ -104,7 +104,6 @@ Open the settings with `/kui`, or go to Options → AddOns → KUI.
 - Profiles: every character uses Default until you give it its own
   profile (a copy of the current settings). Characters can share a
   profile, copy settings from another one, or switch at any time
-
 - One font for the whole Blizzard UI (Arial Narrow by default), keeping
   each text's own size
 - Fonts, font size, bar textures, border style, size and color, and
@@ -115,4 +114,4 @@ Open the settings with `/kui`, or go to Options → AddOns → KUI.
 - Every feature can be switched on or off individually
 - `/kui preview` shows every frame with placeholder contents so you can
   arrange the layout outside a group
-- Reset to defaults at any time
+- Reset a profile to the defaults at any time
