@@ -58,6 +58,14 @@ Anniversary.
 
 - Optionally hides the button column beside the chat windows
 
+## Damage meter
+
+- Damage and healing for everyone in your group, current fight or overall
+- Pets, totems and summons count toward their owner
+- Healing counts only what landed, plus damage absorbed by shields
+- Totals and per-second numbers on class-colored bars
+- Click the title to switch views, drag it to move
+
 ## Customization
 
 Open the settings with `/kui`, or go to Options → AddOns → KUI.

@@ -1,6 +1,6 @@
 ## Interface: 20506
 ## Title: KUI
-## Notes: Unit frames, nameplates, cast bars, action button and XP bar styling
+## Notes: Unit frames, nameplates, cast bars, action button and XP bar styling, damage meter
 ## Author: John
 ## Version: 0.1.0
 ## SavedVariables: KUIDB
@@ -26,5 +26,6 @@ Buffs.lua
 Nameplates.lua
 StatusBars.lua
 Chat.lua
+Meter.lua
 
 Config.lua

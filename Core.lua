@@ -68,6 +68,7 @@ function ns:ResetSettings()
 	ns:ApplyStyle()
 	ns:ApplyLayout()
 	ns:ApplyChat()
+	ns:ApplyMeter()
 end
 
 ---------------------------------------------------------------------------
@@ -84,6 +85,7 @@ function ns:ApplyStyle()
 	ns:StyleBuffs()
 	ns:StyleNameplates()
 	ns:StyleStatusBars()
+	ns:StyleMeter()
 end
 
 -- Sizes, borders and positions everywhere. Moving/resizing secure frames
@@ -104,6 +106,7 @@ function ns:ApplyLayout()
 	ns:StyleBuffs()
 	ns:LayoutNameplates()
 	ns:LayoutStatusBars()
+	ns:LayoutMeter()
 	return true
 end
 
@@ -166,6 +169,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		ns:InitNameplates()
 		ns:InitStatusBars()
 		ns:InitChat()
+		ns:InitMeter()
 		ns:ApplyStyle()
 	elseif event == "PLAYER_REGEN_DISABLED" then
 		-- Fires just before lockdown, the last chance to restore secure

@@ -229,6 +229,17 @@ local function SetBuffs(key, value)
 	NeedsReload("buff bar styling")
 end
 
+local function SetMeter(key, value)
+	KUIDB.meter[key] = value
+	if key == "enabled" then
+		ns:ApplyMeter()
+	elseif key == "texture" then
+		ns:StyleMeter()
+	else
+		ns:LayoutMeter()
+	end
+end
+
 local function SetChat(key, value)
 	KUIDB.chat[key] = value
 	ns:ApplyChat()
@@ -469,6 +480,14 @@ local function BuildOther(b)
 
 	b.Section("Chat")
 	b.Checkbox("Hide chat buttons", Bind("chat", "hideButtons", SetChat))
+
+	b.Section("Damage meter")
+	b.Checkbox("Show damage meter", Bind("meter", "enabled", SetMeter))
+	b.Slider("Width", 120, 400, 2, Bind("meter", "width", SetMeter))
+	b.Slider("Rows", 1, 25, 1, Bind("meter", "rows", SetMeter))
+	b.Slider("Row height", 8, 24, 1, Bind("meter", "rowHeight", SetMeter))
+	b.Dropdown("Texture", StatusbarList, Bind("meter", "texture", SetMeter))
+	b.Button("Reset meter data", function() ns:ResetMeter() end)
 end
 
 -- Order is the sidebar order; the first page is the KUI category itself
@@ -483,8 +502,8 @@ local PAGES = {
 		description = "Enemy plates show your debuffs and buffs you can purge; friendly plates your own buffs." },
 	{ name = "Action Bars & Buffs", build = BuildActionBars,
 		description = "Cosmetic only: positions and sizes stay with Edit Mode." },
-	{ name = "XP & Chat", build = BuildOther,
-		description = "XP/reputation bars and chat window tweaks." },
+	{ name = "Other", build = BuildOther,
+		description = "XP/reputation bars, chat window tweaks and the damage meter." },
 }
 
 ---------------------------------------------------------------------------
