@@ -4,7 +4,7 @@ local addonName, ns = ...
 -- (General, Unit Frames, Colors, ...), each a scrolling canvas of labeled
 -- rows in sections. Every frame is shown in preview while any page is open.
 
-local LABEL_WIDTH = 140
+local LABEL_WIDTH = 190
 local CONTROL_WIDTH = 240
 local ROW_HEIGHT = 30
 
@@ -26,8 +26,13 @@ local function CreateRow(parent, text)
 	local row = CreateFrame("Frame", nil, parent)
 	row:SetSize(LABEL_WIDTH + CONTROL_WIDTH + 60, ROW_HEIGHT)
 
+	-- Long labels wrap within their column rather than running under the
+	-- control; the row fits two lines
 	row.label = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 	row.label:SetPoint("LEFT")
+	row.label:SetWidth(LABEL_WIDTH - 10)
+	row.label:SetJustifyH("LEFT")
+	row.label:SetWordWrap(true)
 	row.label:SetText(text)
 
 	rows[#rows + 1] = row
@@ -238,6 +243,11 @@ local function SetMeter(key, value)
 	else
 		ns:LayoutMeter()
 	end
+end
+
+local function SetMinimap(key, value)
+	KUIDB.minimap[key] = value
+	ns:LayoutMinimap()
 end
 
 local function SetMenuBar(key, value)
@@ -472,7 +482,7 @@ local function BuildActionBars(b)
 	b.Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
 
 	b.Section("Bags & menu")
-	b.Checkbox("Only show the backpack button", Bind("menubar", "singleBag", SetMenuBar))
+	b.Dropdown("Bag buttons", function() return ns.bagOptions end, Bind("menubar", "bags", SetMenuBar))
 	b.Checkbox("Hide the micro menu", Bind("menubar", "hideMicroMenu", SetMenuBar))
 
 	b.Section("Buff bar")
@@ -486,6 +496,9 @@ local function BuildOther(b)
 	b.Slider("Width", 100, 1200, 4, Bind("statusbars", "width", SetStatusBars))
 	b.Slider("Height", 4, 30, 1, Bind("statusbars", "height", SetStatusBars))
 	b.Dropdown("Texture", StatusbarList, Bind("statusbars", "texture", SetStatusBars))
+
+	b.Section("Minimap")
+	b.Dropdown("Style", function() return { "Blizzard", "Square" } end, Bind("minimap", "style", SetMinimap))
 
 	b.Section("Chat")
 	b.Checkbox("Hide chat buttons", Bind("chat", "hideButtons", SetChat))
@@ -512,7 +525,7 @@ local PAGES = {
 	{ name = "Action Bars & Buffs", build = BuildActionBars,
 		description = "Cosmetic only: positions and sizes stay with Edit Mode." },
 	{ name = "Other", build = BuildOther,
-		description = "XP/reputation bars, chat window tweaks and the damage meter." },
+		description = "XP/reputation bars, minimap, chat window tweaks and the damage meter." },
 }
 
 ---------------------------------------------------------------------------

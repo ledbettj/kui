@@ -43,7 +43,7 @@ Anniversary.
 
 ## Bags and menu
 
-- Optionally show only the backpack button, hiding the bag slots and keyring
+- Show all bag buttons, only the backpack, or none at all
 - Optionally hide the micro menu (character, spellbook, game menu and so on)
 
 ## Buffs and debuffs
@@ -58,6 +58,11 @@ Anniversary.
 - Slim XP and reputation bars at the top or bottom of the screen
 - Rested XP shown on the XP bar
 - Numbers appear when you hover the bar
+
+## Minimap
+
+- Optional square minimap in the KUI border; minimap buttons from other
+  addons follow the square edge
 
 ## Chat
 

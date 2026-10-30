@@ -39,6 +39,10 @@ local function InitDB()
 	db.positions = nil -- per-frame drag positions, replaced by layout
 	if db.widths then db.widths.focus = nil end -- focus shares the ToT width
 	if db.castbar then db.castbar.width = nil end -- old standalone cast bar
+	if db.menubar and db.menubar.singleBag ~= nil then -- checkbox before the bags dropdown
+		db.menubar.bags = db.menubar.singleBag and "Backpack only" or "All"
+		db.menubar.singleBag = nil
+	end
 
 	db.widths = db.widths or {}
 	for section, defaults in pairs(ns.settingsDefaults) do
@@ -107,6 +111,7 @@ function ns:ApplyLayout()
 	ns:StyleBuffs()
 	ns:LayoutNameplates()
 	ns:LayoutStatusBars()
+	ns:LayoutMinimap()
 	ns:LayoutMeter()
 	return true
 end
@@ -171,6 +176,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		ns:InitStatusBars()
 		ns:InitChat()
 		ns:ApplyMenuBar()
+		ns:InitMinimap()
 		ns:InitMeter()
 		ns:ApplyStyle()
 	elseif event == "PLAYER_REGEN_DISABLED" then

@@ -27,6 +27,7 @@ Nameplates.lua
 StatusBars.lua
 Chat.lua
 MenuBar.lua
+Minimap.lua
 Meter.lua
 
 Config.lua

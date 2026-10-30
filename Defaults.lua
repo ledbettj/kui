@@ -139,9 +139,13 @@ ns.settingsDefaults = {
 		enabled = true, -- incoming heals on the unit frames' health bars
 	},
 
+	minimap = {
+		style = "Blizzard", -- or "Square", in the KUI border
+	},
+
 	-- Bottom-right bag buttons and micro menu
 	menubar = {
-		singleBag = false, -- backpack only, no bag slots or keyring
+		bags = "All", -- or "Backpack only" (no bag slots or keyring), or "None"
 		hideMicroMenu = false, -- character, spellbook, ... game menu buttons
 	},
 
