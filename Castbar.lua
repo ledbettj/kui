@@ -1,9 +1,11 @@
 local addonName, ns = ...
 
 -- Cast bar component: spell icon, progress bar with spark, spell name and
--- remaining time. Used as a row inside the player/target frames (empty when
--- idle) and in standalone holders under the focus frame and nameplates
--- (hidden when idle, via cb.container).
+-- remaining time, with any pushback taken so far in red before the time
+-- (casts get longer: +0.3s; channels get shorter: -0.3s). Used as a row
+-- inside the player/target frames (empty when idle) and in standalone
+-- holders under the focus frame and nameplates (hidden when idle, via
+-- cb.container).
 --
 -- The owner positions the bar and calls LayoutCastbar/StyleCastbar; this
 -- file handles the spellcast events. OnUpdate only runs while a cast is in
@@ -68,6 +70,7 @@ local function Start(cb, isChannel)
 
 	cb.channel = isChannel
 	cb.castID = castID
+	cb.delay = 0
 	cb.startTime, cb.endTime = startMs / 1000, endMs / 1000
 	cb.status:SetMinMaxValues(0, cb.endTime - cb.startTime)
 	cb.text:SetText(text ~= "" and text or name)
@@ -101,11 +104,22 @@ function OnUpdate(cb)
 		local duration = cb.endTime - cb.startTime
 		local value = cb.channel and (cb.endTime - now) or (now - cb.startTime)
 		cb.status:SetValue(value)
-		cb.time:SetFormattedText("%.1f", cb.endTime - now)
+		if cb.delay > 0 then
+			cb.time:SetFormattedText("|cffff4040%s%.1fs|r  %.1f", cb.channel and "-" or "+", cb.delay, cb.endTime - now)
+		else
+			cb.time:SetFormattedText("%.1f", cb.endTime - now)
+		end
 		SetSpark(cb, value / duration)
 	elseif cb.holdUntil and now >= cb.holdUntil then
 		Idle(cb)
 	end
+end
+
+-- Pushback: re-reads the cast and adds how far its end moved to cb.delay
+local function Delay(cb, isChannel)
+	local delay, oldEnd = cb.delay, cb.endTime
+	Start(cb, isChannel)
+	cb.delay = delay + math.abs(cb.endTime - oldEnd)
 end
 
 local function OnEvent(cb, event, _, castID)
@@ -116,9 +130,9 @@ local function OnEvent(cb, event, _, castID)
 	elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
 		Start(cb, true)
 	elseif event == "UNIT_SPELLCAST_DELAYED" then
-		if cb.active and not cb.channel then Start(cb, false) end
+		if cb.active and not cb.channel then Delay(cb, false) end
 	elseif event == "UNIT_SPELLCAST_CHANNEL_UPDATE" then
-		if cb.active and cb.channel then Start(cb, true) end
+		if cb.active and cb.channel then Delay(cb, true) end
 	elseif event == "UNIT_SPELLCAST_STOP" then
 		if cb.active and not cb.channel and castID == cb.castID then Idle(cb) end
 	elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
