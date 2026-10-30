@@ -41,6 +41,11 @@ Anniversary.
 - Optional keybind and macro name text
 - A green dot on any button holding a spell below its highest known rank
 
+## Bags and menu
+
+- Optionally show only the backpack button, hiding the bag slots and keyring
+- Optionally hide the micro menu (character, spellbook, game menu and so on)
+
 ## Buffs and debuffs
 
 - Your buff and debuff icons (top right) restyled with square icons and

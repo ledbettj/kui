@@ -139,6 +139,12 @@ ns.settingsDefaults = {
 		enabled = true, -- incoming heals on the unit frames' health bars
 	},
 
+	-- Bottom-right bag buttons and micro menu
+	menubar = {
+		singleBag = false, -- backpack only, no bag slots or keyring
+		hideMicroMenu = false, -- character, spellbook, ... game menu buttons
+	},
+
 	chat = {
 		hideButtons = true, -- the button column beside the chat windows
 	},

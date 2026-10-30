@@ -68,6 +68,7 @@ function ns:ResetSettings()
 	ns:ApplyStyle()
 	ns:ApplyLayout()
 	ns:ApplyChat()
+	ns:ApplyMenuBar()
 	ns:ApplyMeter()
 end
 
@@ -169,6 +170,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		ns:InitNameplates()
 		ns:InitStatusBars()
 		ns:InitChat()
+		ns:ApplyMenuBar()
 		ns:InitMeter()
 		ns:ApplyStyle()
 	elseif event == "PLAYER_REGEN_DISABLED" then

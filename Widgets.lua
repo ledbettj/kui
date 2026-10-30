@@ -1,7 +1,8 @@
 local addonName, ns = ...
 
 -- Building blocks shared by the unit frames, nameplates, cast bars, action
--- buttons and XP bars: status bars, text, fonts and the bordered backdrop.
+-- buttons and XP bars: status bars, text, fonts, hiding Blizzard frames and
+-- the bordered backdrop.
 
 local FLAT = "Interface\\Buttons\\WHITE8X8"
 ns.FLAT_TEXTURE = FLAT
@@ -84,6 +85,31 @@ function ns.CreateText(parent, fontObject, justify)
 	fs:SetJustifyH(justify)
 	fs:SetWordWrap(false)
 	return fs
+end
+
+---------------------------------------------------------------------------
+-- Hiding Blizzard frames
+---------------------------------------------------------------------------
+
+local hider = CreateFrame("Frame")
+hider:Hide()
+
+local originalParents = {} -- frame -> parent before hiding
+
+-- Reparenting to a hidden frame beats Blizzard's own Show calls (frame
+-- locks, fades), and restoring the original parent undoes it. Only for
+-- frames that aren't protected, or outside combat.
+function ns.SetHidden(frame, hidden)
+	if not frame then return end
+	if hidden then
+		if not originalParents[frame] then
+			originalParents[frame] = frame:GetParent()
+			frame:SetParent(hider)
+		end
+	elseif originalParents[frame] then
+		frame:SetParent(originalParents[frame])
+		originalParents[frame] = nil
+	end
 end
 
 ---------------------------------------------------------------------------

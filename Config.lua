@@ -240,6 +240,11 @@ local function SetMeter(key, value)
 	end
 end
 
+local function SetMenuBar(key, value)
+	KUIDB.menubar[key] = value
+	ns:ApplyMenuBar()
+end
+
 local function SetChat(key, value)
 	KUIDB.chat[key] = value
 	ns:ApplyChat()
@@ -465,6 +470,10 @@ local function BuildActionBars(b)
 	b.Checkbox("Red icons out of range", Bind("actionbars", "rangeColor", SetActionBars))
 	b.Checkbox("Mark lower-rank spells", Bind("actionbars", "markLowRank", SetActionBars))
 	b.Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
+
+	b.Section("Bags & menu")
+	b.Checkbox("Only show the backpack button", Bind("menubar", "singleBag", SetMenuBar))
+	b.Checkbox("Hide the micro menu", Bind("menubar", "hideMicroMenu", SetMenuBar))
 
 	b.Section("Buff bar")
 	b.Checkbox("Restyle buff bar", Bind("buffs", "enabled", SetBuffs))
