@@ -97,4 +97,5 @@ read_globals = {
 	"AbbreviateLargeNumbers", "UnitHealthPercent", "UnitPowerPercent", "CurveConstants", "C_CurveUtil",
 	"CreateUnitHealPredictionCalculator", "UnitGetDetailedHealPrediction",
 	"C_UnitAuras", "canaccesstable",
+	"UnitCastingDuration", "UnitChannelDuration", "C_DurationUtil",
 }

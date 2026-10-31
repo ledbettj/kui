@@ -10,6 +10,14 @@ local addonName, ns = ...
 -- The owner positions the bar and calls LayoutCastbar/StyleCastbar; this
 -- file handles the spellcast events. OnUpdate only runs while a cast is in
 -- progress or a failure is being held on screen.
+--
+-- Forever can keep a cast's times, name and ID secret (cb.secret). Then a
+-- duration object drives the bar (StatusBar:SetTimerDuration) and the
+-- remaining time, the spark rides the fill's edge instead of being placed
+-- by math, events match the cast without comparing IDs, and pushback isn't
+-- shown, since it's worked out from the times.
+
+local IsSecret = ns.IsSecret
 
 local SPARK = "Interface\\CastingBar\\UI-CastingBar-Spark"
 local PREVIEW_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
@@ -21,8 +29,17 @@ local function SetColor(cb, key)
 end
 
 local function SetSpark(cb, fraction)
+	cb.spark:ClearAllPoints()
 	cb.spark:SetPoint("CENTER", cb.status, "LEFT", fraction * cb.status:GetWidth(), 0)
 	cb.spark:Show()
+end
+
+-- Forever: replaces a running timer, which nothing else stops
+local function StopTimer(cb)
+	if cb.secret then
+		cb.status:SetTimerDuration(C_DurationUtil.CreateDuration())
+		cb.secret, cb.duration = false, nil
+	end
 end
 
 local function ShowIcon(cb, texture)
@@ -40,6 +57,7 @@ local OnUpdate -- defined below; set as the script only while needed
 
 local function Idle(cb)
 	cb:SetScript("OnUpdate", nil)
+	StopTimer(cb)
 	SetVisible(cb, false)
 	cb.active, cb.holdUntil = false, nil
 	cb.status:SetMinMaxValues(0, 1)
@@ -60,6 +78,24 @@ end
 
 -- castID: for channels, the GUID from the CHANNEL_START event, since
 -- UnitChannelInfo doesn't return one
+-- Forever: the bar and spark for a cast whose times are secret
+local function StartSecret(cb, isChannel)
+	local duration
+	if isChannel then
+		duration = UnitChannelDuration(cb.unit)
+	else
+		duration = UnitCastingDuration(cb.unit)
+	end
+	if not duration then return false end
+	cb.secret, cb.duration = true, duration
+	cb.status:SetTimerDuration(duration, Enum.StatusBarInterpolation.Immediate,
+		isChannel and Enum.StatusBarTimerDirection.RemainingTime or Enum.StatusBarTimerDirection.ElapsedTime)
+	cb.spark:ClearAllPoints()
+	cb.spark:SetPoint("CENTER", cb.status:GetStatusBarTexture(), "RIGHT")
+	cb.spark:Show()
+	return true
+end
+
 local function Start(cb, isChannel, castID)
 	local name, text, texture, startMs, endMs, isTradeSkill
 	if isChannel then
@@ -67,15 +103,28 @@ local function Start(cb, isChannel, castID)
 	else
 		name, text, texture, startMs, endMs, isTradeSkill, castID = UnitCastingInfo(cb.unit)
 	end
-	if not name then return end
-	if isTradeSkill then texture = TradeSkillIcon(name, texture) end
+	-- Not casting returns nothing; a secret name means it is
+	if not IsSecret(name) and not name then return end
+	StopTimer(cb)
 
 	cb.channel = isChannel
 	cb.castID = castID
 	cb.delay = 0
-	cb.startTime, cb.endTime = startMs / 1000, endMs / 1000
-	cb.status:SetMinMaxValues(0, cb.endTime - cb.startTime)
-	cb.text:SetText(text ~= "" and text or name)
+	if IsSecret(startMs) or IsSecret(endMs) then
+		if not StartSecret(cb, isChannel) then return end
+		cb.text:SetText(name)
+	else
+		if not IsSecret(isTradeSkill) and isTradeSkill and not IsSecret(name) then
+			texture = TradeSkillIcon(name, texture)
+		end
+		cb.startTime, cb.endTime = startMs / 1000, endMs / 1000
+		cb.status:SetMinMaxValues(0, cb.endTime - cb.startTime)
+		if IsSecret(text) or IsSecret(name) then
+			cb.text:SetText(name)
+		else
+			cb.text:SetText(text ~= "" and text or name)
+		end
+	end
 	ShowIcon(cb, texture)
 	SetColor(cb, isChannel and "channel" or "cast")
 	cb.active, cb.holdUntil = true, nil
@@ -86,6 +135,7 @@ end
 local function Fail(cb, text)
 	cb.active = false
 	cb.holdUntil = GetTime() + HOLD_TIME
+	StopTimer(cb)
 	local _, max = cb.status:GetMinMaxValues()
 	cb.status:SetValue(max)
 	SetColor(cb, "failed")
@@ -96,9 +146,17 @@ local function Fail(cb, text)
 	cb:SetScript("OnUpdate", OnUpdate)
 end
 
+-- Forever, secret cast: the bar fills itself; only the time text needs
+-- updating. STOP/CHANNEL_STOP end it.
+local function UpdateSecret(cb)
+	cb.time:SetFormattedText("%.1f", cb.duration:GetRemainingDuration())
+end
+
 function OnUpdate(cb)
 	local now = GetTime()
-	if cb.active then
+	if cb.active and cb.secret then
+		UpdateSecret(cb)
+	elseif cb.active then
 		if now >= cb.endTime then
 			-- Normally STOP/CHANNEL_STOP gets here first; this is a safety net
 			return Idle(cb)
@@ -117,11 +175,20 @@ function OnUpdate(cb)
 	end
 end
 
--- Pushback: re-reads the cast and adds how far its end moved to cb.delay
+-- Pushback: re-reads the cast and adds how far its end moved to cb.delay.
+-- A secret cast just picks up its new duration.
 local function Delay(cb, isChannel)
 	local delay, oldEnd = cb.delay, cb.endTime
 	Start(cb, isChannel, cb.castID)
+	if cb.secret then return end
 	cb.delay = delay + math.abs(cb.endTime - oldEnd)
+end
+
+-- Whether an event's cast ID is the bar's cast. Secret IDs can't be
+-- compared, so they count as a match.
+local function SameCast(cb, castID)
+	if IsSecret(castID) or IsSecret(cb.castID) then return true end
+	return castID == cb.castID
 end
 
 local function OnEvent(cb, event, _, castID, _, interruptedBy)
@@ -136,12 +203,14 @@ local function OnEvent(cb, event, _, castID, _, interruptedBy)
 	elseif event == "UNIT_SPELLCAST_CHANNEL_UPDATE" then
 		if cb.active and cb.channel then Delay(cb, true) end
 	elseif event == "UNIT_SPELLCAST_STOP" then
-		if cb.active and not cb.channel and castID == cb.castID then Idle(cb) end
+		if cb.active and not cb.channel and SameCast(cb, castID) then Idle(cb) end
 	elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
 		if not (cb.active and cb.channel) then return end
 		-- interruptedBy covers channels picked up mid-way by RefreshCastbar,
 		-- which have no castID to match INTERRUPTED against
-		if interruptedBy and interruptedBy ~= "" then
+		-- A secret interrupter can't be told from "", so that counts as an
+		-- ordinary end; INTERRUPTED still marks real interrupts
+		if not IsSecret(interruptedBy) and interruptedBy and interruptedBy ~= "" then
 			Fail(cb, INTERRUPTED)
 		else
 			Idle(cb)
@@ -149,7 +218,7 @@ local function OnEvent(cb, event, _, castID, _, interruptedBy)
 	elseif event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
 		-- castID check: pressing a spell on cooldown fires FAILED for a cast
 		-- that never started
-		if castID and castID == cb.castID then
+		if (IsSecret(castID) or castID) and SameCast(cb, castID) then
 			Fail(cb, event == "UNIT_SPELLCAST_FAILED" and FAILED or INTERRUPTED)
 		end
 	end
@@ -161,11 +230,16 @@ end
 
 -- Re-sync with whatever the unit is doing now (unit frame changed target,
 -- came back from preview, etc).
+-- Whether a cast or channel name (possibly secret) means one is in progress
+local function Casting(name)
+	return IsSecret(name) or name ~= nil
+end
+
 function ns:RefreshCastbar(cb)
 	cb.preview = false
-	if UnitCastingInfo(cb.unit) then
+	if Casting(UnitCastingInfo(cb.unit)) then
 		Start(cb, false)
-	elseif UnitChannelInfo(cb.unit) then
+	elseif Casting(UnitChannelInfo(cb.unit)) then
 		Start(cb, true)
 	else
 		Idle(cb)
@@ -177,6 +251,7 @@ end
 function ns:PreviewCastbar(cb)
 	cb.preview = true
 	cb:SetScript("OnUpdate", nil)
+	StopTimer(cb)
 	cb.active, cb.holdUntil = false, nil
 	cb.status:SetMinMaxValues(0, 1)
 	cb.status:SetValue(0.6)
