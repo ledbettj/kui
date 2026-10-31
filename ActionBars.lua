@@ -24,12 +24,12 @@ local buttons = {}
 local function UpdateIconColor(btn)
 	if not btn.action or not btn.icon then return end
 
-	if ns.db.actionbars.rangeColor and IsActionInRange(btn.action) == false then
+	if ns.db.actionbars.rangeColor and C_ActionBar.IsActionInRange(btn.action) == false then
 		btn.icon:SetVertexColor(0.8, 0.1, 0.1)
 		return
 	end
 
-	local usable, notEnoughMana = IsUsableAction(btn.action)
+	local usable, notEnoughMana = C_ActionBar.IsUsableAction(btn.action)
 	if usable then
 		btn.icon:SetVertexColor(1, 1, 1)
 	elseif notEnoughMana then
@@ -78,7 +78,8 @@ end
 ---------------------------------------------------------------------------
 -- Lower-rank marker: a dot in the corner of buttons holding a spell below
 -- the highest rank trained, to catch bars not updated after visiting the
--- trainer. Deliberate downranks are marked too.
+-- trainer. Deliberate downranks are marked too. TBC only (the spellranks
+-- feature): forever has neither ranks to read nor this spellbook API.
 ---------------------------------------------------------------------------
 
 local RANK_MARK_COLOR = { 0.3, 1, 0.3 }
@@ -279,7 +280,7 @@ function ns:InitActionBars()
 				hooksecurefunc(btn, "SetChecked", UpdateChecked)
 
 				-- Spell buttons only: Update runs on slot changes and paging
-				if btn.Update and btn.action then
+				if ns.supported.spellranks and btn.Update and btn.action then
 					CreateRankMark(btn)
 					hooksecurefunc(btn, "Update", UpdateRankMark)
 				end
@@ -293,8 +294,10 @@ function ns:InitActionBars()
 	checkPoller:SetScript("OnUpdate", PollChecked)
 
 	-- Training a rank changes the spellbook
-	ScanSpellbook()
-	rankEvents:RegisterEvent("SPELLS_CHANGED")
+	if ns.supported.spellranks then
+		ScanSpellbook()
+		rankEvents:RegisterEvent("SPELLS_CHANGED")
+	end
 
 	ns:StyleActionBars()
 end

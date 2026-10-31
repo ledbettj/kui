@@ -20,13 +20,14 @@ local buttons = {} -- readout id -> button
 local eventReadouts = {} -- event -> list of readout ids it updates
 
 ---------------------------------------------------------------------------
--- Readouts. update returns the text ("" hides the readout for now);
+-- Readouts. update(button) returns the text ("" hides the readout for now);
 -- interval (seconds) and/or events say when to call it. tooltip(tt) adds
 -- lines to the shown GameTooltip; click(mouseButton) runs on a click, with
 -- hint describing it at the bottom of the tooltip.
 ---------------------------------------------------------------------------
 
 local WHITE = { 1, 1, 1 }
+local CoinText = C_CurrencyInfo.GetCoinTextureString -- gold, silver and copper with icons
 
 local function Hex(c)
 	return format("|cff%02x%02x%02x", c[1] * 255, c[2] * 255, c[3] * 255)
@@ -112,17 +113,17 @@ local function GoldTooltip(tt)
 	tt:AddLine("Gold")
 	for _, char in ipairs(goldList) do
 		local entry = KUIDB.gold[char]
-		tt:AddDoubleLine(ClassHex(entry.class) .. char .. "|r", GetCoinTextureString(entry.money), 1, 1, 1, 1, 1, 1)
+		tt:AddDoubleLine(ClassHex(entry.class) .. char .. "|r", CoinText(entry.money), 1, 1, 1, 1, 1, 1)
 	end
 	if #goldList > 1 then
-		tt:AddDoubleLine("Total", GetCoinTextureString(total), 1, 0.82, 0, 1, 1, 1)
+		tt:AddDoubleLine("Total", CoinText(total), 1, 0.82, 0, 1, 1, 1)
 	end
 
 	local change = GetMoney() - (sessionStartMoney or GetMoney())
 	if change ~= 0 then
 		tt:AddLine(" ")
 		tt:AddDoubleLine(change > 0 and "Gained this session" or "Spent this session",
-			GetCoinTextureString(math.abs(change)), 1, 0.82, 0, 1, 1, 1)
+			CoinText(math.abs(change)), 1, 0.82, 0, 1, 1, 1)
 	end
 end
 
@@ -193,12 +194,14 @@ local function RequestRoster()
 	end
 end
 
+-- The member list needs GetGuildRosterInfo, which forever's own UI no
+-- longer uses (it has Communities); without it only the count shows
 local function GuildTooltip(tt)
 	local guildName = GetGuildInfo("player")
 	local total, online = GetNumGuildMembers()
 	tt:AddLine(guildName or "Guild")
 	local shown = 0
-	for i = 1, total do
+	for i = 1, GetGuildRosterInfo and total or 0 do
 		local name, _, _, level, _, zone, _, _, isOnline, status, class = GetGuildRosterInfo(i)
 		if isOnline and name then
 			shown = shown + 1
@@ -253,7 +256,7 @@ ns.readouts = {
 	gold = {
 		label = "Gold",
 		events = { "PLAYER_MONEY" },
-		update = function() return GetCoinTextureString(GetMoney()) end,
+		update = function() return CoinText(GetMoney()) end,
 		tooltip = GoldTooltip,
 		hint = "Click: open bags",
 		click = function() ToggleAllBags() end,
@@ -380,13 +383,22 @@ ns.readouts = {
 	regen = {
 		label = "Mana regen",
 		interval = 2,
-		update = function()
-			if UnitPowerMax("player", Enum.PowerType.Mana) == 0 then return "" end
+		-- Forever keeps both secret in combat; the last readable values stay
+		-- up until then
+		update = function(button)
+			local maxMana = UnitPowerMax("player", Enum.PowerType.Mana)
+			if ns.IsSecret(maxMana) then return button.text:GetText() end
+			if maxMana == 0 then return "" end
 			local base, casting = GetManaRegen()
+			if ns.IsSecret(base) or ns.IsSecret(casting) then return button.text:GetText() end
 			return format("%d / %d mp5", base * 5, casting * 5)
 		end,
 		tooltip = function(tt)
 			local base, casting = GetManaRegen()
+			if ns.IsSecret(base) or ns.IsSecret(casting) then
+				tt:AddLine("Mana regeneration shows again after combat", 0.6, 0.6, 0.6)
+				return
+			end
 			tt:AddLine("Mana regeneration per 5 seconds")
 			tt:AddDoubleLine("Not casting", format("%d", base * 5), 1, 1, 1, 1, 1, 1)
 			tt:AddDoubleLine("Within 5 seconds of a cast", format("%d", casting * 5), 1, 1, 1, 1, 1, 1)
@@ -405,7 +417,7 @@ ns.readouts = {
 		hint = "Click: clock options and alarm",
 		click = function()
 			if not C_AddOns.IsAddOnLoaded("Blizzard_TimeManager") then
-				UIParentLoadAddOn("Blizzard_TimeManager")
+				C_AddOns.LoadAddOn("Blizzard_TimeManager")
 			end
 			TimeManager_Toggle()
 		end,
@@ -473,7 +485,7 @@ end
 
 local function UpdateReadout(id)
 	local button = buttons[id]
-	button.text:SetText(ns.readouts[id].update())
+	button.text:SetText(ns.readouts[id].update(button))
 	-- Widths in the slot change with the text
 	LayoutSlot(SlotOf(id))
 end
@@ -517,7 +529,7 @@ function ns:LayoutInfoBar()
 		if shown then
 			button:SetParent(slotFrames[slot])
 			button:SetHeight(I.height)
-			button.text:SetText(ns.readouts[id].update())
+			button.text:SetText(ns.readouts[id].update(button))
 		end
 	end
 	for slot in pairs(slotFrames) do

@@ -9,6 +9,16 @@ local addonName, ns = ...
 --
 -- Blizzard's NineSlice border is made invisible rather than removed: it
 -- keeps getting reapplied, and the alpha is the one thing it doesn't reset.
+--
+-- The clients hook in differently. TBC has OnTooltipSetUnit/SetItem
+-- scripts and recolors the health bar on every change, so KUI recolors
+-- after it. Forever has TooltipDataProcessor post-calls instead, and its
+-- health bar handles secret values in a secure mixin that Blizzard warns
+-- addon taint can break, so KUI only colors that bar once per unit and
+-- never hooks its updates. Anything forever hands over as a secret
+-- (class, names, unit comparisons in restricted content) is skipped.
+
+local IsSecret = ns.IsSecret
 
 local TOOLTIPS = {
 	"GameTooltip", "ItemRefTooltip",
@@ -30,33 +40,47 @@ local function ResetBorder(tt)
 	bd:SetBackdropBorderColor(c[1], c[2], c[3], 1)
 end
 
+-- Forever's post-calls run for every tooltip, including ones KUI doesn't style
 local function OnTooltipSetItem(tt)
+	local bd = backdrops[tt]
+	if not bd then return end
 	local _, link = tt:GetItem()
-	local quality = link and select(3, GetItemInfo(link))
+	local quality = link and select(3, C_Item.GetItemInfo(link))
 	local c = quality and quality >= 2 and ITEM_QUALITY_COLORS[quality]
 	if c then
-		backdrops[tt]:SetBackdropBorderColor(c.r, c.g, c.b, 1)
+		bd:SetBackdropBorderColor(c.r, c.g, c.b, 1)
 	else
 		ResetBorder(tt)
 	end
+end
+
+-- The unit frames' health color, or nil while forever keeps what it's
+-- based on (class, reaction) secret
+local function UnitColor(unit)
+	local _, class = UnitClass(unit)
+	if IsSecret(class) or IsSecret(UnitReaction(unit, "player")) then return nil end
+	return ns.UnitColor(unit)
 end
 
 -- "Target: Name", or "Target: YOU" in red
 local function AddTargetLine(tt, unit)
 	local target = unit .. "target"
 	if not UnitExists(target) then return end
+	local isPlayer, name = UnitIsUnit(target, "player"), UnitName(target)
+	if IsSecret(isPlayer) or IsSecret(name) then return end
 	local text
-	if UnitIsUnit(target, "player") then
+	if isPlayer then
 		text = "|cffff4040YOU|r"
 	else
-		text = Hex(ns.UnitColor(target)) .. (UnitName(target) or "?") .. "|r"
+		local c = UnitColor(target)
+		text = (c and Hex(c) or "|cffffffff") .. (name or "?") .. "|r"
 	end
 	tt:AddLine("Target: " .. text, 1, 1, 1)
 end
 
 local function OnTooltipSetUnit(tt)
 	local _, unit = tt:GetUnit()
-	if not unit then return end
+	if not unit or IsSecret(unit) then return end
 	local T = ns.db.tooltip
 
 	if T.hideInCombat and InCombatLockdown() then
@@ -66,9 +90,16 @@ local function OnTooltipSetUnit(tt)
 
 	if T.classColors and UnitIsPlayer(unit) then
 		local _, class = UnitClass(unit)
-		local c = class and ns:GetClassColor(class)
-		local line = _G[tt:GetName() .. "TextLeft1"]
+		local c = class and not IsSecret(class) and ns:GetClassColor(class)
+		local name = tt:GetName()
+		local line = name and _G[name .. "TextLeft1"]
 		if c and line then line:SetTextColor(c[1], c[2], c[3]) end
+	end
+
+	-- Forever: the bar's color is set once here (see the notes at the top)
+	if ns.isForever and tt == GameTooltip and healthBar and healthBar.bg then
+		local c = UnitColor(unit)
+		if c then healthBar:SetStatusBarColor(c[1], c[2], c[3]) end
 	end
 
 	if T.showTarget then
@@ -77,8 +108,8 @@ local function OnTooltipSetUnit(tt)
 	end
 end
 
--- Blizzard colors the bar green-to-red on every value change; this runs
--- after it
+-- TBC: Blizzard colors the bar green-to-red on every value change; this
+-- runs after it
 local function OnHealthChanged(bar)
 	local _, unit = GameTooltip:GetUnit()
 	if not unit then return end
@@ -115,7 +146,10 @@ local function Restyle(tt)
 	bd:SetUsingParentLevel(true)
 	backdrops[tt] = bd
 
-	tt:HookScript("OnTooltipCleared", ResetBorder)
+	if tt:HasScript("OnTooltipCleared") then
+		tt:HookScript("OnTooltipCleared", ResetBorder)
+	end
+	-- TBC only; forever uses the item post-call (InitTooltips)
 	if tt:HasScript("OnTooltipSetItem") then
 		tt:HookScript("OnTooltipSetItem", OnTooltipSetItem)
 	end
@@ -124,9 +158,18 @@ end
 -- The unit tooltip additions follow their settings live; the restyle's
 -- hooks can't be removed, so turning it off needs a /reload
 function ns:InitTooltips()
-	GameTooltip:HookScript("OnTooltipSetUnit", OnTooltipSetUnit)
+	local restyle = ns.db.tooltip.enabled
 
-	if not ns.db.tooltip.enabled then return end
+	if TooltipDataProcessor and not GameTooltip:HasScript("OnTooltipSetUnit") then
+		TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, OnTooltipSetUnit)
+		if restyle then
+			TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, OnTooltipSetItem)
+		end
+	else
+		GameTooltip:HookScript("OnTooltipSetUnit", OnTooltipSetUnit)
+	end
+
+	if not restyle then return end
 	for _, name in ipairs(TOOLTIPS) do
 		local tt = _G[name]
 		if tt then Restyle(tt) end
@@ -137,7 +180,9 @@ function ns:InitTooltips()
 		healthBar.bg:SetAllPoints()
 		healthBar.kuiBorder = CreateFrame("Frame", nil, healthBar, "BackdropTemplate")
 		healthBar.kuiBorder:SetFrameLevel(healthBar:GetFrameLevel() + 1)
-		healthBar:HookScript("OnValueChanged", OnHealthChanged)
+		if not ns.isForever then
+			healthBar:HookScript("OnValueChanged", OnHealthChanged)
+		end
 	end
 
 	ns:StyleTooltips()

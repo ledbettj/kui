@@ -88,7 +88,9 @@ The header of `Core.lua` has the full list; in short:
 1. Make the module work with the forever client's APIs, branching on
    `ns.isForever` (or `ns.hasSecrets`) only where the clients really
    differ, and keeping the TBC path as it is.
-2. Turn it on for forever in `ns.supported` (`Compat.lua`).
+2. Add it to the `FOREVER` list in `Compat.lua`, which turns it on in
+   `ns.supported` there. A part of a feature that can't work on forever
+   gets its own feature name (like `spellranks`) instead.
 3. Its settings sections show up automatically: `b.Section(text, feature)`
    in `Config.lua` hides a section when its feature is off.
 

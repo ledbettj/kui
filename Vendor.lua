@@ -24,12 +24,12 @@ local function Repair()
 	-- outright on anything less
 	if ns.db.vendor.guildRepair and GuildRepairFunds(cost) >= cost then
 		RepairAllItems(true)
-		ns.Print("repaired for " .. GetCoinTextureString(cost) .. " from the guild bank.")
+		ns.Print("repaired for " .. C_CurrencyInfo.GetCoinTextureString(cost) .. " from the guild bank.")
 	elseif GetMoney() >= cost then
 		RepairAllItems()
-		ns.Print("repaired for " .. GetCoinTextureString(cost) .. ".")
+		ns.Print("repaired for " .. C_CurrencyInfo.GetCoinTextureString(cost) .. ".")
 	else
-		ns.Print("can't afford repairs (" .. GetCoinTextureString(cost) .. ").")
+		ns.Print("can't afford repairs (" .. C_CurrencyInfo.GetCoinTextureString(cost) .. ").")
 	end
 end
 
@@ -39,7 +39,7 @@ local function SellGreys()
 		for slot = 1, C_Container.GetContainerNumSlots(bag) do
 			local info = C_Container.GetContainerItemInfo(bag, slot)
 			if info and info.quality == POOR and not info.hasNoValue and not info.isLocked then
-				local price = select(11, GetItemInfo(info.itemID)) or 0
+				local price = select(11, C_Item.GetItemInfo(info.itemID)) or 0
 				C_Container.UseContainerItem(bag, slot)
 				count = count + 1
 				total = total + price * info.stackCount
@@ -47,7 +47,8 @@ local function SellGreys()
 		end
 	end
 	if count > 0 then
-		ns.Print(format("sold %d grey item%s for %s.", count, count == 1 and "" or "s", GetCoinTextureString(total)))
+		local money = C_CurrencyInfo.GetCoinTextureString(total)
+		ns.Print(format("sold %d grey item%s for %s.", count, count == 1 and "" or "s", money))
 	end
 end
 

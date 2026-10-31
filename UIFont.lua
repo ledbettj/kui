@@ -8,7 +8,9 @@ local addonName, ns = ...
 -- it off restores the original files.
 --
 -- Names over heads and floating combat text read their font at login, so
--- those follow after a relog.
+-- those follow after a relog. On forever they keep Blizzard's font: they
+-- come from globals, and Blizzard code reading a global an addon wrote
+-- runs tainted there, which breaks it on secret values.
 
 local WORLD_FONT_GLOBALS = { "STANDARD_TEXT_FONT", "UNIT_NAME_FONT", "DAMAGE_TEXT_FONT", "NAMEPLATE_FONT" }
 
@@ -37,6 +39,7 @@ local function SetFontObjects(path)
 end
 
 local function SetWorldFonts(path)
+	if ns.hasSecrets then return end
 	for _, name in ipairs(WORLD_FONT_GLOBALS) do
 		if originalGlobals[name] == nil then originalGlobals[name] = _G[name] end
 		_G[name] = path or originalGlobals[name]

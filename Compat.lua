@@ -21,7 +21,15 @@ ns.isForever = WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAME
 -- Secret values exist on this client (forever); see the notes above
 ns.hasSecrets = issecretvalue ~= nil
 
--- Feature -> runs on this client. Everything KUI has runs on TBC.
+-- Whether a value is a secret this addon can only pass along. Check before
+-- comparing, doing math on, or indexing with anything the forever client
+-- may hand over as a secret. Always false on TBC.
+function ns.IsSecret(value)
+	return issecretvalue ~= nil and issecretvalue(value)
+end
+
+-- Feature -> runs on this client. Everything KUI has runs on TBC; FOREVER
+-- lists what has been ported there.
 local FEATURES = {
 	"unitframes", -- unit frames, their cast bars, auras, heal prediction, aggro
 	"nameplates",
@@ -36,9 +44,16 @@ local FEATURES = {
 	"tooltips",
 	"vendor",
 	"meter",
+	"spellranks", -- action button marks for spells below their best rank
+}
+
+-- Ported to forever, though not yet tested in game there
+local FOREVER = {
+	infobar = true, vendor = true, tooltips = true, chat = true, uifont = true,
+	menubar = true, buffs = true, actionbars = true,
 }
 
 ns.supported = {}
 for _, feature in ipairs(FEATURES) do
-	ns.supported[feature] = ns.isTBC
+	ns.supported[feature] = ns.isTBC or (ns.isForever and FOREVER[feature] == true)
 end

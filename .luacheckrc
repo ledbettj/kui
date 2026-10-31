@@ -89,4 +89,8 @@ read_globals = {
 	"UpdateAddOnMemoryUsage", "GetAddOnMemoryUsage", "SecondsToTime",
 	"GameTime_GetLocalTime", "GameTime_GetGameTime", "UIParentLoadAddOn", "TimeManager_Toggle",
 	"ToggleAllBags", "ToggleCharacter", "ToggleFriendsFrame", "ToggleGuildFrame", "ToggleWorldMap",
+
+	-- Used on forever only (nil-checked or behind ns.isForever)
+	"C_ActionBar", "C_CurrencyInfo", "C_Item", "TooltipDataProcessor",
+	"BagsBar", "QuickJoinToastButton",
 }
