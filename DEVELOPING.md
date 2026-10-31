@@ -34,7 +34,8 @@ Files load in `KUI.toc` order and share one namespace table, `ns` (the
 | `UIFont.lua` | The optional whole-UI font |
 | `Auras.lua`, `Indicators.lua`, `HealPrediction.lua`, `Castbar.lua` | Pieces used by unit frames and nameplates |
 | `Frames.lua` | The unit frames and their arrangement |
-| `ActionBars.lua`, `Buffs.lua`, `Nameplates.lua`, `StatusBars.lua`, `Chat.lua`, `MenuBar.lua`, `Minimap.lua` | Restyling or replacing parts of Blizzard's UI |
+| `ActionBars.lua`, `Buffs.lua`, `Nameplates.lua`, `StatusBars.lua`, `Chat.lua`, `MenuBar.lua`, `Minimap.lua`, `Tooltip.lua` | Restyling or replacing parts of Blizzard's UI |
+| `Vendor.lua` | Auto-repair and selling grey items at vendors |
 | `InfoBar.lua`, `Meter.lua` | The info bar with its readouts, and the damage meter |
 | `Config.lua` | The settings pages |
 
@@ -77,7 +78,9 @@ The header of `Core.lua` has the full list; in short:
 Add an entry to `ns.readouts` in `InfoBar.lua` (a label, an `update`
 function returning the text, and an `interval` and/or `events`), then add
 its id to the default `order` and `slots` in `Defaults.lua`. Saved layouts
-pick it up automatically.
+pick it up automatically. Optionally add `tooltip(tt)` to fill the hover
+tooltip, and `click` with a `hint` line for it. Returning "" from `update`
+hides the readout until it has something to show.
 
 **A new color**
 Add the key to the kind's order table and defaults in `Colors.lua`, a label

@@ -118,10 +118,15 @@ ns.settingsDefaults = {
 		spacing = 16, -- between readouts in a slot
 		edgePadding = 8, -- screen edge to the left/right slots
 		-- Readouts (see InfoBar.lua): left to right within each slot
-		order = { "gold", "bags", "durability", "coords", "fps", "latency", "clock" },
+		order = {
+			"gold", "bags", "durability", "friends", "guild",
+			"coords", "xp", "regen",
+			"fps", "latency", "clock",
+		},
 		slots = { -- or "Hidden"
-			gold = "Left", bags = "Left", durability = "Left",
-			coords = "Center",
+			gold = "Left", bags = "Left", durability = "Left", friends = "Left", guild = "Left",
+			coords = "Center", xp = "Center",
+			regen = "Hidden", -- mana users only
 			fps = "Right", latency = "Right", clock = "Right",
 		},
 	},
@@ -174,6 +179,20 @@ ns.settingsDefaults = {
 	menubar = {
 		bags = "All", -- or "Backpack only" (no bag slots or keyring), or "None"
 		hideMicroMenu = false, -- character, spellbook, ... game menu buttons
+	},
+
+	tooltip = {
+		enabled = true, -- KUI border and health bar
+		classColors = true, -- player names in their class color
+		showTarget = true, -- "Target:" line
+		hideInCombat = false, -- unit tooltips only
+	},
+
+	-- At a vendor (hold Shift while opening it to skip)
+	vendor = {
+		autoRepair = true,
+		guildRepair = false, -- from the guild bank when it can pay the whole bill
+		sellGreys = true,
 	},
 
 	chat = {

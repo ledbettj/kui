@@ -65,9 +65,31 @@ Anniversary.
 
 - A full-width strip along the bottom of the screen in the KUI style, with
   the XP and reputation bars resting on top of it
-- Readouts for gold, bag slots, durability, map coordinates, fps, latency
-  and the clock, each placed on the left, center or right (or hidden) and
+- Readouts for gold, bag slots, durability, friends and guild members
+  online, map coordinates, XP per hour, mana regen, fps, latency and the
+  clock, each placed on the left, center or right (or hidden) and
   reorderable, with adjustable spacing
+- Hover a readout for details: gold on all your characters and gained this
+  session, each bag's space, which items need repair, who's online and
+  where, time to level, addon memory use, local and realm time
+- Click one to open the matching window: bags, character, friends, guild,
+  world map, clock options
+
+## Tooltips
+
+- KUI border and background, with item tooltips bordered in the item's
+  quality color
+- Player names in their class color, and a line showing what the unit is
+  targeting
+- Slim health bar colored like the unit frames
+- Optionally hidden for units while you're in combat
+
+## Vendors
+
+- Repairs automatically, from the guild bank if you allow it and it can
+  cover the bill
+- Sells grey items, with the total in chat
+- Hold Shift while opening a vendor to skip both
 
 ## Minimap
 
@@ -82,7 +104,8 @@ Anniversary.
 
 ## Damage meter
 
-- Damage and healing for everyone in your group, current fight or overall
+- Damage and healing for everyone in your group, current fight or overall;
+  overkill on killing blows doesn't count
 - Pets, totems and summons count toward their owner
 - Healing counts only what landed, plus damage absorbed by shields;
   overhealing has its own view, with how much of each player's and each

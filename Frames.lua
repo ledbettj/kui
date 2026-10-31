@@ -29,6 +29,7 @@ local function UnitColor(unit)
 	end
 	return ns:GetReactionColor(unit)
 end
+ns.UnitColor = UnitColor -- tooltips color by it too
 
 -- self.small shows a percentage instead of current / max
 function ns.UpdateHealth(self)

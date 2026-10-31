@@ -361,6 +361,16 @@ local function SetChat(key, value)
 	ns:ApplyChat()
 end
 
+local function SetTooltip(key, value)
+	ns.db.tooltip[key] = value
+	if key == "enabled" then NeedsReload("tooltip styling") end
+end
+
+-- Read at the vendor
+local function SetVendor(key, value)
+	ns.db.vendor[key] = value
+end
+
 local function SetActionBars(key, value)
 	ns.db.actionbars[key] = value
 	if key == "enabled" then
@@ -618,6 +628,17 @@ local function BuildOther(b)
 		b.ReadoutRow(i)
 	end
 
+	b.Section("Tooltips")
+	b.Checkbox("Restyle tooltips", Bind("tooltip", "enabled", SetTooltip))
+	b.Checkbox("Class-colored player names", Bind("tooltip", "classColors", SetTooltip))
+	b.Checkbox("Show what units are targeting", Bind("tooltip", "showTarget", SetTooltip))
+	b.Checkbox("Hide unit tooltips in combat", Bind("tooltip", "hideInCombat", SetTooltip))
+
+	b.Section("Vendors (hold Shift to skip)")
+	b.Checkbox("Repair automatically", Bind("vendor", "autoRepair", SetVendor))
+	b.Checkbox("Use guild bank funds for repairs", Bind("vendor", "guildRepair", SetVendor))
+	b.Checkbox("Sell grey items", Bind("vendor", "sellGreys", SetVendor))
+
 	b.Section("Minimap")
 	b.Dropdown("Style", function() return { "Blizzard", "Square" } end, Bind("minimap", "style", SetMinimap))
 
@@ -744,7 +765,8 @@ local PAGES = {
 	{ name = "Action Bars & Buffs", build = BuildActionBars,
 		description = "Cosmetic only: positions and sizes stay with Edit Mode." },
 	{ name = "Other", build = BuildOther,
-		description = "XP/reputation bars, info bar, minimap, chat window tweaks and the damage meter." },
+		description = "XP/reputation bars, info bar, tooltips, vendors, minimap, chat window tweaks "
+			.. "and the damage meter." },
 	{ name = "Profiles", build = BuildProfiles,
 		description = "Profiles are shared by all your characters, and each character uses one. "
 			.. "New characters start on Default; make a new profile to give one its own settings." },

@@ -163,10 +163,12 @@ end
 
 -- Draws the KUI border around target from the outside (target keeps its
 -- size) with a see-through background. border: a BackdropTemplate frame.
+-- Returns how far the border reaches out from target.
 function ns.WrapBorder(border, target, small)
 	local inset = ns:ApplyBackdrop(border, small)
 	border:SetBackdropColor(0, 0, 0, 0)
 	border:ClearAllPoints()
 	border:SetPoint("TOPLEFT", target, "TOPLEFT", -inset, inset)
 	border:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", inset, -inset)
+	return inset
 end

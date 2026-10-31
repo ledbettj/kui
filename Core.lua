@@ -86,6 +86,7 @@ local function InitDB()
 	KUIDB.chars = KUIDB.chars or {}
 
 	charKey = UnitName("player") .. " - " .. GetRealmName()
+	ns.charKey = charKey
 	local name = KUIDB.chars[charKey]
 	if not KUIDB.profiles[name] then name = DEFAULT_PROFILE end
 	KUIDB.chars[charKey] = name
@@ -100,6 +101,7 @@ local LOGIN_ONLY = {
 	{ "nameplates", "enabled", "nameplate" },
 	{ "buffs", "enabled", "buff bar styling" },
 	{ "actionbars", "enabled", "action bar styling" },
+	{ "tooltip", "enabled", "tooltip styling" },
 }
 
 local function LoginOnlyValues()
@@ -228,6 +230,7 @@ function ns:ApplyStyle()
 	ns:StyleNameplates()
 	ns:StyleStatusBars()
 	ns:StyleMeter()
+	ns:StyleTooltips()
 	ns:LayoutInfoBar() -- readout widths follow the font
 end
 
@@ -319,6 +322,8 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		ns:ApplyMenuBar()
 		ns:InitMinimap()
 		ns:InitMeter()
+		ns:InitTooltips()
+		ns:InitVendor()
 		ns:ApplyStyle()
 	elseif event == "PLAYER_REGEN_DISABLED" then
 		-- Fires just before lockdown, the last chance to restore secure

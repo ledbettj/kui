@@ -74,4 +74,16 @@ read_globals = {
 	-- Blizzard data and strings
 	"FACTION_BAR_COLORS", "LOCALIZED_CLASS_NAMES_MALE", "PowerBarColor",
 	"RAID_CLASS_COLORS", "FAILED", "INTERRUPTED", "RESET", "YES", "NO", "ACCEPT", "CANCEL",
+	"LOCALIZED_CLASS_NAMES_FEMALE", "ITEM_QUALITY_COLORS", "FRIEND_TAB_FRIENDS",
+
+	-- Tooltips, vendors and the info bar's readouts
+	"GameTooltipStatusBar", "GetItemInfo", "IsShiftKeyDown",
+	"CanMerchantRepair", "GetRepairAllCost", "RepairAllItems", "CanGuildBankRepair",
+	"GetGuildBankMoney", "GetGuildBankWithdrawMoney",
+	"C_FriendList", "C_GuildInfo", "C_AddOns", "BNGetNumFriends",
+	"IsInGuild", "GetGuildInfo", "GetNumGuildMembers", "GetGuildRosterInfo",
+	"GetInventoryItemLink", "GetRealZoneText", "GetSubZoneText", "GetManaRegen",
+	"UpdateAddOnMemoryUsage", "GetAddOnMemoryUsage", "SecondsToTime",
+	"GameTime_GetLocalTime", "GameTime_GetGameTime", "UIParentLoadAddOn", "TimeManager_Toggle",
+	"ToggleAllBags", "ToggleCharacter", "ToggleFriendsFrame", "ToggleGuildFrame", "ToggleWorldMap",
 }
