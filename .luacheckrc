@@ -93,4 +93,6 @@ read_globals = {
 	-- Used on forever only (nil-checked or behind ns.isForever)
 	"C_ActionBar", "C_CurrencyInfo", "C_Item", "TooltipDataProcessor",
 	"BagsBar", "QuickJoinToastButton",
+	-- Secret-safe unit APIs
+	"AbbreviateLargeNumbers", "UnitHealthPercent", "UnitPowerPercent", "CurveConstants", "C_CurveUtil",
 }

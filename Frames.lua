@@ -4,12 +4,24 @@ local addonName, ns = ...
 -- health/power bars, name and value text, plus the optional pieces from
 -- Auras, Indicators, HealPrediction and Castbar. Also their arrangement on
 -- screen and the configuration preview.
+--
+-- On forever, health is always a secret, and power, class and combo points
+-- are in combat. Secrets go straight into the bars and font strings, which
+-- accept them; text comes from Blizzard's formatters (AbbreviateLargeNumbers,
+-- percentages through a curve) instead of KUI's own math.
 
 ---------------------------------------------------------------------------
 -- Element updates
 ---------------------------------------------------------------------------
 
 local ShortValue = ns.ShortValue
+local IsSecret = ns.IsSecret
+
+-- Compact number for a value that may be a secret
+local function Short(v)
+	if IsSecret(v) then return AbbreviateLargeNumbers(v) end
+	return ShortValue(v)
+end
 
 local DEAD_COLOR = { 0.5, 0.5, 0.5 }
 -- Near-white: the bar atlas darkens it to a neutral grey
@@ -21,8 +33,9 @@ local function UnitColor(unit)
 	if not UnitIsConnected(unit) or (UnitIsDead(unit) and not UnitIsPlayer(unit)) then
 		return DEAD_COLOR
 	elseif UnitIsPlayer(unit) then
+		-- Forever can keep the class secret; then the reaction color stands in
 		local _, class = UnitClass(unit)
-		local c = class and ns:GetClassColor(class)
+		local c = class and not IsSecret(class) and ns:GetClassColor(class)
 		if c then return c end
 	elseif UnitIsTapDenied and UnitIsTapDenied(unit) then
 		return TAPPED_COLOR
@@ -35,7 +48,7 @@ ns.UnitColor = UnitColor -- tooltips color by it too
 function ns.UpdateHealth(self)
 	local unit = self.unit
 	local cur, max = UnitHealth(unit), UnitHealthMax(unit)
-	if max == 0 then max = 1 end
+	if not IsSecret(max) and max == 0 then max = 1 end
 
 	self.health:SetMinMaxValues(0, max)
 	self.health:SetValue(cur)
@@ -49,17 +62,50 @@ function ns.UpdateHealth(self)
 	elseif UnitIsDead(unit) then
 		self.healthText:SetText("Dead")
 	elseif self.small then
-		self.healthText:SetFormattedText("%d%%", cur / max * 100)
+		if IsSecret(cur) or IsSecret(max) then
+			self.healthText:SetFormattedText("%d%%", UnitHealthPercent(unit, true, CurveConstants.ScaleTo100))
+		else
+			self.healthText:SetFormattedText("%d%%", cur / max * 100)
+		end
 	else
-		self.healthText:SetFormattedText("%s / %s", ShortValue(cur), ShortValue(max))
+		self.healthText:SetFormattedText("%s / %s", Short(cur), Short(max))
 	end
 
 	ns.UpdateHealPrediction(self)
 end
 
+-- Forever: one step curve per pip, turning the combo point share (0-1 of
+-- MAX_COMBO) into that pip's alpha, for when the count itself is secret
+local MAX_COMBO = 5
+local comboCurves
+
+local function ComboCurves()
+	if not comboCurves then
+		comboCurves = {}
+		for i = 1, MAX_COMBO do
+			local curve = C_CurveUtil.CreateCurve()
+			curve:SetType(Enum.LuaCurveType.Step)
+			curve:AddPoint(0, 0)
+			curve:AddPoint((i - 0.5) / MAX_COMBO, 1)
+			comboCurves[i] = curve
+		end
+	end
+	return comboCurves
+end
+
 local function UpdateCombo(self)
-	local cp = GetComboPoints("player", "target") or 0
+	local cp = GetComboPoints("player", "target")
+	if IsSecret(cp) then
+		local curves = ComboCurves()
+		for i, pip in ipairs(self.combo) do
+			pip:Show()
+			pip:SetAlpha(UnitPowerPercent("player", Enum.PowerType.ComboPoints, false, curves[i]))
+		end
+		return
+	end
+	cp = cp or 0
 	for i, pip in ipairs(self.combo) do
+		pip:SetAlpha(1)
 		pip:SetShown(i <= cp)
 	end
 end
@@ -74,12 +120,12 @@ local function UpdatePower(self)
 	local ptype, ptoken = UnitPowerType(unit)
 	local c = ns:GetPowerColor(ptoken, ptype)
 
-	self.power:SetMinMaxValues(0, max > 0 and max or 1)
+	self.power:SetMinMaxValues(0, (IsSecret(max) or max > 0) and max or 1)
 	self.power:SetValue(cur)
 	self.power:SetStatusBarColor(c[1], c[2], c[3])
 
 	if self.powerText then
-		self.powerText:SetFormattedText("%s / %s", ShortValue(cur), ShortValue(max))
+		self.powerText:SetFormattedText("%s / %s", Short(cur), Short(max))
 	end
 end
 
@@ -87,7 +133,8 @@ end
 -- frames skip the level unless they opt in with self.showLevel.
 function ns.UpdateName(self)
 	local unit = self.unit
-	local name = UnitName(unit) or ""
+	local name = UnitName(unit)
+	if not IsSecret(name) then name = name or "" end
 
 	if unit == "player" or (self.small and not self.showLevel) then
 		self.nameText:SetText(name)
@@ -95,6 +142,10 @@ function ns.UpdateName(self)
 	end
 
 	local level = UnitLevel(unit)
+	if IsSecret(level) then
+		self.nameText:SetText(name)
+		return
+	end
 	local c = GetQuestDifficultyColor and GetQuestDifficultyColor(level > 0 and level or 99)
 	local hex = c and format("|cff%02x%02x%02x", c.r * 255, c.g * 255, c.b * 255) or "|cffffffff"
 	local classification = UnitClassification(unit)
