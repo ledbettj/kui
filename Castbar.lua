@@ -58,8 +58,10 @@ local function TradeSkillIcon(name, fallback)
 	return icon or fallback
 end
 
-local function Start(cb, isChannel)
-	local name, text, texture, startMs, endMs, isTradeSkill, castID
+-- castID: for channels, the GUID from the CHANNEL_START event, since
+-- UnitChannelInfo doesn't return one
+local function Start(cb, isChannel, castID)
+	local name, text, texture, startMs, endMs, isTradeSkill
 	if isChannel then
 		name, text, texture, startMs, endMs, isTradeSkill = UnitChannelInfo(cb.unit)
 	else
@@ -118,17 +120,17 @@ end
 -- Pushback: re-reads the cast and adds how far its end moved to cb.delay
 local function Delay(cb, isChannel)
 	local delay, oldEnd = cb.delay, cb.endTime
-	Start(cb, isChannel)
+	Start(cb, isChannel, cb.castID)
 	cb.delay = delay + math.abs(cb.endTime - oldEnd)
 end
 
-local function OnEvent(cb, event, _, castID)
+local function OnEvent(cb, event, _, castID, _, interruptedBy)
 	if cb.preview then return end
 
 	if event == "UNIT_SPELLCAST_START" then
 		Start(cb, false)
 	elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
-		Start(cb, true)
+		Start(cb, true, castID)
 	elseif event == "UNIT_SPELLCAST_DELAYED" then
 		if cb.active and not cb.channel then Delay(cb, false) end
 	elseif event == "UNIT_SPELLCAST_CHANNEL_UPDATE" then
@@ -136,7 +138,14 @@ local function OnEvent(cb, event, _, castID)
 	elseif event == "UNIT_SPELLCAST_STOP" then
 		if cb.active and not cb.channel and castID == cb.castID then Idle(cb) end
 	elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
-		if cb.active and cb.channel then Idle(cb) end
+		if not (cb.active and cb.channel) then return end
+		-- interruptedBy covers channels picked up mid-way by RefreshCastbar,
+		-- which have no castID to match INTERRUPTED against
+		if interruptedBy and interruptedBy ~= "" then
+			Fail(cb, INTERRUPTED)
+		else
+			Idle(cb)
+		end
 	elseif event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
 		-- castID check: pressing a spell on cooldown fires FAILED for a cast
 		-- that never started

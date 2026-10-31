@@ -22,9 +22,9 @@ local buttons = {}
 -- Icon tint, following ActionBarActionButtonMixin:UpdateUsable plus red
 -- when out of range
 local function UpdateIconColor(btn)
-	if not ns.db.actionbars.rangeColor or not btn.action or not btn.icon then return end
+	if not btn.action or not btn.icon then return end
 
-	if IsActionInRange(btn.action) == false then
+	if ns.db.actionbars.rangeColor and IsActionInRange(btn.action) == false then
 		btn.icon:SetVertexColor(0.8, 0.1, 0.1)
 		return
 	end
