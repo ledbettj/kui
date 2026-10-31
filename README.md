@@ -4,10 +4,15 @@ A clean, minimal UI replacement for World of Warcraft: The Burning Crusade
 Anniversary.
 
 Support for WoW "forever" is under way, with features switched on as
-they're ported. So far: the info bar, tooltips, vendor repair and grey
-selling, chat buttons, the whole-UI font, bag and menu buttons, and the buff
-and action button styling. Unit frames, cast bars, nameplates, XP bars, the
-minimap and the meter are still TBC only.
+they're ported. So far: the unit frames (with their cast bars, auras and
+incoming heals), the info bar, tooltips, vendor repair and grey selling,
+chat buttons, the whole-UI font, bag and menu buttons, and the buff and
+action button styling. Nameplates, XP bars, the minimap and the meter are
+still TBC only.
+
+Forever hides some combat details from addons, so there a few things show
+less: no cast pushback, no aggro border or PvP flag while they're hidden,
+and class colors fall back to reaction colors in PvP.
 
 ## Unit frames
 

@@ -51,6 +51,7 @@ local FEATURES = {
 local FOREVER = {
 	infobar = true, vendor = true, tooltips = true, chat = true, uifont = true,
 	menubar = true, buffs = true, actionbars = true,
+	unitframes = true,
 }
 
 ns.supported = {}
