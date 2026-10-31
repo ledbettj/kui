@@ -95,4 +95,5 @@ read_globals = {
 	"BagsBar", "QuickJoinToastButton",
 	-- Secret-safe unit APIs
 	"AbbreviateLargeNumbers", "UnitHealthPercent", "UnitPowerPercent", "CurveConstants", "C_CurveUtil",
+	"CreateUnitHealPredictionCalculator", "UnitGetDetailedHealPrediction",
 }
