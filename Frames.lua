@@ -519,7 +519,7 @@ end
 -- Preview shows every frame, even for units that don't exist, so the
 -- layout can be judged while configuring
 function ns:SetPreview(on)
-	if on == ns.preview then return end
+	if not ns.supported.unitframes or on == ns.preview then return end
 	if InCombatLockdown() then
 		-- Secure frames can't be shown/hidden manually in combat
 		return ns.Print("can't toggle preview in combat.")

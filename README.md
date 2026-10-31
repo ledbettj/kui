@@ -3,6 +3,10 @@
 A clean, minimal UI replacement for World of Warcraft: The Burning Crusade
 Anniversary.
 
+Support for WoW "forever" is under way: KUI loads there, but its features
+are switched on one at a time as they're ported, so for now it only offers
+its settings and profiles.
+
 ## Unit frames
 
 - Player, target, target of target, focus and pet frames

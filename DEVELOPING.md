@@ -4,15 +4,37 @@ Notes for working on the code. For what the addon does, see the README.
 
 ## Setup
 
-- The client is WoW TBC Anniversary (interface 20506), a modern client
-  running the classic game. Its API is mostly the modern one (`C_Container`,
-  `C_CombatLog`, the Settings panel, Edit Mode) with classic gameplay.
-- Link this folder into the game's `Interface/AddOns/KUI`. `/reload` picks up
-  Lua changes and new files listed in `KUI.toc`.
-- Blizzard's own UI code is the best API reference. Export it from the
-  client (the `ExportInterfaceFiles code` console command) and search it
-  before relying on memory; many things differ from both retail and the
+KUI runs on two clients from this one folder. Each loads its own TOC, and
+`Compat.lua` says which client it is and which features run there.
+
+| Client | Interface | TOC | UI code |
+| --- | --- | --- | --- |
+| TBC Anniversary | 20506 | `KUI_TBC.toc` | Classic UI on a modern client: `C_Container`, `C_CombatLog`, the Settings panel and Edit Mode, with classic gameplay. Everything in KUI was built on it. |
+| WoW "forever" (the Camelot game type) | 16001 | `KUI.toc` | Retail's UI code, including **secret values** (see below). Features are switched on here as they're ported. |
+
+- Link this folder into each game's `Interface/AddOns/KUI`. `/reload` picks
+  up Lua changes and new files listed in the TOCs.
+- Both TOCs list the same files in the same order; change both together.
+  The client picks `KUI_TBC.toc` on TBC and falls back to `KUI.toc`
+  everywhere else.
+- Blizzard's own UI code is the best API reference. Export it from each
+  client (`/console exportInterfaceFiles code`) and search the right one
+  before relying on memory. The two differ a lot, and both differ from the
   original 2007 client.
+
+### Secret values (forever)
+
+During combat, encounters, Mythic+ and PvP, the forever client hands
+addons many unit, aura, cast, threat and combat log values as secrets. They
+can be passed straight to widgets (`StatusBar:SetValue`,
+`FontString:SetText`) but not compared, used in math, or used as table
+keys; doing so raises an error. The generated API docs mark these
+(`SecretReturns`, `SecretWhen...Restricted`, `ConditionalSecret`). Ported
+code uses the secret-safe APIs instead, such as `UnitHealthPercent`,
+`CreateUnitHealPredictionCalculator`, `UnitCastingDuration` with
+`StatusBar:SetTimerDuration`, and `Region:SetAlphaFromBoolean`, and checks
+`issecretvalue` where it must. Restrictions only apply in those
+situations, so test in a fight or dungeon, not just out in the world.
 - Lint before reloading: `luacheck .` (settings in `.luacheckrc`). It
   catches typos in names, stray globals and unused variables. When code
   starts using a WoW API it doesn't know yet, add the name to
@@ -22,11 +44,12 @@ Notes for working on the code. For what the addon does, see the README.
 
 ## Layout
 
-Files load in `KUI.toc` order and share one namespace table, `ns` (the
+Files load in TOC order and share one namespace table, `ns` (the
 `...` every file starts with).
 
 | File | Purpose |
 | --- | --- |
+| `Compat.lua` | Which client this is (`ns.isTBC`, `ns.isForever`, `ns.hasSecrets`) and which features run on it (`ns.supported`) |
 | `Defaults.lua` | Which unit frames exist (`ns.units`) and every setting's default (`ns.settingsDefaults`) |
 | `Core.lua` | Saved variables, the apply-settings entry points, startup, slash commands |
 | `Media.lua`, `Colors.lua` | Textures, borders and fonts by name (with LibSharedMedia); palettes and color lookup |
@@ -60,6 +83,18 @@ The header of `Core.lua` has the full list; in short:
 - Comments explain why, and anything a caller has to know first.
 
 ## Common changes
+
+**Porting a feature to forever**
+1. Make the module work with the forever client's APIs, branching on
+   `ns.isForever` (or `ns.hasSecrets`) only where the clients really
+   differ, and keeping the TBC path as it is.
+2. Turn it on for forever in `ns.supported` (`Compat.lua`).
+3. Its settings sections show up automatically: `b.Section(text, feature)`
+   in `Config.lua` hides a section when its feature is off.
+
+Core only calls a feature's `Init*` (and the `Apply*` functions that change
+Blizzard frames directly) when the feature is supported. Everything else
+is already safe to call before `Init`.
 
 **A new setting**
 1. Add it with its default to the right section of `ns.settingsDefaults`.

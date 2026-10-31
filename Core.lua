@@ -22,6 +22,8 @@ local addonName, ns = ...
 --   Layout/Style/Apply  rerun whenever settings change, so they must be
 --                    safe to call repeatedly (and before Init: they return
 --                    early while their frames don't exist)
+--   ns.supported     features that run on this client (Compat.lua); the
+--                    rest are never initialized
 
 ns.frames = {} -- unit -> unit frame
 
@@ -95,13 +97,14 @@ local function InitDB()
 	InitProfile(ns.db)
 end
 
--- Settings only read when KUI starts; changing them asks for a /reload
+-- Settings only read when KUI starts; changing them asks for a /reload.
+-- section, key, what to call it, the feature it belongs to
 local LOGIN_ONLY = {
-	{ "statusbars", "enabled", "XP/reputation bar" },
-	{ "nameplates", "enabled", "nameplate" },
-	{ "buffs", "enabled", "buff bar styling" },
-	{ "actionbars", "enabled", "action bar styling" },
-	{ "tooltip", "enabled", "tooltip styling" },
+	{ "statusbars", "enabled", "XP/reputation bar", "statusbars" },
+	{ "nameplates", "enabled", "nameplate", "nameplates" },
+	{ "buffs", "enabled", "buff bar styling", "buffs" },
+	{ "actionbars", "enabled", "action bar styling", "actionbars" },
+	{ "tooltip", "enabled", "tooltip styling", "tooltips" },
 }
 
 local function LoginOnlyValues()
@@ -119,12 +122,13 @@ local function ApplyAll(before)
 	if not ns:ApplyLayout() then
 		ns.Print("frame layout will update after combat.")
 	end
-	ns:ApplyChat()
-	ns:ApplyUIFont()
-	ns:ApplyMenuBar()
+	-- These change Blizzard frames directly rather than KUI's own
+	if ns.supported.chat then ns:ApplyChat() end
+	if ns.supported.uifont then ns:ApplyUIFont() end
+	if ns.supported.menubar then ns:ApplyMenuBar() end
 	ns:ApplyMeter()
 	for i, entry in ipairs(LOGIN_ONLY) do
-		if ns.db[entry[1]][entry[2]] ~= before[i] then
+		if ns.supported[entry[4]] and ns.db[entry[1]][entry[2]] ~= before[i] then
 			ns.Print(entry[3] .. " change takes effect after /reload.")
 		end
 	end
@@ -243,10 +247,12 @@ function ns:ApplyLayout()
 		return false
 	end
 	ns.pendingLayout = false
-	for _, f in pairs(ns.frames) do
-		ns:LayoutFrame(f)
+	if ns.supported.unitframes then
+		for _, f in pairs(ns.frames) do
+			ns:LayoutFrame(f)
+		end
+		ns:ApplyPositions()
 	end
-	ns:ApplyPositions()
 	-- Border size/inset changes
 	ns:StyleActionBars()
 	ns:StyleBuffs()
@@ -291,6 +297,22 @@ end
 -- Init
 ---------------------------------------------------------------------------
 
+-- Set up at PLAYER_LOGIN, in this order: feature, function
+local LOGIN_INITS = {
+	{ "uifont", "InitUIFont" },
+	{ "actionbars", "InitActionBars" },
+	{ "buffs", "InitBuffs" },
+	{ "nameplates", "InitNameplates" },
+	{ "infobar", "InitInfoBar" },
+	{ "statusbars", "InitStatusBars" },
+	{ "chat", "InitChat" },
+	{ "menubar", "ApplyMenuBar" },
+	{ "minimap", "InitMinimap" },
+	{ "meter", "InitMeter" },
+	{ "tooltips", "InitTooltips" },
+	{ "vendor", "InitVendor" },
+}
+
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:RegisterEvent("PLAYER_LOGIN")
@@ -301,10 +323,12 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		self:UnregisterEvent("ADDON_LOADED")
 		InitDB()
 		ns:UpdateFonts()
-		ns:InitWorldFonts()
-		HideBlizzard()
-		for _, unit in ipairs(ns.unitOrder) do
-			ns.frames[unit] = ns:CreateUnitFrame(unit, ns.units[unit])
+		if ns.supported.uifont then ns:InitWorldFonts() end
+		if ns.supported.unitframes then
+			HideBlizzard()
+			for _, unit in ipairs(ns.unitOrder) do
+				ns.frames[unit] = ns:CreateUnitFrame(unit, ns.units[unit])
+			end
 		end
 		ns:ApplyLayout()
 		ns:InitConfig()
@@ -312,18 +336,9 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		-- Blizzard's action buttons, nameplate driver and status bars exist by
 		-- now. Styling again also picks up saved media from LibSharedMedia
 		-- packs that registered after us.
-		ns:InitUIFont()
-		ns:InitActionBars()
-		ns:InitBuffs()
-		ns:InitNameplates()
-		ns:InitInfoBar()
-		ns:InitStatusBars()
-		ns:InitChat()
-		ns:ApplyMenuBar()
-		ns:InitMinimap()
-		ns:InitMeter()
-		ns:InitTooltips()
-		ns:InitVendor()
+		for _, entry in ipairs(LOGIN_INITS) do
+			if ns.supported[entry[1]] then ns[entry[2]](ns) end
+		end
 		ns:ApplyStyle()
 	elseif event == "PLAYER_REGEN_DISABLED" then
 		-- Fires just before lockdown, the last chance to restore secure
@@ -344,6 +359,9 @@ SlashCmdList.KUI = function(msg)
 	if cmd == "" or cmd == "config" then
 		ns:OpenConfig()
 	elseif cmd == "preview" then
+		if not ns.supported.unitframes then
+			return ns.Print("unit frames aren't available on this game client yet.")
+		end
 		ns:SetPreview(not ns.preview)
 	else
 		ns.Print("commands: |cffffff00config|r, |cffffff00preview|r")

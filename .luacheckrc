@@ -25,6 +25,9 @@ read_globals = {
 	"bit", "format", "strlower", "strtrim", "tinsert", "wipe",
 	"CopyTable", "tDeleteItem", "tIndexOf", "tInvert",
 
+	-- Which client this is (Compat.lua)
+	"WOW_PROJECT_ID", "WOW_PROJECT_BURNING_CRUSADE_CLASSIC", "WOW_PROJECT_CAMELOT", "issecretvalue",
+
 	-- Namespaced APIs and enums
 	"C_CombatLog", "C_Container", "C_Map", "C_NamePlate", "C_PartyInfo",
 	"C_Reputation", "C_Spell", "C_Texture", "C_Timer",

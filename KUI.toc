@@ -1,12 +1,15 @@
-## Interface: 20506
+## Interface: 16001
 ## Title: KUI
 ## Notes: Unit frames, nameplates, cast bars, action button, tooltip and XP bar styling, info bar, damage meter
 ## Author: John
 ## Version: 0.1.0
 ## SavedVariables: KUIDB
+# WoW forever (Camelot). TBC Anniversary loads KUI_TBC.toc instead; keep
+# the file lists the same (see Compat.lua for what runs on each client).
 ## OptionalDeps: LibSharedMedia-3.0, SharedMedia
 
 # Shared foundations
+Compat.lua
 Defaults.lua
 Core.lua
 Media.lua

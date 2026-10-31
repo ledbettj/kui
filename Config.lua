@@ -436,27 +436,56 @@ local THREAT_LABELS = { pulling = "About to pull aggro", insecure = "Tanking, lo
 
 local PAGE_TOP = -72 -- below the title and (up to two lines of) description
 
+-- Whether a feature (or any of a list of them) runs on this client; nil
+-- means the setting isn't tied to one
+local function Supported(feature)
+	if feature == nil then return true end
+	if type(feature) == "string" then return ns.supported[feature] end
+	for _, f in ipairs(feature) do
+		if ns.supported[f] then return true end
+	end
+	return false
+end
+
 -- A page's widgets, stacked top-down in sections. Each method places one
--- row; the widget arguments are passed straight through.
+-- row; the widget arguments are passed straight through. Sections (and
+-- rows after b.Feature) for features this client doesn't run are left out
+-- entirely; b.rowCount says whether anything was placed.
 local function NewBuilder(content)
-	local b = { y = PAGE_TOP }
+	local b = { y = PAGE_TOP, rowCount = 0 }
+	local sectionShown, rowsShown = true, true
 
 	local function Place(region, extraGap)
 		region:SetPoint("TOPLEFT", 16, b.y)
 		b.y = b.y - (region.GetHeight and region:GetHeight() > 0 and region:GetHeight() or 16) - (extraGap or 0)
 	end
 
-	function b.Section(text)
+	-- A widget constructor wrapped to skip hidden rows
+	local function Row(create)
+		return function(...)
+			if not (sectionShown and rowsShown) then return end
+			Place(create(content, ...))
+			b.rowCount = b.rowCount + 1
+		end
+	end
+
+	function b.Section(text, feature)
+		sectionShown, rowsShown = Supported(feature), true
+		if not sectionShown then return end
 		if b.y < PAGE_TOP then b.y = b.y - 12 end
 		Place(CreateHeader(content, text), 6)
 	end
-	function b.Slider(...) Place(CreateSlider(content, ...)) end
-	function b.Dropdown(...) Place(CreateDropdown(content, ...)) end
-	function b.Checkbox(...) Place(CreateCheckbox(content, ...)) end
-	function b.ReadoutRow(...) Place(CreateReadoutRow(content, ...)) end
-	function b.Swatch(...) Place(CreateColorSwatch(content, ...)) end
-	function b.Picker(...) Place(CreatePicker(content, ...)) end
-	function b.Info(...) Place(CreateInfo(content, ...)) end
+	-- The rows after this belong to feature (nil: back to the section's)
+	function b.Feature(feature)
+		rowsShown = Supported(feature)
+	end
+	b.Slider = Row(CreateSlider)
+	b.Dropdown = Row(CreateDropdown)
+	b.Checkbox = Row(CreateCheckbox)
+	b.ReadoutRow = Row(CreateReadoutRow)
+	b.Swatch = Row(CreateColorSwatch)
+	b.Picker = Row(CreatePicker)
+	b.Info = Row(CreateInfo)
 	function b.ColorRow(kind, key, label)
 		b.Swatch(label,
 			function() return ns:GetColor(kind, key) end,
@@ -464,6 +493,8 @@ local function NewBuilder(content)
 			function() SetColor(kind, key, nil) end)
 	end
 	function b.Button(text, onClick)
+		if not (sectionShown and rowsShown) then return end
+		b.rowCount = b.rowCount + 1
 		b.y = b.y - 16
 		local button = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
 		button:SetSize(140, 24)
@@ -478,8 +509,10 @@ end
 local function BuildGeneral(b)
 	b.Section("Text")
 	b.Dropdown("Font", FontList, Bind("style", "font", SetStyle))
+	b.Feature("uifont")
 	b.Checkbox("Use one font for the whole UI", Bind("uifont", "enabled", SetUIFont))
 	b.Dropdown("Whole UI font", FontList, Bind("uifont", "font", SetUIFont))
+	b.Feature(nil)
 	b.Slider("Font size", 8, 16, 1, Bind("style", "fontSize", SetStyle))
 
 	b.Section("Bar textures")
@@ -499,12 +532,12 @@ local function BuildGeneral(b)
 end
 
 local function BuildUnitFrames(b)
-	b.Section("Layout")
+	b.Section("Layout", "unitframes")
 	b.Slider("Vertical position", -600, 600, 2, Bind("layout", "y", SetLayout))
 	b.Slider("Distance from center", 0, 400, 1, Bind("layout", "centerGap", SetLayout))
 	b.Slider("Focus / ToT spacing", 0, 100, 1, Bind("layout", "sideGap", SetLayout))
 
-	b.Section("Frame width")
+	b.Section("Frame width", "unitframes")
 	for _, unit in ipairs(ns.unitOrder) do
 		if not ns.units[unit].widthFrom then
 			b.Slider(WIDTH_LABELS[unit] or unit, 60, 400, 2,
@@ -517,84 +550,84 @@ local function BuildUnitFrames(b)
 	end
 	b.Slider("Power bar height (player/target)", 2, 20, 1, Bind("style", "powerHeight", SetStyle))
 
-	b.Section("Party")
+	b.Section("Party", "unitframes")
 	b.Slider("Horizontal position", 0, 1000, 2, Bind("layout", "partyX", SetLayout))
 	b.Slider("Vertical position", -1000, 0, 2, Bind("layout", "partyY", SetLayout))
 	b.Slider("Spacing", 0, 60, 1, Bind("layout", "partySpacing", SetLayout))
 	b.Slider("Out of range opacity", 0, 100, 5, Bind("style", "outOfRangeAlpha", SetStyle, true))
 
-	b.Section("Cast bars")
+	b.Section("Cast bars", "unitframes")
 	b.Slider("Height (player/target)", 4, 24, 1, Bind("castbar", "height", SetCastbar))
 	b.Slider("Height (focus)", 6, 30, 1, Bind("castbar", "focusHeight", SetCastbar))
 	b.Dropdown("Texture", StatusbarList, Bind("castbar", "texture", SetCastbar))
 	b.Checkbox("Show spell icon", Bind("castbar", "showIcon", SetCastbar))
 
-	b.Section("Incoming heals")
+	b.Section("Incoming heals", "unitframes")
 	b.Checkbox("Show incoming heals", Bind("healPrediction", "enabled", SetHealPrediction))
 
-	b.Section("Aggro")
+	b.Section("Aggro", "unitframes")
 	b.Checkbox("Threat border (player, pet, party)", Bind("aggro", "enabled", SetAggro))
 end
 
 local function BuildColors(b)
-	b.Section("Palette")
+	b.Section("Palette", { "unitframes", "nameplates", "meter" })
 	b.Dropdown("Palette", function() return ns.paletteOrder end,
 		function() return ns.db.colors.palette end, SetPalette)
 
-	b.Section("Class (player health)")
+	b.Section("Class (player health)", { "unitframes", "nameplates" })
 	for _, class in ipairs(ns.classOrder) do
 		b.ColorRow("class", class, LOCALIZED_CLASS_NAMES_MALE[class] or class)
 	end
 
-	b.Section("Reaction (NPC health)")
+	b.Section("Reaction (NPC health)", { "unitframes", "nameplates" })
 	for _, key in ipairs(ns.reactionOrder) do
 		b.ColorRow("reaction", key, REACTION_LABELS[key])
 	end
 
-	b.Section("Power")
+	b.Section("Power", { "unitframes", "nameplates" })
 	for _, token in ipairs(ns.powerOrder) do
 		b.ColorRow("power", token, _G[token] or token)
 	end
 
-	b.Section("Cast bars")
+	b.Section("Cast bars", { "unitframes", "nameplates" })
 	for _, key in ipairs(ns.castOrder) do
 		b.ColorRow("cast", key, CAST_LABELS[key])
 	end
 
-	b.Section("Incoming heals")
+	b.Section("Incoming heals", "unitframes")
 	for _, key in ipairs(ns.healOrder) do
 		b.ColorRow("heal", key, HEAL_LABELS[key])
 	end
 
-	b.Section("Threat")
+	b.Section("Threat", { "unitframes", "nameplates" })
 	for _, key in ipairs(ns.threatOrder) do
 		b.ColorRow("threat", key, THREAT_LABELS[key])
 	end
 
-	b.Section("Spell schools (meter breakdown)")
+	b.Section("Spell schools (meter breakdown)", "meter")
 	for _, key in ipairs(ns.schoolOrder) do
 		b.ColorRow("school", key, key:sub(1, 1):upper() .. key:sub(2))
 	end
 end
 
 local function BuildNameplates(b)
-	b.Section("Nameplates")
+	b.Section("Nameplates", "nameplates")
 	b.Checkbox("Restyle nameplates", Bind("nameplates", "enabled", SetNameplates))
 	b.Slider("Width", 60, 240, 2, Bind("nameplates", "width", SetNameplates))
 	b.Slider("Health height", 6, 30, 1, Bind("nameplates", "height", SetNameplates))
 	b.Slider("Cast bar height", 6, 24, 1, Bind("nameplates", "castHeight", SetNameplates))
 
-	b.Section("Target")
+	b.Section("Target", "nameplates")
 	b.Checkbox("Highlight target", Bind("nameplates", "highlightTarget", SetNameplates))
 	b.Swatch("Target border color", Bind("nameplates", "targetColor", SetNameplates))
 
-	b.Section("Threat")
+	b.Section("Threat", "nameplates")
 	b.Checkbox("Threat border", Bind("nameplates", "threatBorder", SetNameplates))
 	b.Checkbox("Threat percentage", Bind("nameplates", "threatPercent", SetNameplates))
 end
 
 local function BuildActionBars(b)
-	b.Section("Action bars")
+	b.Section("Action bars", "actionbars")
 	b.Checkbox("Restyle action bars", Bind("actionbars", "enabled", SetActionBars))
 	b.Checkbox("Show keybinds", Bind("actionbars", "showHotkeys", SetActionBars))
 	b.Checkbox("Show macro names", Bind("actionbars", "showMacroNames", SetActionBars))
@@ -602,23 +635,23 @@ local function BuildActionBars(b)
 	b.Checkbox("Mark lower-rank spells", Bind("actionbars", "markLowRank", SetActionBars))
 	b.Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
 
-	b.Section("Bags & menu")
+	b.Section("Bags & menu", "menubar")
 	b.Dropdown("Bag buttons", function() return ns.bagOptions end, Bind("menubar", "bags", SetMenuBar))
 	b.Checkbox("Hide the micro menu", Bind("menubar", "hideMicroMenu", SetMenuBar))
 
-	b.Section("Buff bar")
+	b.Section("Buff bar", "buffs")
 	b.Checkbox("Restyle buff bar", Bind("buffs", "enabled", SetBuffs))
 end
 
 local function BuildOther(b)
-	b.Section("XP / reputation bars")
+	b.Section("XP / reputation bars", "statusbars")
 	b.Checkbox("Replace XP/rep bars", Bind("statusbars", "enabled", SetStatusBars))
 	b.Dropdown("Position", function() return { "Top", "Bottom" } end, Bind("statusbars", "position", SetStatusBars))
 	b.Slider("Width", 100, 1200, 4, Bind("statusbars", "width", SetStatusBars))
 	b.Slider("Height", 4, 30, 1, Bind("statusbars", "height", SetStatusBars))
 	b.Dropdown("Texture", StatusbarList, Bind("statusbars", "texture", SetStatusBars))
 
-	b.Section("Info bar")
+	b.Section("Info bar", "infobar")
 	b.Checkbox("Show info bar", Bind("infobar", "enabled", SetInfoBar))
 	b.Slider("Height", 10, 40, 1, Bind("infobar", "height", SetInfoBar))
 	b.Slider("Spacing between readouts", 0, 60, 1, Bind("infobar", "spacing", SetInfoBar))
@@ -628,24 +661,24 @@ local function BuildOther(b)
 		b.ReadoutRow(i)
 	end
 
-	b.Section("Tooltips")
+	b.Section("Tooltips", "tooltips")
 	b.Checkbox("Restyle tooltips", Bind("tooltip", "enabled", SetTooltip))
 	b.Checkbox("Class-colored player names", Bind("tooltip", "classColors", SetTooltip))
 	b.Checkbox("Show what units are targeting", Bind("tooltip", "showTarget", SetTooltip))
 	b.Checkbox("Hide unit tooltips in combat", Bind("tooltip", "hideInCombat", SetTooltip))
 
-	b.Section("Vendors (hold Shift to skip)")
+	b.Section("Vendors (hold Shift to skip)", "vendor")
 	b.Checkbox("Repair automatically", Bind("vendor", "autoRepair", SetVendor))
 	b.Checkbox("Use guild bank funds for repairs", Bind("vendor", "guildRepair", SetVendor))
 	b.Checkbox("Sell grey items", Bind("vendor", "sellGreys", SetVendor))
 
-	b.Section("Minimap")
+	b.Section("Minimap", "minimap")
 	b.Dropdown("Style", function() return { "Blizzard", "Square" } end, Bind("minimap", "style", SetMinimap))
 
-	b.Section("Chat")
+	b.Section("Chat", "chat")
 	b.Checkbox("Hide chat buttons", Bind("chat", "hideButtons", SetChat))
 
-	b.Section("Damage meter")
+	b.Section("Damage meter", "meter")
 	b.Checkbox("Show damage meter", Bind("meter", "enabled", SetMeter))
 	b.Slider("Width", 120, 400, 2, Bind("meter", "width", SetMeter))
 	b.Slider("Rows", 1, 25, 1, Bind("meter", "rows", SetMeter))
@@ -831,21 +864,23 @@ local function CreatePage(page)
 	panel:SetScript("OnHide", OnPageHide)
 	-- Hook the Settings panel calls when a canvas is shown
 	panel.OnRefresh = RefreshAll
-	return panel
+	return panel, builder.rowCount
 end
 
 function ns:InitConfig()
 	for i, page in ipairs(PAGES) do
-		local panel = CreatePage(page)
-		panels[i] = panel
+		local panel, rowCount = CreatePage(page)
 		if i == 1 then
 			-- Settings' Defaults button calls OnDefault on the shown canvas, or on
 			-- every canvas for "all settings". Resetting is all-or-nothing in
 			-- KUI, so only the top page carries it.
 			panel.OnDefault = ResetToDefaults
 			category = Settings.RegisterCanvasLayoutCategory(panel, page.name)
-		else
+			panels[#panels + 1] = panel
+		elseif rowCount > 0 then
+			-- Pages with nothing that runs on this client are left out
 			Settings.RegisterCanvasLayoutSubcategory(category, panel, page.name)
+			panels[#panels + 1] = panel
 		end
 	end
 	Settings.RegisterAddOnCategory(category)
