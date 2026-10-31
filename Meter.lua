@@ -175,9 +175,11 @@ local function OnCombatLog()
 		if bit.band(dstFlags, CLO.ReactionFriendly) ~= 0 then return end
 		local owner = Owner(srcGUID, srcFlags)
 		if not owner then return end
-		-- Swings have no spell; everything else starts with its id and school
-		local amount, spellID, school = a15, a12, a14
-		if arg == 12 then amount, spellID, school = a12, 0, nil end
+		-- Swings have no spell; everything else starts with its id and school.
+		-- The overkill after the amount (-1 for none) wasn't really dealt.
+		local amount, overkill, spellID, school = a15, a16, a12, a14
+		if arg == 12 then amount, overkill, spellID, school = a12, a13, 0, nil end
+		if overkill and overkill > 0 then amount = amount - overkill end
 		if Add(owner, "damage", amount, srcGUID, srcName, spellID, school) then
 			AddEnemy(dstGUID, dstName, amount)
 		end
