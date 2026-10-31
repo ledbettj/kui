@@ -96,4 +96,5 @@ read_globals = {
 	-- Secret-safe unit APIs
 	"AbbreviateLargeNumbers", "UnitHealthPercent", "UnitPowerPercent", "CurveConstants", "C_CurveUtil",
 	"CreateUnitHealPredictionCalculator", "UnitGetDetailedHealPrediction",
+	"C_UnitAuras", "canaccesstable",
 }

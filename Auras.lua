@@ -2,6 +2,13 @@ local addonName, ns = ...
 
 -- Buff/debuff icon grids for unit frames and nameplates. Debuffs come first
 -- (nearest the frame), then buffs starting on a fresh row.
+--
+-- Forever keeps aura details secret in combat, so it reads auras by
+-- instance ID and lets Blizzard turn each secret into something drawable:
+-- the stack count as text, the duration as an object the cooldown swipe
+-- takes, the dispel type as a border color through a color curve. Buffs
+-- by dispel type (nameplates' purgeable buffs) need the type itself, so
+-- they're left out there.
 
 local SPACING = 2
 
@@ -92,29 +99,23 @@ end
 -- table rather than closures created per update.
 local pass = {}
 
-local function Place(aura)
-	if pass.types and not pass.types[aura.dispelName] then return false end
-
-	local container, layout = pass.container, pass.container.layout
+-- The next button in the container, set up for an aura of this pass
+local function NextButton(auraInstanceID)
+	local container = pass.container
 	pass.n = pass.n + 1
 	local b = container.buttons[pass.n]
 	if not b then
 		b = CreateButton(container)
 		container.buttons[pass.n] = b
 	end
-
 	b.unit, b.filter, b.isBuff = pass.unit, pass.filter, pass.isBuff
-	b.auraInstanceID = aura.auraInstanceID
-	b.icon:SetTexture(aura.icon)
-	b.count:SetText(aura.applications > 1 and aura.applications or "")
-	CooldownFrame_Set(b.cooldown, aura.expirationTime - aura.duration, aura.duration, aura.duration > 0, true)
+	b.auraInstanceID = auraInstanceID
+	return b
+end
 
-	if pass.isBuff then
-		b.border:SetVertexColor(0, 0, 0)
-	else
-		AuraUtil.SetAuraBorderColor(b.border, aura.dispelName)
-	end
-
+-- Puts b in the next grid cell and counts it; true once the pass is full
+local function Position(b)
+	local container, layout = pass.container, pass.container.layout
 	if pass.col >= container.perRow then
 		pass.col, pass.row = 0, pass.row + 1
 	end
@@ -129,12 +130,90 @@ local function Place(aura)
 	pass.col = pass.col + 1
 
 	pass.placed = pass.placed + 1
-	return pass.placed >= pass.max -- true stops the iteration
+	return pass.placed >= pass.max
+end
+
+local function Place(aura)
+	if pass.types and not pass.types[aura.dispelName] then return false end
+
+	local b = NextButton(aura.auraInstanceID)
+	b.icon:SetTexture(aura.icon)
+	b.count:SetText(aura.applications > 1 and aura.applications or "")
+	CooldownFrame_Set(b.cooldown, aura.expirationTime - aura.duration, aura.duration, aura.duration > 0, true)
+
+	if pass.isBuff then
+		b.border:SetVertexColor(0, 0, 0)
+	else
+		AuraUtil.SetAuraBorderColor(b.border, aura.dispelName)
+	end
+
+	return Position(b) -- true stops the iteration
+end
+
+---------------------------------------------------------------------------
+-- Forever: by aura instance, without reading secret details
+---------------------------------------------------------------------------
+
+-- Dispel type IDs (the x GetAuraDispelTypeColor evaluates the curve at)
+-- and the debuff colors Blizzard uses for them
+local DISPEL_TYPE_IDS = { None = 0, Magic = 1, Curse = 2, Disease = 3, Poison = 4, Bleed = 11 }
+
+local dispelCurve
+local function DispelCurve()
+	if not dispelCurve then
+		local info = AuraUtil.GetDebuffDisplayInfoTable()
+		dispelCurve = C_CurveUtil.CreateColorCurve()
+		dispelCurve:SetType(Enum.LuaCurveType.Step)
+		-- Every ID up to the highest gets a point, so a type with no color
+		-- of its own (enrage) snaps to None's rather than its neighbor's
+		local byID = {}
+		for name, id in pairs(DISPEL_TYPE_IDS) do byID[id] = info[name] and info[name].color end
+		for id = 0, DISPEL_TYPE_IDS.Bleed do
+			dispelCurve:AddPoint(id, byID[id] or info.None.color)
+		end
+	end
+	return dispelCurve
+end
+
+local function PlaceByInstance(auraInstanceID)
+	local unit = pass.unit
+	local b = NextButton(auraInstanceID)
+
+	-- The icon goes straight to the texture: it may be secret, so it's never
+	-- tested (not even with and/or)
+	local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, auraInstanceID)
+	local icon
+	if aura and (not canaccesstable or canaccesstable(aura)) then icon = aura.icon end
+	b.icon:SetTexture(icon)
+	b.count:SetText(C_UnitAuras.GetAuraApplicationDisplayCount(unit, auraInstanceID, 2))
+	local duration = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
+	if duration then
+		b.cooldown:SetCooldownFromDurationObject(duration)
+	else
+		b.cooldown:Clear()
+	end
+
+	if pass.isBuff then
+		b.border:SetVertexColor(0, 0, 0)
+	else
+		local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, DispelCurve())
+		if color then b.border:SetVertexColor(color:GetRGBA()) end
+	end
+
+	return Position(b)
 end
 
 -- types: optional set of dispel types to accept, others are skipped
+-- (TBC only; forever passes leave typed passes out, see the top)
 local function PlaceAll(filter, isBuff, max, types)
 	pass.filter, pass.isBuff, pass.max, pass.placed, pass.types = filter, isBuff, max, 0, types
+	if ns.hasSecrets then
+		if types then return end
+		for _, auraInstanceID in ipairs(C_UnitAuras.GetUnitAuraInstanceIDs(pass.unit, filter, max)) do
+			if PlaceByInstance(auraInstanceID) then break end
+		end
+		return
+	end
 	AuraUtil.ForEachAura(pass.unit, filter, max, Place, true)
 end
 
