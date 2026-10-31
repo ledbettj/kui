@@ -253,10 +253,7 @@ ns.readouts = {
 	gold = {
 		label = "Gold",
 		events = { "PLAYER_MONEY" },
-		update = function()
-			SaveGold()
-			return GetCoinTextureString(GetMoney())
-		end,
+		update = function() return GetCoinTextureString(GetMoney()) end,
 		tooltip = GoldTooltip,
 		hint = "Click: open bags",
 		click = function() ToggleAllBags() end,
@@ -547,6 +544,9 @@ local function OnUpdate(_, dt)
 end
 
 local function OnEvent(_, event)
+	-- Saved whether or not the Gold readout is shown, so other characters'
+	-- gold tooltips stay current
+	if event == "PLAYER_MONEY" or event == "PLAYER_ENTERING_WORLD" then SaveGold() end
 	for _, id in ipairs(eventReadouts[event]) do
 		if buttons[id]:IsShown() then UpdateReadout(id) end
 	end
