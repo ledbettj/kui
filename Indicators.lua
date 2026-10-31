@@ -3,6 +3,13 @@ local addonName, ns = ...
 -- Small unit frame indicators: raid target marker, leader / master looter /
 -- PvP / rest-combat status icons, the aggro border, and the party
 -- out-of-range fade.
+--
+-- Forever can keep markers, leadership, PvP flags, threat and range secret.
+-- Secret booleans can't be tested or passed to SetShown, so those icons
+-- stay shown with SetAlphaFromBoolean deciding whether they're seen, and
+-- what can't be shown that way (PvP flag, aggro border) falls back to off.
+
+local IsSecret = ns.IsSecret
 
 local NAME_INSET = 4 -- name text's left inset in the health bar
 ns.NAME_INSET = NAME_INSET
@@ -25,10 +32,14 @@ end
 function ns.UpdateRaidIcon(f)
 	local icon = f.raidIcon
 	local index = UnitExists(f.unit) and GetRaidTargetIndex(f.unit)
-	if index then
+	-- A secret marker is drawn without knowing which (or whether) it is;
+	-- forever's SetRaidTargetIconTexture only picks a sprite cell, which
+	-- accepts secrets. The name keeps room for it meanwhile.
+	local secret = IsSecret(index)
+	if secret or index then
 		SetRaidTargetIconTexture(icon, index)
 	end
-	local shown = index and true or false
+	local shown = secret or (index and true or false)
 	if shown ~= icon:IsShown() or f.nameShifted == nil then
 		icon:SetShown(shown)
 		f.nameShifted = shown
@@ -95,12 +106,17 @@ function ns.CreateStatusIcons(f, layer, opts)
 	end
 end
 
--- 0 for the player, 1-4 for party members, nil otherwise; matches
--- C_PartyInfo.GetLootMethod's master looter index
+-- 0 for the player, 1-4 for party members, nil otherwise (or when the
+-- comparison is secret); matches C_PartyInfo.GetLootMethod's master looter
+-- index
 local function PartyIndex(unit)
-	if UnitIsUnit(unit, "player") then return 0 end
+	local isPlayer = UnitIsUnit(unit, "player")
+	if IsSecret(isPlayer) then return nil end
+	if isPlayer then return 0 end
 	for i = 1, 4 do
-		if UnitIsUnit(unit, "party" .. i) then return i end
+		local same = UnitIsUnit(unit, "party" .. i)
+		if IsSecret(same) then return nil end
+		if same then return i end
 	end
 end
 
@@ -112,6 +128,10 @@ end
 
 local function UpdatePvP(icon, unit, exists)
 	local faction = exists and UnitFactionGroup(unit)
+	-- The flag's texture depends on which kind it is, so a secret one isn't shown
+	if exists and (IsSecret(UnitIsPVP(unit)) or IsSecret(UnitIsPVPFreeForAll(unit))) then
+		return icon:Hide()
+	end
 	if exists and UnitIsPVPFreeForAll(unit) then
 		icon:SetTexture("Interface\\TargetingFrame\\UI-PVP-FFA")
 	elseif faction and faction ~= "Neutral" and UnitIsPVP(unit) then
@@ -129,11 +149,19 @@ function ns.UpdateStatusIcons(f)
 	local exists = UnitExists(unit)
 
 	local isLeader = exists and UnitIsGroupLeader(unit)
-	f.leaderIcon:SetShown(isLeader)
+	local secretLeader = IsSecret(isLeader)
+	if secretLeader then
+		f.leaderIcon:Show()
+		f.leaderIcon:SetAlphaFromBoolean(isLeader, 1, 0)
+	else
+		f.leaderIcon:SetAlpha(1)
+		f.leaderIcon:SetShown(isLeader)
+	end
 
 	local isLooter = exists and IsMasterLooter(unit)
 	f.looterIcon:ClearAllPoints()
-	if isLeader then
+	-- Beside the leader icon whenever it might be showing
+	if secretLeader or isLeader then
 		f.looterIcon:SetPoint("LEFT", f.leaderIcon, "RIGHT", 1, 0)
 	else
 		f.looterIcon:SetAllPoints(f.leaderIcon)
@@ -163,6 +191,8 @@ end
 function ns.UpdateAggro(f)
 	if not f.cfg.threat then return end
 	local status = ns.db.aggro.enabled and UnitExists(f.unit) and UnitThreatSituation(f.unit)
+	-- A secret status can't pick a color, so the border stays normal
+	if IsSecret(status) then status = nil end
 	local c = (status and status > 0) and ns:GetColor("threat", ns.threatOrder[status])
 		or ns.db.style.borderColor
 	f:SetBackdropBorderColor(c[1], c[2], c[3], 1)
@@ -175,11 +205,16 @@ end
 local RANGE_INTERVAL = 0.25
 
 -- SetAlpha is allowed on secure frames in combat. Units the client can't
--- range-check stay opaque. Also loads the portrait once a member comes
--- into visual range, which fires no event.
+-- range-check stay opaque (except on forever, where the range is secret and
+-- only inRange can drive the alpha). Also loads the portrait once a member
+-- comes into visual range, which fires no event.
 function ns.UpdateRange(f)
 	local inRange, checkedRange = UnitInRange(f.unit)
-	f:SetAlpha((checkedRange and not inRange) and ns.db.style.outOfRangeAlpha or 1)
+	if IsSecret(inRange) or IsSecret(checkedRange) then
+		f:SetAlphaFromBoolean(inRange, 1, ns.db.style.outOfRangeAlpha)
+	else
+		f:SetAlpha((checkedRange and not inRange) and ns.db.style.outOfRangeAlpha or 1)
+	end
 	if f.portrait and f.portraitVisible ~= UnitIsVisible(f.unit) then
 		ns.UpdatePortrait(f)
 	end
