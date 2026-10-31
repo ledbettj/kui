@@ -10,6 +10,11 @@ local addonName, ns = ...
 -- turn up; the zoom buttons and day/night sun, whose ring is part of the
 -- button art, are hidden, with the mouse wheel zooming instead. So is the
 -- gold collapse button above the map.
+--
+-- Forever's minimap is retail's: its round mask is an atlas set by
+-- MinimapCluster:UpdateMinimapConfig (rerun whenever the rotate setting
+-- changes, so the square mask goes back on after it), its zoom buttons
+-- appear on hover, and it already zooms with the mouse wheel.
 
 local ROUND_MASK = "Textures\\MinimapMask"
 local SQUARE_MASK = "Interface\\Buttons\\WHITE8X8"
@@ -70,18 +75,30 @@ end
 -- Layout
 ---------------------------------------------------------------------------
 
+-- Forever's own round mask depends on the rotate setting, so Blizzard
+-- puts it back
+local function SetMask(square)
+	if square then
+		Minimap:SetMaskTexture(SQUARE_MASK)
+	elseif ns.isForever and MinimapCluster.UpdateMinimapConfig then
+		MinimapCluster:UpdateMinimapConfig()
+	else
+		Minimap:SetMaskTexture(ROUND_MASK)
+	end
+end
+
 function ns:LayoutMinimap()
 	if not border then return end
 	local square = IsSquare()
 	if square or squared then
-		Minimap:SetMaskTexture(square and SQUARE_MASK or ROUND_MASK)
+		SetMask(square)
 		for _, art in ipairs(blizzardArt) do
 			art:SetAlpha(square and 0 or 1)
 		end
 		for _, button in ipairs(hiddenButtons) do
 			ns.SetHidden(button, square)
 		end
-		Minimap:EnableMouseWheel(square)
+		if not ns.isForever then Minimap:EnableMouseWheel(square) end
 		squared = square
 		if square then Rescan() else RestoreRings() end
 	end
@@ -105,10 +122,18 @@ function ns:InitMinimap()
 	border = CreateFrame("Frame", nil, Minimap, "BackdropTemplate")
 	border:SetFrameLevel(Minimap:GetFrameLevel())
 	-- pairs skips whichever of these this client lacks
-	for _, art in pairs({ MinimapBorder, MinimapCluster.BorderTop, MinimapNorthTag, MinimapCompassTexture }) do
-		blizzardArt[#blizzardArt + 1] = art
+	local art = {
+		MinimapBorder, MinimapCluster.BorderTop, MinimapNorthTag, MinimapCompassTexture,
+		MinimapCompassTextureUnderlay, -- forever, rotating map
+	}
+	for _, region in pairs(art) do
+		blizzardArt[#blizzardArt + 1] = region
 	end
-	for _, button in pairs({ MinimapZoomIn, MinimapZoomOut, GameTimeFrame, MinimapToggleButton }) do
+	local buttons = {
+		MinimapZoomIn, MinimapZoomOut, GameTimeFrame, MinimapToggleButton,
+		Minimap.ZoomIn, Minimap.ZoomOut, -- forever
+	}
+	for _, button in pairs(buttons) do
 		hiddenButtons[#hiddenButtons + 1] = button
 	end
 
@@ -120,8 +145,17 @@ function ns:InitMinimap()
 	end
 	probe:SetTexture(nil)
 
-	-- Only reachable while square: the wheel is enabled in LayoutMinimap
-	Minimap:HookScript("OnMouseWheel", OnMouseWheel)
+	if ns.isForever then
+		-- Blizzard redoes the frame and mask when the rotate setting changes
+		if MinimapCluster.UpdateMinimapConfig then
+			hooksecurefunc(MinimapCluster, "UpdateMinimapConfig", function()
+				if IsSquare() then Minimap:SetMaskTexture(SQUARE_MASK) end
+			end)
+		end
+	else
+		-- Only reachable while square: the wheel is enabled in LayoutMinimap
+		Minimap:HookScript("OnMouseWheel", OnMouseWheel)
+	end
 
 	-- Leave it alone if another addon already claims the shape
 	if not GetMinimapShape then

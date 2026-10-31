@@ -7,8 +7,8 @@ Support for WoW "forever" is under way, with features switched on as
 they're ported. So far: the unit frames (with their cast bars, auras and
 incoming heals), the info bar, tooltips, vendor repair and grey selling,
 chat buttons, the whole-UI font, bag and menu buttons, and the buff and
-action button styling. Nameplates, XP bars and the minimap are still TBC
-only. The damage meter stays TBC only: forever has its own, which you turn
+action button styling, the XP/reputation bars and the square minimap.
+Nameplates are still TBC only. The damage meter stays TBC only: forever has its own, which you turn
 on under Options → Advanced and place with Edit Mode.
 
 Forever hides some combat details from addons, so there a few things show

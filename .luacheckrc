@@ -72,7 +72,7 @@ read_globals = {
 	"MainMenuBarBackpackButton", "MicroMenuContainer",
 	"Minimap", "MinimapCluster", "MinimapBorder", "MinimapNorthTag",
 	"MinimapCompassTexture", "MinimapZoomIn", "MinimapZoomOut",
-	"MinimapToggleButton", "GameTimeFrame", "TimeManagerAlarmFiredTexture",
+	"MinimapToggleButton", "GameTimeFrame", "TimeManagerAlarmFiredTexture", "MinimapCompassTextureUnderlay",
 
 	-- Blizzard data and strings
 	"FACTION_BAR_COLORS", "LOCALIZED_CLASS_NAMES_MALE", "PowerBarColor",
