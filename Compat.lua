@@ -43,7 +43,7 @@ local FEATURES = {
 	"uifont", -- the whole-UI font
 	"tooltips",
 	"vendor",
-	"meter",
+	"meter", -- TBC only: forever's combat log is closed to addons, and it has its own meter
 	"spellranks", -- action button marks for spells below their best rank
 }
 
