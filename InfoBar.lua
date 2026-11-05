@@ -156,9 +156,7 @@ local function XPPerHour()
 end
 
 local function AtMaxLevel()
-	-- Forever only has this under GameRulesUtil; TBC has the global
-	local atMax = GameRulesUtil and GameRulesUtil.IsPlayerAtEffectiveMaxLevel or IsPlayerAtEffectiveMaxLevel
-	return atMax() or (IsXPUserDisabled and IsXPUserDisabled())
+	return GameRulesUtil.IsPlayerAtEffectiveMaxLevel() or IsXPUserDisabled()
 end
 
 ---------------------------------------------------------------------------
@@ -196,7 +194,7 @@ local function RequestRoster()
 	end
 end
 
--- The member list needs GetGuildRosterInfo, which forever's own UI no
+-- The member list needs GetGuildRosterInfo, which Blizzard's own UI no
 -- longer uses (it has Communities); without it only the count shows
 local function GuildTooltip(tt)
 	local guildName = GetGuildInfo("player")
@@ -385,7 +383,7 @@ ns.readouts = {
 	regen = {
 		label = "Mana regen",
 		interval = 2,
-		-- Forever keeps both secret in combat; the last readable values stay
+		-- Both are secret in combat; the last readable values stay
 		-- up until then
 		update = function(button)
 			local maxMana = UnitPowerMax("player", Enum.PowerType.Mana)

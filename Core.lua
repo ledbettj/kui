@@ -22,8 +22,8 @@ local addonName, ns = ...
 --   Layout/Style/Apply  rerun whenever settings change, so they must be
 --                    safe to call repeatedly (and before Init: they return
 --                    early while their frames don't exist)
---   ns.supported     features that run on this client (Compat.lua); the
---                    rest are never initialized
+--   ns.supported     features that are on (Compat.lua); the rest are never
+--                    initialized
 
 ns.frames = {} -- unit -> unit frame
 
@@ -57,6 +57,8 @@ end
 local function InitProfile(db)
 	-- Settings from earlier versions
 	db.positions = nil -- per-frame drag positions, replaced by layout
+	db.meter = nil -- the damage meter, which needed the combat log
+	if db.colors then db.colors.school = nil end -- its spell school colors
 	if db.widths then db.widths.focus = nil end -- focus shares the ToT width
 	if db.castbar then db.castbar.width = nil end -- old standalone cast bar
 	if db.menubar and db.menubar.singleBag ~= nil then -- checkbox before the bags dropdown
@@ -132,7 +134,6 @@ local function ApplyAll(before)
 	if ns.supported.chat then ns:ApplyChat() end
 	if ns.supported.uifont then ns:ApplyUIFont() end
 	if ns.supported.menubar then ns:ApplyMenuBar() end
-	ns:ApplyMeter()
 	for i, entry in ipairs(LOGIN_ONLY) do
 		if ns.supported[entry[4]] and ns.db[entry[1]][entry[2]] ~= before[i] then
 			ns.Print(entry[3] .. " change takes effect after /reload.")
@@ -239,7 +240,6 @@ function ns:ApplyStyle()
 	ns:StyleBuffs()
 	ns:StyleNameplates()
 	ns:StyleStatusBars()
-	ns:StyleMeter()
 	ns:StyleTooltips()
 	ns:LayoutInfoBar() -- readout widths follow the font
 end
@@ -266,7 +266,6 @@ function ns:ApplyLayout()
 	ns:LayoutInfoBar()
 	ns:LayoutStatusBars()
 	ns:LayoutMinimap()
-	ns:LayoutMeter()
 	return true
 end
 
@@ -314,7 +313,6 @@ local LOGIN_INITS = {
 	{ "chat", "InitChat" },
 	{ "menubar", "ApplyMenuBar" },
 	{ "minimap", "InitMinimap" },
-	{ "meter", "InitMeter" },
 	{ "tooltips", "InitTooltips" },
 	{ "vendor", "InitVendor" },
 }
@@ -337,10 +335,7 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == addonName then
 		self:UnregisterEvent("ADDON_LOADED")
 		InitDB()
-		Try("Fonts", function()
-			ns:UpdateFonts()
-			if ns.supported.uifont then ns:InitWorldFonts() end
-		end)
+		Try("Fonts", function() ns:UpdateFonts() end)
 		if ns.supported.unitframes then
 			local allCreated = true
 			for _, unit in ipairs(ns.unitOrder) do

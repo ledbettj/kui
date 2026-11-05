@@ -5,7 +5,7 @@ local addonName, ns = ...
 -- Auras, Indicators, HealPrediction and Castbar. Also their arrangement on
 -- screen and the configuration preview.
 --
--- On forever, health is always a secret, and power, class and combo points
+-- Health is always a secret, and power, class and combo points
 -- are in combat. Secrets go straight into the bars and font strings, which
 -- accept them; text comes from Blizzard's formatters (AbbreviateLargeNumbers,
 -- percentages through a curve) instead of KUI's own math.
@@ -33,7 +33,7 @@ local function UnitColor(unit)
 	if not UnitIsConnected(unit) or (UnitIsDead(unit) and not UnitIsPlayer(unit)) then
 		return DEAD_COLOR
 	elseif UnitIsPlayer(unit) then
-		-- Forever can keep the class secret; then the reaction color stands in
+		-- The class can be secret; then the reaction color stands in
 		local _, class = UnitClass(unit)
 		local c = class and not IsSecret(class) and ns:GetClassColor(class)
 		if c then return c end
@@ -74,7 +74,7 @@ function ns.UpdateHealth(self)
 	ns.UpdateHealPrediction(self)
 end
 
--- Forever: one step curve per pip, turning the combo point share (0-1 of
+-- One step curve per pip, turning the combo point share (0-1 of
 -- MAX_COMBO) into that pip's alpha, for when the count itself is secret
 local MAX_COMBO = 5
 local comboCurves
@@ -135,10 +135,10 @@ function ns.UpdateName(self)
 	local unit = self.unit
 	local name, surname = UnitName(unit)
 	if not IsSecret(name) then name = name or "" end
-	-- Forever's second value is a surname; TBC's is a realm. Either may be a
-	-- secret, which formatting accepts but concatenating doesn't.
+	-- The second value is a surname. Either may be a secret, which formatting
+	-- accepts but concatenating doesn't.
 	local separator = ""
-	if not ns.isForever or (not IsSecret(surname) and (surname == nil or surname == "")) then
+	if not IsSecret(surname) and (surname == nil or surname == "") then
 		surname = ""
 	else
 		separator = Constants.CharacterNameSeparatorConsts.CHARACTERNAME_SURNAME_SEPARATOR

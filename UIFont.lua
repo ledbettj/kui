@@ -2,20 +2,16 @@ local addonName, ns = ...
 
 -- Optionally puts one font on the whole UI: every Font object Blizzard (or
 -- another addon) has registered globally gets the new font file, keeping
--- its own size and outline, plus the in-world font globals. Font objects
+-- its own size and outline. Font objects
 -- copy their settings when created, so each one is set individually, and
 -- Blizzard's load-on-demand parts are rescanned as they load. Switching
 -- it off restores the original files.
 --
--- Names over heads and floating combat text read their font at login, so
--- those follow after a relog. On forever they keep Blizzard's font: they
--- come from globals, and Blizzard code reading a global an addon wrote
--- runs tainted there, which breaks it on secret values.
-
-local WORLD_FONT_GLOBALS = { "STANDARD_TEXT_FONT", "UNIT_NAME_FONT", "DAMAGE_TEXT_FONT", "NAMEPLATE_FONT" }
+-- Names over heads and floating combat text keep Blizzard's font: they come
+-- from globals, and Blizzard code reading a global an addon wrote runs
+-- tainted, which breaks it on secret values.
 
 local originals = {} -- font object -> its font file before replacing
-local originalGlobals = {} -- global name -> value before replacing
 local ownFonts = {} -- KUI's font objects, which follow style.font instead
 
 local function IsFontObject(value)
@@ -38,38 +34,22 @@ local function SetFontObjects(path)
 	end
 end
 
-local function SetWorldFonts(path)
-	if ns.hasSecrets then return end
-	for _, name in ipairs(WORLD_FONT_GLOBALS) do
-		if originalGlobals[name] == nil then originalGlobals[name] = _G[name] end
-		_G[name] = path or originalGlobals[name]
-	end
-end
-
 local function Enabled()
 	return ns.db.uifont.enabled
-end
-
--- Called from ADDON_LOADED, before the world fonts are first read
-function ns:InitWorldFonts()
-	for _, fo in pairs(ns.fonts) do ownFonts[fo] = true end
-	if Enabled() then SetWorldFonts(ns:GetFontPath(ns.db.uifont.font)) end
 end
 
 -- Replaces or restores the fonts to match the settings
 function ns:ApplyUIFont()
 	if Enabled() then
-		local path = ns:GetFontPath(ns.db.uifont.font)
-		SetWorldFonts(path)
-		SetFontObjects(path)
+		SetFontObjects(ns:GetFontPath(ns.db.uifont.font))
 	elseif next(originals) then
 		-- Only undo what was replaced
-		SetWorldFonts(nil)
 		SetFontObjects(nil)
 	end
 end
 
 function ns:InitUIFont()
+	for _, fo in pairs(ns.fonts) do ownFonts[fo] = true end
 	ns:ApplyUIFont()
 
 	-- Blizzard's load-on-demand UI (auction house, talents, ...) brings its

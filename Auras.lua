@@ -3,12 +3,10 @@ local addonName, ns = ...
 -- Buff/debuff icon grids for unit frames and nameplates. Debuffs come first
 -- (nearest the frame), then buffs starting on a fresh row.
 --
--- Forever keeps aura details secret in combat, so it reads auras by
--- instance ID and lets Blizzard turn each secret into something drawable:
--- the stack count as text, the duration as an object the cooldown swipe
--- takes, the dispel type as a border color through a color curve. Buffs
--- by dispel type (nameplates' purgeable buffs) need the type itself, so
--- they're left out there.
+-- Aura details are secret in combat, so auras are read by instance ID and
+-- Blizzard turns each secret into something drawable: the stack count as
+-- text, the duration as an object the cooldown swipe takes, the dispel type
+-- as a border color through a color curve.
 
 local SPACING = 2
 
@@ -16,8 +14,8 @@ local SPACING = 2
 -- rows stack upward from the container's bottom edge (otherwise downward from
 -- its top). perRow: fixed icons per row,
 -- else as many as fit the owner's width. debuffFilter: defaults to all
--- harmful auras. buffsByReaction: on enemies, only buffs the player's class
--- can remove; on friendly units, only the player's own buffs. noMouse: no
+-- harmful auras. buffsByReaction: no buffs on enemies (which ones can be
+-- removed is secret); on friendly units, only the player's own. noMouse: no
 -- tooltips, so the icons don't block clicks.
 local LAYOUTS = {
 	above = { size = 22, scales = true, maxBuffs = 32, maxDebuffs = 16, growUp = true },
@@ -28,27 +26,9 @@ local LAYOUTS = {
 	},
 }
 
--- Buff types each class can remove from enemies (TBC): Dispel Magic,
--- Purge, Spellsteal, and the Felhunter's Devour Magic
-local PURGE_TYPES = {
-	PRIEST = { Magic = true },
-	SHAMAN = { Magic = true },
-	MAGE = { Magic = true },
-	WARLOCK = { Magic = true },
-}
-
 local function IconSize(layout)
 	if layout.scales then return math.floor(layout.size * ns.db.style.auraScale + 0.5) end
 	return layout.size
-end
-
-local purgeTypes -- the player's entry, looked up on first use
-local function PlayerPurgeTypes()
-	if purgeTypes == nil then
-		local _, class = UnitClass("player")
-		purgeTypes = PURGE_TYPES[class] or false
-	end
-	return purgeTypes
 end
 
 ---------------------------------------------------------------------------
@@ -139,25 +119,8 @@ local function Position(b)
 	return pass.placed >= pass.max
 end
 
-local function Place(aura)
-	if pass.types and not pass.types[aura.dispelName] then return false end
-
-	local b = NextButton(aura.auraInstanceID)
-	b.icon:SetTexture(aura.icon)
-	b.count:SetText(aura.applications > 1 and aura.applications or "")
-	CooldownFrame_Set(b.cooldown, aura.expirationTime - aura.duration, aura.duration, aura.duration > 0, true)
-
-	if pass.isBuff then
-		b.border:SetVertexColor(0, 0, 0)
-	else
-		AuraUtil.SetAuraBorderColor(b.border, aura.dispelName)
-	end
-
-	return Position(b) -- true stops the iteration
-end
-
 ---------------------------------------------------------------------------
--- Forever: by aura instance, without reading secret details
+-- By aura instance, without reading secret details
 ---------------------------------------------------------------------------
 
 -- Dispel type IDs (the x GetAuraDispelTypeColor evaluates the curve at)
@@ -209,18 +172,11 @@ local function PlaceByInstance(auraInstanceID)
 	return Position(b)
 end
 
--- types: optional set of dispel types to accept, others are skipped
--- (TBC only; forever passes leave typed passes out, see the top)
-local function PlaceAll(filter, isBuff, max, types)
-	pass.filter, pass.isBuff, pass.max, pass.placed, pass.types = filter, isBuff, max, 0, types
-	if ns.hasSecrets then
-		if types then return end
-		for _, auraInstanceID in ipairs(C_UnitAuras.GetUnitAuraInstanceIDs(pass.unit, filter, max)) do
-			if PlaceByInstance(auraInstanceID) then break end
-		end
-		return
+local function PlaceAll(filter, isBuff, max)
+	pass.filter, pass.isBuff, pass.max, pass.placed = filter, isBuff, max, 0
+	for _, auraInstanceID in ipairs(C_UnitAuras.GetUnitAuraInstanceIDs(pass.unit, filter, max)) do
+		if PlaceByInstance(auraInstanceID) then break end
 	end
-	AuraUtil.ForEachAura(pass.unit, filter, max, Place, true)
 end
 
 -- self: any frame with .unit and .auras (from ns.CreateAuras)
@@ -240,8 +196,6 @@ function ns.UpdateAuras(self)
 		PlaceAll("HELPFUL", true, layout.maxBuffs)
 	elseif not UnitCanAttack("player", pass.unit) then
 		PlaceAll("HELPFUL|PLAYER", true, layout.maxBuffs)
-	elseif PlayerPurgeTypes() then
-		PlaceAll("HELPFUL", true, layout.maxBuffs, PlayerPurgeTypes())
 	end
 
 	for i = pass.n + 1, #container.buttons do

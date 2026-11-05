@@ -4,7 +4,7 @@ local addonName, ns = ...
 -- PvP / rest-combat status icons, the aggro border, and the party
 -- out-of-range fade.
 --
--- Forever can keep markers, leadership, PvP flags, threat and range secret.
+-- The client can keep markers, leadership, PvP flags, threat and range secret.
 -- Secret booleans can't be tested or passed to SetShown, so those icons
 -- stay shown with SetAlphaFromBoolean deciding whether they're seen, and
 -- what can't be shown that way (PvP flag, aggro border) falls back to off.
@@ -33,7 +33,7 @@ function ns.UpdateRaidIcon(f)
 	local icon = f.raidIcon
 	local index = UnitExists(f.unit) and GetRaidTargetIndex(f.unit)
 	-- A secret marker is drawn without knowing which (or whether) it is;
-	-- forever's SetRaidTargetIconTexture only picks a sprite cell, which
+	-- SetRaidTargetIconTexture only picks a sprite cell, which
 	-- accepts secrets. The name keeps room for it meanwhile.
 	local secret = IsSecret(index)
 	if secret or index then
@@ -205,8 +205,8 @@ end
 local RANGE_INTERVAL = 0.25
 
 -- SetAlpha is allowed on secure frames in combat. Units the client can't
--- range-check stay opaque (except on forever, where the range is secret and
--- only inRange can drive the alpha). Also loads the portrait once a member
+-- range-check stay opaque, unless the range is secret, when only inRange can
+-- drive the alpha. Also loads the portrait once a member
 -- comes into visual range, which fires no event.
 function ns.UpdateRange(f)
 	local inRange, checkedRange = UnitInRange(f.unit)

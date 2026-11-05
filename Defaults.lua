@@ -204,16 +204,4 @@ ns.settingsDefaults = {
 	chat = {
 		hideButtons = true, -- the button column beside the chat windows
 	},
-
-	meter = {
-		enabled = true,
-		width = 200,
-		rows = 6,
-		rowHeight = 14,
-		texture = "Modern",
-		mode = "damage", -- or "healing", "overhealing"
-		segment = "current", -- or "overall"
-		autoReset = true, -- on entering a different instance
-		point = { "BOTTOMRIGHT", "BOTTOMRIGHT", -20, 220 }, -- point, UIParent point, x, y
-	},
 }

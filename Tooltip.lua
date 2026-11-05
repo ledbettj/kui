@@ -10,13 +10,10 @@ local addonName, ns = ...
 -- Blizzard's NineSlice border is made invisible rather than removed: it
 -- keeps getting reapplied, and the alpha is the one thing it doesn't reset.
 --
--- The clients hook in differently. TBC has OnTooltipSetUnit/SetItem
--- scripts and recolors the health bar on every change, so KUI recolors
--- after it. Forever has TooltipDataProcessor post-calls instead, and its
--- health bar handles secret values in a secure mixin that Blizzard warns
--- addon taint can break, so KUI only colors that bar once per unit and
--- never hooks its updates. Anything forever hands over as a secret
--- (class, names, unit comparisons in restricted content) is skipped.
+-- The health bar handles secret values in a secure mixin that Blizzard warns
+-- addon taint can break, so KUI only colors it once per unit and never hooks
+-- its updates. Anything handed over as a secret (class, names, unit
+-- comparisons in restricted content) is skipped.
 
 local IsSecret = ns.IsSecret
 
@@ -40,7 +37,7 @@ local function ResetBorder(tt)
 	bd:SetBackdropBorderColor(c[1], c[2], c[3], 1)
 end
 
--- Forever's post-calls run for every tooltip, including ones KUI doesn't style
+-- Post-calls run for every tooltip, including ones KUI doesn't style
 local function OnTooltipSetItem(tt)
 	local bd = backdrops[tt]
 	if not bd then return end
@@ -54,8 +51,8 @@ local function OnTooltipSetItem(tt)
 	end
 end
 
--- The unit frames' health color, or nil while forever keeps what it's
--- based on (class, reaction) secret
+-- The unit frames' health color, or nil while what it's based on (class,
+-- reaction) is secret
 local function UnitColor(unit)
 	local _, class = UnitClass(unit)
 	if IsSecret(class) or IsSecret(UnitReaction(unit, "player")) then return nil end
@@ -96,8 +93,8 @@ local function OnTooltipSetUnit(tt)
 		if c and line then line:SetTextColor(c[1], c[2], c[3]) end
 	end
 
-	-- Forever: the bar's color is set once here (see the notes at the top)
-	if ns.isForever and tt == GameTooltip and healthBar and healthBar.bg then
+	-- The bar's color is set once here (see the notes at the top)
+	if tt == GameTooltip and healthBar and healthBar.bg then
 		local c = UnitColor(unit)
 		if c then healthBar:SetStatusBarColor(c[1], c[2], c[3]) end
 	end
@@ -106,15 +103,6 @@ local function OnTooltipSetUnit(tt)
 		AddTargetLine(tt, unit)
 		tt:Show() -- resizes to fit the new line
 	end
-end
-
--- TBC: Blizzard colors the bar green-to-red on every value change; this
--- runs after it
-local function OnHealthChanged(bar)
-	local _, unit = GameTooltip:GetUnit()
-	if not unit then return end
-	local c = ns.UnitColor(unit)
-	bar:SetStatusBarColor(c[1], c[2], c[3])
 end
 
 -- In its own small border just under the tooltip, the same width
@@ -149,10 +137,6 @@ local function Restyle(tt)
 	if tt:HasScript("OnTooltipCleared") then
 		tt:HookScript("OnTooltipCleared", ResetBorder)
 	end
-	-- TBC only; forever uses the item post-call (InitTooltips)
-	if tt:HasScript("OnTooltipSetItem") then
-		tt:HookScript("OnTooltipSetItem", OnTooltipSetItem)
-	end
 end
 
 -- The unit tooltip additions follow their settings live; the restyle's
@@ -160,13 +144,9 @@ end
 function ns:InitTooltips()
 	local restyle = ns.db.tooltip.enabled
 
-	if TooltipDataProcessor and not GameTooltip:HasScript("OnTooltipSetUnit") then
-		TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, OnTooltipSetUnit)
-		if restyle then
-			TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, OnTooltipSetItem)
-		end
-	else
-		GameTooltip:HookScript("OnTooltipSetUnit", OnTooltipSetUnit)
+	TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, OnTooltipSetUnit)
+	if restyle then
+		TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, OnTooltipSetItem)
 	end
 
 	if not restyle then return end
@@ -180,9 +160,6 @@ function ns:InitTooltips()
 		healthBar.bg:SetAllPoints()
 		healthBar.kuiBorder = CreateFrame("Frame", nil, healthBar, "BackdropTemplate")
 		healthBar.kuiBorder:SetFrameLevel(healthBar:GetFrameLevel() + 1)
-		if not ns.isForever then
-			healthBar:HookScript("OnValueChanged", OnHealthChanged)
-		end
 	end
 
 	ns:StyleTooltips()

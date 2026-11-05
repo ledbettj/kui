@@ -4,33 +4,24 @@ Notes for working on the code. For what the addon does, see the README.
 
 ## Setup
 
-KUI runs on two clients from this one folder. Each loads its own TOC, and
-`Compat.lua` says which client it is and which features run there.
+KUI runs on WoW "forever" (the Camelot game type, interface 16001), which uses
+Retail's UI code, including **secret values** (below).
 
-| Client | Interface | TOC | UI code |
-| --- | --- | --- | --- |
-| TBC Anniversary | 20506 | `KUI_TBC.toc` | Classic UI on a modern client: `C_Container`, `C_CombatLog`, the Settings panel and Edit Mode, with classic gameplay. Everything in KUI was built on it. |
-| WoW "forever" (the Camelot game type) | 16001 | `KUI.toc` | Retail's UI code, including **secret values** (see below). Features are switched on here as they're ported. |
+- Link this folder into the game's `Interface/AddOns/KUI`. `/reload` picks
+  up Lua changes and new files listed in the TOC.
+- Blizzard's own UI code is the best API reference. Export it from the client
+  (`/console exportInterfaceFiles code`) and search it before relying on
+  memory.
 
-- Link this folder into each game's `Interface/AddOns/KUI`. `/reload` picks
-  up Lua changes and new files listed in the TOCs.
-- Both TOCs list the same files in the same order; change both together.
-  The client picks `KUI_TBC.toc` on TBC and falls back to `KUI.toc`
-  everywhere else.
-- Blizzard's own UI code is the best API reference. Export it from each
-  client (`/console exportInterfaceFiles code`) and search the right one
-  before relying on memory. The two differ a lot, and both differ from the
-  original 2007 client.
+### Secret values
 
-### Secret values (forever)
-
-During combat, encounters, Mythic+ and PvP, the forever client hands
+During combat, encounters, Mythic+ and PvP, the client hands
 addons many unit, aura, cast, threat and combat log values as secrets. They
 can be passed straight to widgets (`StatusBar:SetValue`,
 `FontString:SetText`) but not compared, used in math, or used as table
 keys; doing so raises an error. The generated API docs mark these
-(`SecretReturns`, `SecretWhen...Restricted`, `ConditionalSecret`). Ported
-code uses the secret-safe APIs instead, such as `UnitHealthPercent`,
+(`SecretReturns`, `SecretWhen...Restricted`, `ConditionalSecret`). KUI
+uses the secret-safe APIs instead, such as `UnitHealthPercent`,
 `CreateUnitHealPredictionCalculator`, `UnitCastingDuration` with
 `StatusBar:SetTimerDuration`, and `Region:SetAlphaFromBoolean`, and checks
 `issecretvalue` where it must. Restrictions only apply in those
@@ -49,7 +40,7 @@ Files load in TOC order and share one namespace table, `ns` (the
 
 | File | Purpose |
 | --- | --- |
-| `Compat.lua` | Which client this is (`ns.isTBC`, `ns.isForever`, `ns.hasSecrets`) and which features run on it (`ns.supported`) |
+| `Compat.lua` | The secret value check (`ns.IsSecret`) and which features are on (`ns.supported`) |
 | `Defaults.lua` | Which unit frames exist (`ns.units`) and every setting's default (`ns.settingsDefaults`) |
 | `Core.lua` | Saved variables, the apply-settings entry points, startup, slash commands |
 | `Media.lua`, `Colors.lua` | Textures, borders and fonts by name (with LibSharedMedia); palettes and color lookup |
@@ -59,7 +50,7 @@ Files load in TOC order and share one namespace table, `ns` (the
 | `Frames.lua` | The unit frames and their arrangement |
 | `ActionBars.lua`, `Buffs.lua`, `Nameplates.lua`, `StatusBars.lua`, `Chat.lua`, `MenuBar.lua`, `Minimap.lua`, `Tooltip.lua` | Restyling or replacing parts of Blizzard's UI |
 | `Vendor.lua` | Auto-repair and selling grey items at vendors |
-| `InfoBar.lua`, `Meter.lua` | The info bar with its readouts, and the damage meter |
+| `InfoBar.lua` | The info bar with its readouts |
 | `Config.lua` | The settings pages |
 
 ## Conventions
@@ -77,20 +68,16 @@ The header of `Core.lua` has the full list; in short:
   changed at any time.
 - Blizzard frames are hidden with `ns.SetHidden`, which can undo it, and
   hooked with `hooksecurefunc`, never replaced, to avoid tainting them.
-- Event-heavy code (auras, the combat log, nameplates) avoids creating
+- Event-heavy code (auras, nameplates) avoids creating
   tables or closures per event.
 - Fields KUI adds to Blizzard's frames are prefixed `kui` (`btn.kuiBorder`).
 - Comments explain why, and anything a caller has to know first.
 
 ## Common changes
 
-**Porting a feature to forever**
-1. Make the module work with the forever client's APIs, branching on
-   `ns.isForever` (or `ns.hasSecrets`) only where the clients really
-   differ, and keeping the TBC path as it is.
-2. Add it to the `FOREVER` list in `Compat.lua`, which turns it on in
-   `ns.supported` there. A part of a feature that can't work on forever
-   gets its own feature name (like `spellranks`) instead.
+**Turning a feature on**
+1. Make the module work with the client's APIs.
+2. Set it to `true` in `ns.supported` in `Compat.lua`.
 3. Its settings sections show up automatically: `b.Section(text, feature)`
    in `Config.lua` hides a section when its feature is off.
 

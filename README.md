@@ -1,17 +1,12 @@
 # KUI
 
-A clean, minimal UI replacement for World of Warcraft: The Burning Crusade
-Anniversary.
+A clean, minimal UI replacement for WoW forever.
 
-Support for WoW "forever" is under way, with features switched on as
-they're ported. So far: the unit frames (with their cast bars, auras and
-incoming heals), the info bar, tooltips, vendor repair and grey selling,
-chat buttons, the whole-UI font, bag and menu buttons, and the buff and
-action button styling, the XP/reputation bars and the square minimap.
-Nameplates are still TBC only. The damage meter stays TBC only: forever has its own, which you turn
-on under Options → Advanced and place with Edit Mode.
+Nameplates aren't ported to this client yet, so those are Blizzard's for now.
+For a damage meter, use Blizzard's: turn it on under Options → Advanced and
+place it with Edit Mode.
 
-Forever hides some combat details from addons, so there a few things show
+The client hides some combat details from addons, so a few things show
 less: no cast pushback, no aggro border or PvP flag while they're hidden,
 and class colors fall back to reaction colors in PvP.
 
@@ -39,12 +34,11 @@ and class colors fall back to reaction colors in PvP.
 - Pushback shown in red beside the time: how much later a cast will finish
   (+0.5s), or how much was cut off a channel (-0.5s)
 
-## Nameplates
+## Nameplates (not ported yet)
 
 - Restyled to match the unit frames, with name and health percentage
 - Threat border and threat percentage while you're on a mob's threat list
-- Your own debuffs above enemy plates, plus the buffs your class can dispel
-  or purge
+- Your own debuffs above enemy plates
 - Your own buffs above friendly plates
 - Cast bar under the plate while the unit is casting
 
@@ -114,24 +108,6 @@ and class colors fall back to reaction colors in PvP.
 
 - Optionally hides the button column beside the chat windows
 
-## Damage meter
-
-- Damage and healing for everyone in your group, current fight or overall;
-  overkill on killing blows doesn't count
-- Pets, totems and summons count toward their owner
-- Healing counts only what landed, plus damage absorbed by shields;
-  overhealing has its own view, with how much of each player's and each
-  spell's healing was wasted
-- Totals and per-second numbers on class-colored bars
-- The current fight is named after the enemy you hit hardest; hover the
-  title for every enemy in it
-- Click a player's bar to split their total by spell, with their pets'
-  spells listed separately; each spell has its icon and a bar colored by
-  its school (fire, shadow, ...). Right-click to go back
-- Click the title to switch views, drag it to move
-- Resets itself when you enter a different instance (optional); the Reset
-  button asks first
-
 ## Customization
 
 Open the settings with `/kui`, or go to Options → AddOns → KUI.
@@ -146,7 +122,7 @@ Open the settings with `/kui`, or go to Options → AddOns → KUI.
   background opacity, with LibSharedMedia textures and fonts supported
 - Frame widths and heights, positions and spacing, power and cast bar heights
 - Color palettes (Default and Muted), plus per-color overrides for classes,
-  reactions, power types, cast bars, heals, threat and spell schools
+  reactions, power types, cast bars, heals and threat
 - Every feature can be switched on or off individually
 - `/kui preview` shows every frame with placeholder contents so you can
   arrange the layout outside a group

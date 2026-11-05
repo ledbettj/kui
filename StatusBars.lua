@@ -17,10 +17,7 @@ local bars = {}
 ---------------------------------------------------------------------------
 
 local function CanShowXP()
-	if GameRulesUtil and GameRulesUtil.CanShowExperienceBar then
-		return GameRulesUtil.CanShowExperienceBar()
-	end
-	return not IsPlayerAtEffectiveMaxLevel() and not IsXPUserDisabled()
+	return GameRulesUtil.CanShowExperienceBar()
 end
 
 local function WatchedFaction()

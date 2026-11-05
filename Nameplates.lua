@@ -2,7 +2,7 @@ local addonName, ns = ...
 
 -- Nameplates in the unit frame style: a health bar with name and percent,
 -- a threat-colored border and threat % while the player has aggro,
--- the player's own debuffs and buffs (purgeable ones on enemies) above,
+-- the player's own debuffs (and buffs on friendly units) above,
 -- and a cast bar below that only shows while casting. KUI's frame sits on
 -- Blizzard's nameplate base; the Blizzard unit frame stays alive but fully
 -- transparent, so its own logic (and click handling on the base) is
@@ -154,7 +154,7 @@ local function CreatePlate(base)
 	kp.threatText:SetPoint("RIGHT", kp, "LEFT", -4, 0)
 	kp.threatText:Hide()
 
-	-- Own debuffs and buffs, plus enemy buffs the player can purge, above
+	-- Own debuffs, plus own buffs on friendly units, above
 	ns.CreateAuras(kp, "nameplate")
 	kp.auras:SetPoint("BOTTOMLEFT", kp, "TOPLEFT", 0, 3)
 

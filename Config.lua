@@ -328,17 +328,6 @@ local function SetBuffScale(key, value)
 	ns:StyleBuffs()
 end
 
-local function SetMeter(key, value)
-	ns.db.meter[key] = value
-	if key == "enabled" then
-		ns:ApplyMeter()
-	elseif key == "texture" then
-		ns:StyleMeter()
-	else
-		ns:LayoutMeter()
-	end
-end
-
 local function SetInfoBar(key, value)
 	ns.db.infobar[key] = value
 	ns:LayoutInfoBar()
@@ -348,9 +337,6 @@ end
 local function SetUIFont(key, value)
 	ns.db.uifont[key] = value
 	ns:ApplyUIFont()
-	if not ns.hasSecrets then
-		ns.Print("names over heads and combat text change after a relog.")
-	end
 end
 
 local function SetMinimap(key, value)
@@ -585,7 +571,7 @@ local function BuildUnitFrames(b)
 end
 
 local function BuildColors(b)
-	b.Section("Palette", { "unitframes", "nameplates", "meter" })
+	b.Section("Palette", { "unitframes", "nameplates" })
 	b.Dropdown("Palette", function() return ns.paletteOrder end,
 		function() return ns.db.colors.palette end, SetPalette)
 
@@ -618,11 +604,6 @@ local function BuildColors(b)
 	for _, key in ipairs(ns.threatOrder) do
 		b.ColorRow("threat", key, THREAT_LABELS[key])
 	end
-
-	b.Section("Spell schools (meter breakdown)", "meter")
-	for _, key in ipairs(ns.schoolOrder) do
-		b.ColorRow("school", key, key:sub(1, 1):upper() .. key:sub(2))
-	end
 end
 
 local function BuildNameplates(b)
@@ -647,9 +628,7 @@ local function BuildActionBars(b)
 	b.Checkbox("Show keybinds", Bind("actionbars", "showHotkeys", SetActionBars))
 	b.Checkbox("Show macro names", Bind("actionbars", "showMacroNames", SetActionBars))
 	b.Checkbox("Red icons out of range", Bind("actionbars", "rangeColor", SetActionBars))
-	b.Feature("spellranks")
 	b.Checkbox("Mark lower-rank spells", Bind("actionbars", "markLowRank", SetActionBars))
-	b.Feature(nil)
 	b.Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
 
 	b.Section("Bags & menu", "menubar")
@@ -695,15 +674,6 @@ local function BuildOther(b)
 
 	b.Section("Chat", "chat")
 	b.Checkbox("Hide chat buttons", Bind("chat", "hideButtons", SetChat))
-
-	b.Section("Damage meter", "meter")
-	b.Checkbox("Show damage meter", Bind("meter", "enabled", SetMeter))
-	b.Slider("Width", 120, 400, 2, Bind("meter", "width", SetMeter))
-	b.Slider("Rows", 1, 25, 1, Bind("meter", "rows", SetMeter))
-	b.Slider("Row height", 8, 24, 1, Bind("meter", "rowHeight", SetMeter))
-	b.Dropdown("Texture", StatusbarList, Bind("meter", "texture", SetMeter))
-	b.Checkbox("Reset on entering a new instance", Bind("meter", "autoReset", SetMeter))
-	b.Button("Reset meter data", function() ns:ConfirmResetMeter() end)
 end
 
 ---------------------------------------------------------------------------
@@ -812,12 +782,11 @@ local PAGES = {
 	{ name = "Colors", build = BuildColors,
 		description = "Choosing a palette clears individual overrides; Reset returns a row to the palette." },
 	{ name = "Nameplates", build = BuildNameplates,
-		description = "Enemy plates show your debuffs and buffs you can purge; friendly plates your own buffs." },
+		description = "Enemy plates show your debuffs; friendly plates your own buffs." },
 	{ name = "Action Bars & Buffs", build = BuildActionBars,
 		description = "Cosmetic only: positions and sizes stay with Edit Mode." },
 	{ name = "Other", build = BuildOther,
-		description = "XP/reputation bars, info bar, tooltips, vendors, minimap, chat window tweaks "
-			.. "and the damage meter." },
+		description = "XP/reputation bars, info bar, tooltips, vendors, minimap and chat window tweaks." },
 	{ name = "Profiles", build = BuildProfiles,
 		description = "Profiles are shared by all your characters, and each character uses one. "
 			.. "New characters start on Default; make a new profile to give one its own settings." },

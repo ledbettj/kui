@@ -11,7 +11,7 @@ local addonName, ns = ...
 -- file handles the spellcast events. OnUpdate only runs while a cast is in
 -- progress or a failure is being held on screen.
 --
--- Forever can keep a cast's times, name and ID secret (cb.secret). Then a
+-- The client can keep a cast's times, name and ID secret (cb.secret). Then a
 -- duration object drives the bar (StatusBar:SetTimerDuration) and the
 -- remaining time, the spark rides the fill's edge instead of being placed
 -- by math, events match the cast without comparing IDs, and pushback isn't
@@ -34,7 +34,7 @@ local function SetSpark(cb, fraction)
 	cb.spark:Show()
 end
 
--- Forever: replaces a running timer, which nothing else stops
+-- Replaces a running timer, which nothing else stops
 local function StopTimer(cb)
 	if cb.secret then
 		cb.status:SetTimerDuration(C_DurationUtil.CreateDuration())
@@ -72,14 +72,13 @@ end
 -- crafted item's icon is what the profession window shows. Name lookup only
 -- resolves items the client has cached, which crafted items usually are.
 local function TradeSkillIcon(name, fallback)
-	local getInfo = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
-	local _, _, _, _, icon = getInfo(name)
+	local _, _, _, _, icon = C_Item.GetItemInfoInstant(name)
 	return icon or fallback
 end
 
 -- castID: for channels, the GUID from the CHANNEL_START event, since
 -- UnitChannelInfo doesn't return one
--- Forever: the bar and spark for a cast whose times are secret
+-- The bar and spark for a cast whose times are secret
 local function StartSecret(cb, isChannel)
 	local duration
 	if isChannel then
@@ -147,7 +146,7 @@ local function Fail(cb, text)
 	cb:SetScript("OnUpdate", OnUpdate)
 end
 
--- Forever, secret cast: the bar fills itself; only the time text needs
+-- Secret cast: the bar fills itself; only the time text needs
 -- updating. STOP/CHANNEL_STOP end it.
 local function UpdateSecret(cb)
 	cb.time:SetFormattedText("%.1f", cb.duration:GetRemainingDuration())

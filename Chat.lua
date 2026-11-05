@@ -2,8 +2,8 @@ local addonName, ns = ...
 
 -- Hides the button column beside each chat window (scroll up/down/bottom,
 -- plus the chat menu, channel and friends buttons that live in
--- ChatFrame1's column), the text-to-speech button and, on forever, the
--- separate social button.
+-- ChatFrame1's column), the text-to-speech button and the separate social
+-- button.
 
 local SetHidden = ns.SetHidden
 
@@ -15,7 +15,7 @@ function ns:ApplyChat()
 		if chatFrame then SetHidden(chatFrame.buttonFrame, hidden) end
 	end
 	SetHidden(TextToSpeechButtonFrame, hidden)
-	SetHidden(QuickJoinToastButton, hidden) -- nil on TBC
+	SetHidden(QuickJoinToastButton, hidden)
 end
 
 function ns:InitChat()

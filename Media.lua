@@ -5,14 +5,13 @@ local addonName, ns = ...
 -- SharedMedia packs see those too.
 
 local MODERN_ATLAS = "UI-HUD-CoolDownManager-Bar"
-local HAS_MODERN = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(MODERN_ATLAS) ~= nil
 local DEFAULT_BAR = "Interface\\TargetingFrame\\UI-StatusBar"
 
 -- The first entry of each kind is the fallback for unknown names
 local media = {
 	statusbar = {
 		-- Modern nameplate art; shading is baked in and tinted via vertex color
-		{ name = "Modern", atlas = HAS_MODERN and MODERN_ATLAS or nil, path = DEFAULT_BAR },
+		{ name = "Modern", atlas = MODERN_ATLAS, path = DEFAULT_BAR },
 		{ name = "Blizzard", path = DEFAULT_BAR },
 		{ name = "Blizzard Classic", path = "Interface\\TargetingFrame\\UI-TargetingFrame-BarFill" },
 		{ name = "Skills", path = "Interface\\PaperDollInfoFrame\\UI-Character-Skills-Bar" },
