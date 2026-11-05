@@ -27,6 +27,7 @@ read_globals = {
 
 	-- Which client this is (Compat.lua)
 	"WOW_PROJECT_ID", "WOW_PROJECT_BURNING_CRUSADE_CLASSIC", "WOW_PROJECT_CAMELOT", "issecretvalue",
+	"geterrorhandler",
 
 	-- Namespaced APIs and enums
 	"C_CombatLog", "C_Container", "C_Map", "C_NamePlate", "C_PartyInfo",

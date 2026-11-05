@@ -156,7 +156,9 @@ local function XPPerHour()
 end
 
 local function AtMaxLevel()
-	return IsPlayerAtEffectiveMaxLevel() or (IsXPUserDisabled and IsXPUserDisabled())
+	-- Forever only has this under GameRulesUtil; TBC has the global
+	local atMax = GameRulesUtil and GameRulesUtil.IsPlayerAtEffectiveMaxLevel or IsPlayerAtEffectiveMaxLevel
+	return atMax() or (IsXPUserDisabled and IsXPUserDisabled())
 end
 
 ---------------------------------------------------------------------------

@@ -313,6 +313,15 @@ local LOGIN_INITS = {
 	{ "vendor", "InitVendor" },
 }
 
+-- Runs one startup step so a failure can't take the later steps down with
+-- it. Says so in chat too, since script errors are hidden by default.
+local function Try(label, fn)
+	return xpcall(fn, function(err)
+		ns.Print(label .. " failed: " .. tostring(err))
+		geterrorhandler()(err)
+	end)
+end
+
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:RegisterEvent("PLAYER_LOGIN")
@@ -322,24 +331,33 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == addonName then
 		self:UnregisterEvent("ADDON_LOADED")
 		InitDB()
-		ns:UpdateFonts()
-		if ns.supported.uifont then ns:InitWorldFonts() end
+		Try("Fonts", function()
+			ns:UpdateFonts()
+			if ns.supported.uifont then ns:InitWorldFonts() end
+		end)
 		if ns.supported.unitframes then
-			HideBlizzard()
+			local allCreated = true
 			for _, unit in ipairs(ns.unitOrder) do
-				ns.frames[unit] = ns:CreateUnitFrame(unit, ns.units[unit])
+				local ok = Try(unit .. " frame", function()
+					ns.frames[unit] = ns:CreateUnitFrame(unit, ns.units[unit])
+				end)
+				allCreated = allCreated and ok
 			end
+			-- Keep Blizzard's frames rather than risk having none
+			if allCreated then Try("Hiding Blizzard's frames", HideBlizzard) end
 		end
-		ns:ApplyLayout()
-		ns:InitConfig()
+		Try("Layout", function() ns:ApplyLayout() end)
+		Try("Settings", function() ns:InitConfig() end)
 	elseif event == "PLAYER_LOGIN" then
 		-- Blizzard's action buttons, nameplate driver and status bars exist by
 		-- now. Styling again also picks up saved media from LibSharedMedia
 		-- packs that registered after us.
 		for _, entry in ipairs(LOGIN_INITS) do
-			if ns.supported[entry[1]] then ns[entry[2]](ns) end
+			if ns.supported[entry[1]] then
+				Try(entry[2], function() ns[entry[2]](ns) end)
+			end
 		end
-		ns:ApplyStyle()
+		Try("ApplyStyle", function() ns:ApplyStyle() end)
 	elseif event == "PLAYER_REGEN_DISABLED" then
 		-- Fires just before lockdown, the last chance to restore secure
 		-- visibility drivers

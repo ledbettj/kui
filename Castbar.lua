@@ -72,7 +72,8 @@ end
 -- crafted item's icon is what the profession window shows. Name lookup only
 -- resolves items the client has cached, which crafted items usually are.
 local function TradeSkillIcon(name, fallback)
-	local _, _, _, _, icon = GetItemInfoInstant(name)
+	local getInfo = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
+	local _, _, _, _, icon = getInfo(name)
 	return icon or fallback
 end
 
