@@ -41,7 +41,7 @@ function ns.CreateHealPrediction(f)
 		f.health:SetClipsChildren(true)
 		local calc = CreateUnitHealPredictionCalculator()
 		calc:SetIncomingHealClampMode(Enum.UnitIncomingHealClampMode.MissingHealth)
-		calc:SetIncomingHealOverflowPercent(0)
+		calc:SetIncomingHealOverflowPercent(1) -- a multiplier: 1 stops at full health, 0 hides all heals
 		f.healCalculator = calc
 	end
 end
