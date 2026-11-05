@@ -17,6 +17,9 @@ local media = {
 		{ name = "Blizzard Classic", path = "Interface\\TargetingFrame\\UI-TargetingFrame-BarFill" },
 		{ name = "Skills", path = "Interface\\PaperDollInfoFrame\\UI-Character-Skills-Bar" },
 		{ name = "Flat", path = "Interface\\Buttons\\WHITE8X8" },
+		-- From WeakAuras (GPLv2, see Media/LICENSE-WeakAuras), bundled so it
+		-- works without that addon
+		{ name = "Clean", path = "Interface\\AddOns\\" .. addonName .. "\\Media\\Statusbar_Clean" },
 	},
 	-- insetScale: how far inside the edge the border art ends, as a fraction
 	-- of edge size (rounded tooltip art has transparent padding)
