@@ -8,7 +8,9 @@ local addonName, ns = ...
 -- On forever the bag buttons sit in BagsBar, which lays the shown ones out
 -- in a row with dividers between them. Reparenting a button away (as on
 -- TBC) would leave its divider floating, so there the buttons are hidden,
--- kept hidden, and the bar laid out again; "None" hides the whole bar.
+-- kept hidden, and the bar laid out again; "None" hides the whole bar. The
+-- bar's width counts hidden buttons too, so it's trimmed to stop its border
+-- art framing the empty slots.
 
 ns.bagOptions = { "All", "Backpack only", "None" }
 
@@ -46,7 +48,24 @@ local function SetBagButtonHidden(btn, hidden)
 	end
 end
 
+-- Hooks SetSize, not Layout: Blizzard's callbacks kept the original Layout
+-- and would skip a hook on it
+local function TrimBagsBar(bar)
+	if ns.db.menubar.bags ~= "Backpack only" then return end
+	if bar:IsHorizontal() then
+		bar:SetWidth(MainMenuBarBackpackButton:GetWidth())
+	else
+		bar:SetHeight(MainMenuBarBackpackButton:GetHeight())
+	end
+end
+
+local bagsBarHooked = false
+
 local function ApplyBagsBar(M)
+	if not bagsBarHooked then
+		hooksecurefunc(BagsBar, "SetSize", TrimBagsBar)
+		bagsBarHooked = true
+	end
 	ns.SetHidden(BagsBar, M.bags == "None")
 	for _, name in ipairs(BAG_SLOTS) do
 		local btn = _G[name]
