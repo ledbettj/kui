@@ -155,7 +155,7 @@ local function CreateStatusBar(withRested)
 	end
 
 	-- Numbers only on hover, to keep the screen edge quiet
-	bar.text = ns.CreateText(bar.status, ns.fonts.small, "CENTER")
+	bar.text = ns.CreateText(bar.status, ns.fonts.barSmall, "CENTER")
 	bar.text:SetPoint("CENTER")
 	bar.text:Hide()
 	bar:SetScript("OnEnter", function(self) self.text:Show() end)

@@ -17,10 +17,10 @@ ns.unitOrder = {
 
 -- Per-unit build options. Frames are positioned by ns:ApplyPositions from
 -- the layout settings rather than individually.
---   w, h               default width (configurable) and fixed height
+--   w, h               default width (configurable) and base height
 --   power              has a power bar
 --   powerFromSettings  power bar height comes from style.powerHeight
---   powerHeight        fixed power bar height (else a quarter of h)
+--   powerHeight        base power bar height (else a quarter of h)
 --   portrait           3D portrait on the left
 --   auras              aura layout key (see LAYOUTS in Auras.lua)
 --   castbar            cast bar row inside the frame
@@ -67,7 +67,10 @@ end
 ns.settingsDefaults = {
 	style = {
 		font = "Arial Narrow",
-		fontSize = 11,
+		fontSize = 11, -- anything without its own size below
+		nameFontSize = 11, -- unit frame names; small frames use 2 less
+		barFontSize = 11, -- health numbers; small frames and other bar text use 2 less
+		infobarFontSize = 11,
 		healthTexture = "Modern",
 		powerTexture = "Modern",
 		border = "Rounded",
@@ -75,7 +78,8 @@ ns.settingsDefaults = {
 		borderColor = { 0.5, 0.5, 0.5 },
 		bgAlpha = 0.8,
 		padding = 1, -- gap between the border and the bars/portrait
-		powerHeight = 10, -- player/target only; party and pet keep fixed sizes
+		powerHeight = 10, -- player/target only; party and pet follow frameHeightScale
+		frameHeightScale = 1, -- unit frame heights, and the party and pet power bars
 		outOfRangeAlpha = 0.45, -- party members out of range
 		-- Background of empty power bars and idle cast bars
 		emptyColor = { 0, 0, 0 },

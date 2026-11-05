@@ -356,13 +356,13 @@ function ns:CreateCastbar(f)
 	cb.spark:SetBlendMode("ADD")
 
 	cb.text = cb.status:CreateFontString(nil, "OVERLAY")
-	cb.text:SetFontObject(ns.fonts.small)
+	cb.text:SetFontObject(ns.fonts.barSmall)
 	cb.text:SetPoint("LEFT", 3, 0)
 	cb.text:SetJustifyH("LEFT")
 	cb.text:SetWordWrap(false)
 
 	cb.time = cb.status:CreateFontString(nil, "OVERLAY")
-	cb.time:SetFontObject(ns.fonts.small)
+	cb.time:SetFontObject(ns.fonts.barSmall)
 	cb.time:SetPoint("RIGHT", -3, 0)
 	cb.text:SetPoint("RIGHT", cb.time, "LEFT", -3, 0)
 

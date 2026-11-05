@@ -260,7 +260,7 @@ end
 -- bars sit) need a relayout; the rest are a restyle
 local STYLE_LAYOUT_KEYS = {
 	border = true, borderSize = true, borderColor = true, padding = true,
-	bgAlpha = true, powerHeight = true,
+	bgAlpha = true, powerHeight = true, frameHeightScale = true,
 }
 
 local function SetStyle(key, value)
@@ -515,7 +515,13 @@ local function BuildGeneral(b)
 	b.Checkbox("Use one font for the whole UI", Bind("uifont", "enabled", SetUIFont))
 	b.Dropdown("Whole UI font", FontList, Bind("uifont", "font", SetUIFont))
 	b.Feature(nil)
-	b.Slider("Font size", 8, 16, 1, Bind("style", "fontSize", SetStyle))
+	b.Slider("Font size", 8, 20, 1, Bind("style", "fontSize", SetStyle))
+	b.Feature("unitframes")
+	b.Slider("Unit names", 8, 20, 1, Bind("style", "nameFontSize", SetStyle))
+	b.Slider("Bar text (health, power, cast, XP)", 8, 20, 1, Bind("style", "barFontSize", SetStyle))
+	b.Feature("infobar")
+	b.Slider("Info bar", 8, 20, 1, Bind("style", "infobarFontSize", SetStyle))
+	b.Feature(nil)
 
 	b.Section("Bar textures")
 	b.Dropdown("Health bar", StatusbarList, Bind("style", "healthTexture", SetStyle))
@@ -550,6 +556,7 @@ local function BuildUnitFrames(b)
 				end)
 		end
 	end
+	b.Slider("Frame height (%)", 100, 200, 5, Bind("style", "frameHeightScale", SetStyle, true))
 	b.Slider("Power bar height (player/target)", 2, 20, 1, Bind("style", "powerHeight", SetStyle))
 
 	b.Section("Party", "unitframes")

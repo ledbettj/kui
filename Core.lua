@@ -63,6 +63,12 @@ local function InitProfile(db)
 		db.menubar.bags = db.menubar.singleBag and "Backpack only" or "All"
 		db.menubar.singleBag = nil
 	end
+	if db.style and db.style.fontSize then -- one size before names, bars and info bar had their own
+		local S = db.style
+		S.nameFontSize = S.nameFontSize or S.fontSize
+		S.barFontSize = S.barFontSize or S.fontSize
+		S.infobarFontSize = S.infobarFontSize or S.fontSize
+	end
 
 	db.widths = db.widths or {}
 	for section, defaults in pairs(ns.settingsDefaults) do

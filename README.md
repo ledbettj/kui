@@ -141,9 +141,10 @@ Open the settings with `/kui`, or go to Options → AddOns → KUI.
   profile, copy settings from another one, or switch at any time
 - One font for the whole Blizzard UI (Arial Narrow by default), keeping
   each text's own size
-- Fonts, font size, bar textures, border style, size and color, and
+- Fonts, font sizes (names, bar text and the info bar have their own),
+  bar textures, border style, size and color, and
   background opacity, with LibSharedMedia textures and fonts supported
-- Frame widths, positions and spacing, power and cast bar heights
+- Frame widths and heights, positions and spacing, power and cast bar heights
 - Color palettes (Default and Muted), plus per-color overrides for classes,
   reactions, power types, cast bars, heals, threat and spell schools
 - Every feature can be switched on or off individually

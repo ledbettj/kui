@@ -88,14 +88,25 @@ ns.fonts = {
 	normal = NewFont("KUIFontNormal"),
 	small = NewFont("KUIFontSmall"),
 	aura = NewFont("KUIFontAura"), -- stack counts
+	name = NewFont("KUIFontName"),
+	nameSmall = NewFont("KUIFontNameSmall"),
+	bar = NewFont("KUIFontBar"),
+	barSmall = NewFont("KUIFontBarSmall"),
+	infobar = NewFont("KUIFontInfoBar"),
 }
 
 function ns:UpdateFonts()
 	local path = ns:GetFontPath(ns.db.style.font)
-	local size = ns.db.style.fontSize
+	local S = ns.db.style
+	local size = S.fontSize
 	ns.fonts.normal:SetFont(path, size, "")
 	ns.fonts.small:SetFont(path, size - 2, "")
 	ns.fonts.aura:SetFont(path, size - 2, "")
+	ns.fonts.name:SetFont(path, S.nameFontSize, "")
+	ns.fonts.nameSmall:SetFont(path, S.nameFontSize - 2, "")
+	ns.fonts.bar:SetFont(path, S.barFontSize, "")
+	ns.fonts.barSmall:SetFont(path, S.barFontSize - 2, "")
+	ns.fonts.infobar:SetFont(path, S.infobarFontSize, "")
 end
 
 -- Single-line fontstring on the OVERLAY layer

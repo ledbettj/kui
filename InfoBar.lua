@@ -663,7 +663,7 @@ function ns:InitInfoBar()
 	for id in pairs(ns.readouts) do
 		local button = CreateFrame("Button", nil, bar)
 		button.id = id
-		button.text = ns.CreateText(button, ns.fonts.normal, "LEFT")
+		button.text = ns.CreateText(button, ns.fonts.infobar, "LEFT")
 		button.text:SetPoint("LEFT")
 		button:RegisterForClicks("LeftButtonUp")
 		button:SetScript("OnEnter", ShowTooltip)

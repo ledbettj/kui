@@ -160,6 +160,9 @@ local function CreatePlate(base)
 
 	-- Cast bar below, hidden when idle
 	kp.castbar = ns:CreateDetachedCastbar(kp)
+	-- Plates have their own bar sizes, so not the unit frames' bar text size
+	kp.castbar.text:SetFontObject(ns.fonts.small)
+	kp.castbar.time:SetFontObject(ns.fonts.small)
 
 	base.kui = kp
 	LayoutPlate(kp)

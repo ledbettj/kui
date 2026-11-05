@@ -133,27 +133,30 @@ end
 -- frames skip the level unless they opt in with self.showLevel.
 function ns.UpdateName(self)
 	local unit = self.unit
-	local name = UnitName(unit)
+	local name, surname = UnitName(unit)
 	if not IsSecret(name) then name = name or "" end
-
-	if unit == "player" or (self.small and not self.showLevel) then
-		self.nameText:SetText(name)
-		return
+	-- Forever's second value is a surname; TBC's is a realm. Either may be a
+	-- secret, which formatting accepts but concatenating doesn't.
+	local separator = ""
+	if not ns.isForever or (not IsSecret(surname) and (surname == nil or surname == "")) then
+		surname = ""
+	else
+		separator = Constants.CharacterNameSeparatorConsts.CHARACTERNAME_SURNAME_SEPARATOR
 	end
 
+	local levelText = ""
 	local level = UnitLevel(unit)
-	if IsSecret(level) then
-		self.nameText:SetText(name)
-		return
+	if unit ~= "player" and (self.showLevel or not self.small) and not IsSecret(level) then
+		local c = GetQuestDifficultyColor and GetQuestDifficultyColor(level > 0 and level or 99)
+		local hex = c and format("|cff%02x%02x%02x", c.r * 255, c.g * 255, c.b * 255) or "|cffffffff"
+		local classification = UnitClassification(unit)
+		local suffix = (classification == "elite" or classification == "worldboss") and "+"
+			or (classification == "rare" or classification == "rareelite") and "r"
+			or ""
+		levelText = format("%s%s%s|r ", hex, level > 0 and level or "??", suffix)
 	end
-	local c = GetQuestDifficultyColor and GetQuestDifficultyColor(level > 0 and level or 99)
-	local hex = c and format("|cff%02x%02x%02x", c.r * 255, c.g * 255, c.b * 255) or "|cffffffff"
-	local classification = UnitClassification(unit)
-	local suffix = (classification == "elite" or classification == "worldboss") and "+"
-		or (classification == "rare" or classification == "rareelite") and "r"
-		or ""
 
-	self.nameText:SetFormattedText("%s%s%s|r %s", hex, level > 0 and level or "??", suffix, name)
+	self.nameText:SetFormattedText("%s%s%s%s", levelText, name, separator, surname)
 end
 
 -- 3D model of the unit; cleared while it's out of visual range, where the
@@ -335,11 +338,15 @@ function ns:StyleFrame(f)
 	UpdateAll(f)
 end
 
+local function ScaledHeight(height)
+	return math.floor(height * ns.db.style.frameHeightScale + 0.5)
+end
+
 local function PowerHeight(cfg)
 	if cfg.powerFromSettings then
 		return ns.db.style.powerHeight
 	elseif cfg.power then
-		return cfg.powerHeight or math.floor(cfg.h * 0.25)
+		return ScaledHeight(cfg.powerHeight or math.floor(cfg.h * 0.25))
 	end
 	return 0
 end
@@ -354,7 +361,7 @@ local function LayoutContents(f)
 
 	-- 3D portrait, square, filling the inner height on the left
 	if f.portrait then
-		local size = cfg.h - inset * 2
+		local size = ScaledHeight(cfg.h) - inset * 2
 		f.portrait:ClearAllPoints()
 		f.portrait:SetPoint("TOPLEFT", inset, -inset)
 		f.portrait:SetSize(size, size)
@@ -393,7 +400,7 @@ end
 -- Resizes a secure frame; ns:ApplyLayout handles combat deferral
 function ns:LayoutFrame(f)
 	local w = ns:GetWidth(f.unit)
-	f:SetWidth(w)
+	f:SetSize(w, ScaledHeight(f.cfg.h))
 	LayoutContents(f)
 	-- Segment widths are in pixels of the health bar
 	ns.UpdateHealPrediction(f)
@@ -429,16 +436,15 @@ local function CreateAuras(f, cfg)
 end
 
 local function CreateTexts(f)
-	local font = f.small and ns.fonts.small or ns.fonts.normal
-	f.nameText = ns.CreateText(f.health, font, "LEFT")
+	f.nameText = ns.CreateText(f.health, f.small and ns.fonts.nameSmall or ns.fonts.name, "LEFT")
 	f.nameText:SetPoint("LEFT", ns.NAME_INSET, 0)
-	f.healthText = ns.CreateText(f.health, font, "RIGHT")
+	f.healthText = ns.CreateText(f.health, f.small and ns.fonts.barSmall or ns.fonts.bar, "RIGHT")
 	f.healthText:SetPoint("RIGHT", -4, 0)
 	f.nameText:SetPoint("RIGHT", f.healthText, "LEFT", -4, 0)
 
 	-- Player power numbers, right-aligned under the health numbers
 	if f.unit == "player" and f.power then
-		f.powerText = ns.CreateText(f.power, ns.fonts.small, "RIGHT")
+		f.powerText = ns.CreateText(f.power, ns.fonts.barSmall, "RIGHT")
 		f.powerText:SetPoint("RIGHT", -4, 0)
 	end
 end
@@ -463,8 +469,8 @@ function ns:CreateUnitFrame(unit, cfg)
 	f.unit = unit
 	f.cfg = cfg
 	f.label = cfg.label
-	f.small = cfg.h < 30
-	f:SetHeight(cfg.h)
+	f.small = cfg.h < 30 -- by frame type: scaling its height doesn't change this
+	f:SetHeight(ScaledHeight(cfg.h))
 
 	-- Secure click handling: left = target, right = unit menu
 	f:SetAttribute("unit", unit)
