@@ -57,9 +57,16 @@ local function StyleButton(b)
 end
 
 function ns:StyleBuffs()
+	if not next(buttons) then return end -- restyling is off
 	for b in pairs(buttons) do
 		StyleButton(b)
 	end
+	if InCombatLockdown() then
+		ns.pendingLayout = true -- ns:ApplyLayout restyles these when combat ends
+		return
+	end
+	BuffFrame:SetScale(ns.db.buffs.scale)
+	DebuffFrame:SetScale(ns.db.buffs.scale)
 end
 
 -- Only when enabled at login (see the lifecycle notes in Core.lua)

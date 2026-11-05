@@ -80,6 +80,7 @@ ns.settingsDefaults = {
 		padding = 1, -- gap between the border and the bars/portrait
 		powerHeight = 10, -- player/target only; party and pet follow frameHeightScale
 		frameHeightScale = 1, -- unit frame heights, and the party and pet power bars
+		auraScale = 1, -- buff and debuff icons on unit frames
 		outOfRangeAlpha = 0.45, -- party members out of range
 		-- Background of empty power bars and idle cast bars
 		emptyColor = { 0, 0, 0 },
@@ -165,6 +166,7 @@ ns.settingsDefaults = {
 	-- Edit Mode)
 	buffs = {
 		enabled = true,
+		scale = 1, -- the buff and debuff frames at the top right
 	},
 
 	aggro = {

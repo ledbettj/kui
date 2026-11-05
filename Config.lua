@@ -260,7 +260,7 @@ end
 -- bars sit) need a relayout; the rest are a restyle
 local STYLE_LAYOUT_KEYS = {
 	border = true, borderSize = true, borderColor = true, padding = true,
-	bgAlpha = true, powerHeight = true, frameHeightScale = true,
+	bgAlpha = true, powerHeight = true, frameHeightScale = true, auraScale = true,
 }
 
 local function SetStyle(key, value)
@@ -321,6 +321,11 @@ end
 local function SetBuffs(key, value)
 	ns.db.buffs[key] = value
 	NeedsReload("buff bar styling")
+end
+
+local function SetBuffScale(key, value)
+	ns.db.buffs[key] = value
+	ns:StyleBuffs()
 end
 
 local function SetMeter(key, value)
@@ -557,6 +562,7 @@ local function BuildUnitFrames(b)
 		end
 	end
 	b.Slider("Frame height (%)", 100, 200, 5, Bind("style", "frameHeightScale", SetStyle, true))
+	b.Slider("Buff and debuff icons (%)", 50, 200, 5, Bind("style", "auraScale", SetStyle, true))
 	b.Slider("Power bar height (player/target)", 2, 20, 1, Bind("style", "powerHeight", SetStyle))
 
 	b.Section("Party", "unitframes")
@@ -652,6 +658,7 @@ local function BuildActionBars(b)
 
 	b.Section("Buff bar", "buffs")
 	b.Checkbox("Restyle buff bar", Bind("buffs", "enabled", SetBuffs))
+	b.Slider("Size (%)", 50, 200, 5, Bind("buffs", "scale", SetBuffScale, true))
 end
 
 local function BuildOther(b)

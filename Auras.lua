@@ -12,15 +12,16 @@ local addonName, ns = ...
 
 local SPACING = 2
 
--- size: icon size. growUp: rows stack upward from the container's bottom
--- edge (otherwise downward from its top). perRow: fixed icons per row,
+-- size: icon size. scales: follows the unit frame aura size setting. growUp:
+-- rows stack upward from the container's bottom edge (otherwise downward from
+-- its top). perRow: fixed icons per row,
 -- else as many as fit the owner's width. debuffFilter: defaults to all
 -- harmful auras. buffsByReaction: on enemies, only buffs the player's class
 -- can remove; on friendly units, only the player's own buffs. noMouse: no
 -- tooltips, so the icons don't block clicks.
 local LAYOUTS = {
-	above = { size = 22, maxBuffs = 32, maxDebuffs = 16, growUp = true },
-	below = { size = 16, maxBuffs = 8, maxDebuffs = 8, perRow = 8 },
+	above = { size = 22, scales = true, maxBuffs = 32, maxDebuffs = 16, growUp = true },
+	below = { size = 16, scales = true, maxBuffs = 8, maxDebuffs = 8, perRow = 8 },
 	nameplate = {
 		size = 18, maxBuffs = 4, maxDebuffs = 6, growUp = true,
 		debuffFilter = "HARMFUL|PLAYER", buffsByReaction = true, noMouse = true,
@@ -35,6 +36,11 @@ local PURGE_TYPES = {
 	MAGE = { Magic = true },
 	WARLOCK = { Magic = true },
 }
+
+local function IconSize(layout)
+	if layout.scales then return math.floor(layout.size * ns.db.style.auraScale + 0.5) end
+	return layout.size
+end
 
 local purgeTypes -- the player's entry, looked up on first use
 local function PlayerPurgeTypes()
@@ -59,7 +65,7 @@ local function Button_OnEnter(self)
 end
 
 local function CreateButton(container)
-	local size = container.layout.size
+	local size = IconSize(container.layout)
 	local b = CreateFrame("Frame", nil, container)
 	b:SetSize(size, size)
 	if not container.layout.noMouse then
@@ -119,7 +125,7 @@ local function Position(b)
 	if pass.col >= container.perRow then
 		pass.col, pass.row = 0, pass.row + 1
 	end
-	local step = layout.size + SPACING
+	local step = IconSize(layout) + SPACING
 	b:ClearAllPoints()
 	if layout.growUp then
 		b:SetPoint("BOTTOMLEFT", pass.col * step, pass.row * step)
@@ -262,7 +268,7 @@ function ns.CreateAuras(owner, layoutKey)
 	local container = CreateFrame("Frame", nil, owner)
 	container.layout = layout
 	container.buttons = {}
-	container:SetHeight(layout.size)
+	container:SetHeight(IconSize(layout))
 	owner.auras = container
 	return container
 end
@@ -272,13 +278,18 @@ end
 function ns.AurasMaxHeight(container)
 	local layout = container.layout
 	local rows = math.ceil(layout.maxDebuffs / layout.perRow) + math.ceil(layout.maxBuffs / layout.perRow)
-	return rows * (layout.size + SPACING) - SPACING
+	return rows * (IconSize(layout) + SPACING) - SPACING
 end
 
--- Icons per row for an owner of the given width
+-- Icons per row for an owner of the given width, and the icon size
 function ns.SizeAuras(container, ownerWidth)
 	local layout = container.layout
-	local step = layout.size + SPACING
+	local size = IconSize(layout)
+	local step = size + SPACING
 	container.perRow = layout.perRow or math.max(1, math.floor((ownerWidth + SPACING) / step))
 	container:SetWidth(container.perRow * step)
+	container:SetHeight(size)
+	for _, b in ipairs(container.buttons) do
+		b:SetSize(size, size)
+	end
 end
