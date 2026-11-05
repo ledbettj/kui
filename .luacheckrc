@@ -92,7 +92,8 @@ read_globals = {
 	"ToggleAllBags", "ToggleCharacter", "ToggleFriendsFrame", "ToggleGuildFrame", "ToggleWorldMap",
 
 	-- Used on forever only (nil-checked or behind ns.isForever)
-	"C_ActionBar", "C_CurrencyInfo", "C_Item", "TooltipDataProcessor",
+	"C_ActionBar", "C_CurrencyInfo", "C_Item", "TooltipDataProcessor", "MainActionBar",
+	"Constants",
 	"BagsBar", "QuickJoinToastButton",
 	-- Secret-safe unit APIs
 	"AbbreviateLargeNumbers", "UnitHealthPercent", "UnitPowerPercent", "CurveConstants", "C_CurveUtil",

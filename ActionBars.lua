@@ -78,8 +78,8 @@ end
 ---------------------------------------------------------------------------
 -- Lower-rank marker: a dot in the corner of buttons holding a spell below
 -- the highest rank trained, to catch bars not updated after visiting the
--- trainer. Deliberate downranks are marked too. TBC only (the spellranks
--- feature): forever has neither ranks to read nor this spellbook API.
+-- trainer. Deliberate downranks are marked too. Forever asks the client
+-- directly; TBC compares rank numbers against a scan of the spellbook.
 ---------------------------------------------------------------------------
 
 local RANK_MARK_COLOR = { 0.3, 1, 0.3 }
@@ -97,6 +97,7 @@ end
 -- The highest rank is always in the spellbook. Lower ranks only are while
 -- the ShowAllSpellRanks setting is on, so buttons look theirs up by ID.
 local function ScanSpellbook()
+	if ns.isForever then return end -- asks the client instead
 	wipe(maxRank)
 	for tab = 1, GetNumSpellTabs() do
 		local _, _, offset, numSpells = GetSpellTabInfo(tab)
@@ -111,24 +112,26 @@ local function ScanSpellbook()
 end
 
 -- The spell an action casts: placed directly, or a macro's current spell
+-- (a macro showing a spell reports that spell's ID as its own)
 local function ActionSpellID(action)
-	local kind, id = GetActionInfo(action)
-	if kind == "spell" then
+	local kind, id, subType = GetActionInfo(action)
+	if ns.IsSecret(kind) or ns.IsSecret(subType) then return nil end
+	if kind == "spell" or (kind == "macro" and subType == "spell") then
 		return id
-	elseif kind == "macro" and GetMacroSpell then
-		return GetMacroSpell(id)
 	end
 end
 
+local function IsLowerRank(id)
+	if not id or ns.IsSecret(id) then return false end
+	if ns.isForever then return not C_ActionBar.IsHighestSpellRank(id) end
+	local best = maxRank[GetName(id)]
+	local rank = best and ParseRank(GetSpellSubtext(id))
+	return rank ~= nil and rank < best
+end
+
 local function UpdateRankMark(btn)
-	local show = false
-	if ns.db.actionbars.markLowRank and btn.action then
-		local id = ActionSpellID(btn.action)
-		local best = id and maxRank[GetName(id)]
-		local rank = best and ParseRank(GetSpellSubtext(id))
-		show = rank ~= nil and rank < best
-	end
-	btn.kuiRankMark:SetShown(show)
+	local show = ns.db.actionbars.markLowRank and btn.action and IsLowerRank(ActionSpellID(btn.action))
+	btn.kuiRankMark:SetShown(show and true or false)
 end
 
 -- A colored dot with a 1px black outline. Child of the border overlay, so
@@ -179,6 +182,8 @@ local function StyleButton(btn)
 	-- Blizzard's square frame art; replaced by our border
 	local normal = btn:GetNormalTexture()
 	if normal then normal:SetAlpha(0) end
+	-- Forever's shadow behind the button, drawn past our border
+	if btn.SlotArt then btn.SlotArt:SetAlpha(0) end
 
 	-- Square icon instead of the rounded mask
 	if btn.IconMask and not btn.kuiUnmasked then
@@ -253,6 +258,29 @@ function ns:StyleActionBars()
 	end
 end
 
+-- Forever's main bar frames its buttons, divides them and adds paging
+-- arrows. Alpha, not its hideBarArt setting: writing that would taint the
+-- bar's secure layout.
+local function HideDividers(bar)
+	for _, pool in ipairs({ bar.HorizontalDividersPool, bar.VerticalDividersPool }) do
+		for divider in pool:EnumerateActive() do
+			divider:SetAlpha(0)
+		end
+	end
+end
+
+local function HideMainBarArt()
+	if MainActionBar.BorderArt then MainActionBar.BorderArt:SetAlpha(0) end
+	-- The pools are created by the first UpdateDividers
+	hooksecurefunc(MainActionBar, "UpdateDividers", function(bar)
+		if bar.HorizontalDividersPool then HideDividers(bar) end
+	end)
+	if MainActionBar.HorizontalDividersPool then HideDividers(MainActionBar) end
+	-- Paging keybinds don't go through these arrows. Reparented because Edit
+	-- Mode sets whether they're shown.
+	ns.SetHidden(MainActionBar.ActionBarPageNumber, true)
+end
+
 -- Only when enabled at login (see the lifecycle notes in Core.lua)
 function ns:InitActionBars()
 	if not ns.db.actionbars.enabled then return end
@@ -292,6 +320,8 @@ function ns:InitActionBars()
 		if buttons[btn] then UpdateIconColor(btn) end
 	end)
 	checkPoller:SetScript("OnUpdate", PollChecked)
+
+	if ns.isForever then HideMainBarArt() end
 
 	-- Training a rank changes the spellbook
 	if ns.supported.spellranks then
