@@ -206,7 +206,6 @@ local unitHandlers = {
 	UNIT_FACTION = UpdatePlate,
 	UNIT_CONNECTION = ns.UpdateHealth,
 	UNIT_NAME_UPDATE = ns.UpdateName,
-	UNIT_AURA = ns.UpdateAuras,
 	UNIT_THREAT_LIST_UPDATE = UpdateThreat,
 }
 

@@ -147,8 +147,16 @@ function ns.UpdateName(self)
 	local levelText = ""
 	local level = UnitLevel(unit)
 	if unit ~= "player" and (self.showLevel or not self.small) and not IsSecret(level) then
-		local c = GetQuestDifficultyColor and GetQuestDifficultyColor(level > 0 and level or 99)
-		local hex = c and format("|cff%02x%02x%02x", c.r * 255, c.g * 255, c.b * 255) or "|cffffffff"
+		-- Colored as Blizzard's target frame does; quest difficulty has other ranges
+		local hex = "|cffffd100"
+		local canAttack = UnitCanAttack("player", unit)
+		if IsSecret(canAttack) then
+			hex = "|cffffffff"
+		elseif canAttack then
+			local difficulty = C_PlayerInfo.GetContentDifficultyCreatureForPlayer(unit)
+			local c = not IsSecret(difficulty) and GetDifficultyColor(difficulty)
+			hex = c and format("|cff%02x%02x%02x", c.r * 255, c.g * 255, c.b * 255) or "|cffffffff"
+		end
 		local classification = UnitClassification(unit)
 		local suffix = (classification == "elite" or classification == "worldboss") and "+"
 			or (classification == "rare" or classification == "rareelite") and "r"
@@ -240,7 +248,6 @@ local unitEventHandlers = {
 	UNIT_LEVEL = ns.UpdateName,
 	UNIT_MODEL_CHANGED = UpdatePortrait,
 	UNIT_PORTRAIT_UPDATE = UpdatePortrait,
-	UNIT_AURA = ns.UpdateAuras,
 	UNIT_THREAT_SITUATION_UPDATE = ns.UpdateAggro, -- cfg.threat frames only
 }
 

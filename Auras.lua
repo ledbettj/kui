@@ -3,19 +3,18 @@ local addonName, ns = ...
 -- Buff/debuff icon grids for unit frames and nameplates. Debuffs come first
 -- (nearest the frame), then buffs starting on a fresh row.
 --
--- Aura details are secret in combat, so auras are read by instance ID and
--- Blizzard turns each secret into something drawable: the stack count as
--- text, the duration as an object the cooldown swipe takes, the dispel type
--- as a border color through a color curve.
+-- Addon code can't read auras at all while they're secret: the query raises
+-- an error. So each grid is Blizzard's CustomAuraContainerTemplate, whose
+-- secure code reads the auras and fills in the regions KUI gives each button.
+-- Those buttons can't be touched while auras are secret, except through it.
 
 local SPACING = 2
 
 -- size: icon size. scales: follows the unit frame aura size setting. growUp:
 -- rows stack upward from the container's bottom edge (otherwise downward from
--- its top). perRow: fixed icons per row,
--- else as many as fit the owner's width. debuffFilter: defaults to all
--- harmful auras. buffsByReaction: no buffs on enemies (which ones can be
--- removed is secret); on friendly units, only the player's own. noMouse: no
+-- its top). perRow: fixed icons per row, else as many as fit the owner's
+-- width. debuffFilter: defaults to all harmful auras. buffsByReaction: no
+-- buffs on enemies; on friendly units, only the player's own. noMouse: no
 -- tooltips, so the icons don't block clicks.
 local LAYOUTS = {
 	above = { size = 22, scales = true, maxBuffs = 32, maxDebuffs = 16, growUp = true },
@@ -26,6 +25,8 @@ local LAYOUTS = {
 	},
 }
 
+local GROUPS = { "debuffs", "buffs" }
+
 local function IconSize(layout)
 	if layout.scales then return math.floor(layout.size * ns.db.style.auraScale + 0.5) end
 	return layout.size
@@ -35,215 +36,149 @@ end
 -- Icons
 ---------------------------------------------------------------------------
 
-local function Button_OnEnter(self)
-	GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT", 15, -25)
-	if self.isBuff then
-		GameTooltip:SetUnitBuffByAuraInstanceID(self.unit, self.auraInstanceID, self.filter)
-	else
-		GameTooltip:SetUnitDebuffByAuraInstanceID(self.unit, self.auraInstanceID, self.filter)
-	end
-end
-
-local function CreateButton(container)
-	local size = IconSize(container.layout)
-	local b = CreateFrame("Frame", nil, container)
+-- Runs once per button, before it's locked down
+local function InitButton(b, layout, isDebuff)
+	local size = IconSize(layout)
 	b:SetSize(size, size)
-	if not container.layout.noMouse then
-		b:EnableMouse(true)
-		b:SetScript("OnEnter", Button_OnEnter)
-		b:SetScript("OnLeave", GameTooltip_Hide)
+	b:SetTooltipAnchorPoint("ANCHOR_BOTTOMRIGHT", 15, -25)
+	if layout.noMouse then b:EnableMouse(false) end
+
+	-- 1px border behind the icon, tinted by dispel type on debuffs
+	local border = b:CreateTexture(nil, "BACKGROUND")
+	border:SetAllPoints()
+	border:SetColorTexture(0, 0, 0)
+	if isDebuff then
+		local dispel = b:CreateTexture(nil, "BACKGROUND", nil, 1)
+		dispel:SetAllPoints()
+		dispel:SetColorTexture(1, 1, 1)
+		b:AddDispelTypeTexture(dispel, {
+			style = Enum.CustomAuraButtonDispelTypeTextureStyle.PreserveAsset,
+			showWithoutDispelType = true,
+		})
 	end
 
-	-- 1px border behind the icon; tinted by dispel type for debuffs
-	b.border = b:CreateTexture(nil, "BACKGROUND")
-	b.border:SetAllPoints()
-	b.border:SetColorTexture(1, 1, 1)
+	local icon = b:CreateTexture(nil, "ARTWORK")
+	icon:SetPoint("TOPLEFT", 1, -1)
+	icon:SetPoint("BOTTOMRIGHT", -1, 1)
+	ns.CropIcon(icon)
+	b:SetIcon(icon)
 
-	b.icon = b:CreateTexture(nil, "ARTWORK")
-	b.icon:SetPoint("TOPLEFT", 1, -1)
-	b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
-	ns.CropIcon(b.icon)
+	local cooldown = CreateFrame("Cooldown", nil, b, "CooldownFrameTemplate")
+	cooldown:SetAllPoints(icon)
+	cooldown:SetReverse(true)
+	cooldown:SetHideCountdownNumbers(true)
+	b:SetDurationCooldown(cooldown)
 
-	b.cooldown = CreateFrame("Cooldown", nil, b, "CooldownFrameTemplate")
-	b.cooldown:SetAllPoints(b.icon)
-	b.cooldown:SetReverse(true)
-	b.cooldown:SetHideCountdownNumbers(true)
-
-	b.count = b.cooldown:CreateFontString(nil, "OVERLAY")
-	b.count:SetFontObject(ns.fonts.aura)
-	b.count:SetPoint("BOTTOMRIGHT", 1, 0)
-
-	return b
-end
-
----------------------------------------------------------------------------
--- Update
----------------------------------------------------------------------------
-
--- State for the pass in progress. UNIT_AURA is frequent (every nameplate in
--- combat), so the iteration callbacks are static functions sharing this
--- table rather than closures created per update.
-local pass = {}
-
--- The next button in the container, set up for an aura of this pass
-local function NextButton(auraInstanceID)
-	local container = pass.container
-	pass.n = pass.n + 1
-	local b = container.buttons[pass.n]
-	if not b then
-		b = CreateButton(container)
-		container.buttons[pass.n] = b
-	end
-	b.unit, b.filter, b.isBuff = pass.unit, pass.filter, pass.isBuff
-	b.auraInstanceID = auraInstanceID
-	return b
-end
-
--- Puts b in the next grid cell and counts it; true once the pass is full
-local function Position(b)
-	local container, layout = pass.container, pass.container.layout
-	if pass.col >= container.perRow then
-		pass.col, pass.row = 0, pass.row + 1
-	end
-	local step = IconSize(layout) + SPACING
-	b:ClearAllPoints()
-	if layout.growUp then
-		b:SetPoint("BOTTOMLEFT", pass.col * step, pass.row * step)
-	else
-		b:SetPoint("TOPLEFT", pass.col * step, -pass.row * step)
-	end
-	b:Show()
-	pass.col = pass.col + 1
-
-	pass.placed = pass.placed + 1
-	return pass.placed >= pass.max
-end
-
----------------------------------------------------------------------------
--- By aura instance, without reading secret details
----------------------------------------------------------------------------
-
--- Dispel type IDs (the x GetAuraDispelTypeColor evaluates the curve at)
--- and the debuff colors Blizzard uses for them
-local DISPEL_TYPE_IDS = { None = 0, Magic = 1, Curse = 2, Disease = 3, Poison = 4, Bleed = 11 }
-
-local dispelCurve
-local function DispelCurve()
-	if not dispelCurve then
-		local info = AuraUtil.GetDebuffDisplayInfoTable()
-		dispelCurve = C_CurveUtil.CreateColorCurve()
-		dispelCurve:SetType(Enum.LuaCurveType.Step)
-		-- Every ID up to the highest gets a point, so a type with no color
-		-- of its own (enrage) snaps to None's rather than its neighbor's
-		local byID = {}
-		for name, id in pairs(DISPEL_TYPE_IDS) do byID[id] = info[name] and info[name].color end
-		for id = 0, DISPEL_TYPE_IDS.Bleed do
-			dispelCurve:AddPoint(id, byID[id] or info.None.color)
-		end
-	end
-	return dispelCurve
-end
-
-local function PlaceByInstance(auraInstanceID)
-	local unit = pass.unit
-	local b = NextButton(auraInstanceID)
-
-	-- The icon goes straight to the texture: it may be secret, so it's never
-	-- tested (not even with and/or)
-	local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, auraInstanceID)
-	local icon
-	if aura and (not canaccesstable or canaccesstable(aura)) then icon = aura.icon end
-	b.icon:SetTexture(icon)
-	b.count:SetText(C_UnitAuras.GetAuraApplicationDisplayCount(unit, auraInstanceID, 2))
-	local duration = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
-	if duration then
-		b.cooldown:SetCooldownFromDurationObject(duration)
-	else
-		b.cooldown:Clear()
-	end
-
-	if pass.isBuff then
-		b.border:SetVertexColor(0, 0, 0)
-	else
-		local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, DispelCurve())
-		if color then b.border:SetVertexColor(color:GetRGBA()) end
-	end
-
-	return Position(b)
-end
-
-local function PlaceAll(filter, isBuff, max)
-	pass.filter, pass.isBuff, pass.max, pass.placed = filter, isBuff, max, 0
-	for _, auraInstanceID in ipairs(C_UnitAuras.GetUnitAuraInstanceIDs(pass.unit, filter, max)) do
-		if PlaceByInstance(auraInstanceID) then break end
-	end
-end
-
--- self: any frame with .unit and .auras (from ns.CreateAuras)
-function ns.UpdateAuras(self)
-	local container = self.auras
-	if not container then return end
-	local layout = container.layout
-
-	pass.container, pass.unit = container, self.unit
-	pass.n, pass.row, pass.col = 0, 0, 0
-
-	PlaceAll(layout.debuffFilter or "HARMFUL", false, layout.maxDebuffs)
-	if pass.col > 0 then
-		pass.col, pass.row = 0, pass.row + 1
-	end
-	if not layout.buffsByReaction then
-		PlaceAll("HELPFUL", true, layout.maxBuffs)
-	elseif not UnitCanAttack("player", pass.unit) then
-		PlaceAll("HELPFUL|PLAYER", true, layout.maxBuffs)
-	end
-
-	for i = pass.n + 1, #container.buttons do
-		container.buttons[i]:Hide()
-	end
-	pass.container = nil
-end
-
--- Hides every icon (placeholder frames in preview have no unit to read)
-function ns.HideAuras(self)
-	if not self.auras then return end
-	for _, b in ipairs(self.auras.buttons) do
-		b:Hide()
-	end
+	local count = cooldown:CreateFontString(nil, "OVERLAY")
+	count:SetFontObject(ns.fonts.aura)
+	count:SetPoint("BOTTOMRIGHT", 1, 0)
+	b:SetApplicationCount(count)
 end
 
 ---------------------------------------------------------------------------
 -- Container
 ---------------------------------------------------------------------------
 
--- Creates owner.auras; the caller anchors it
+local function GroupLayout(group, layout)
+	local size = IconSize(layout)
+	return {
+		elementWidth = size,
+		elementHeight = size,
+		elementSpacing = SPACING,
+		lineSpacing = SPACING,
+		groupLineSpacing = SPACING,
+		forceNewLine = group == "buffs",
+		layoutIndex = group == "buffs" and 2 or 1,
+	}
+end
+
+-- Creates owner.auras: a plain frame for the caller to anchor, holding the
+-- container, whose size Blizzard's code controls
 function ns.CreateAuras(owner, layoutKey)
 	local layout = LAYOUTS[layoutKey]
-	local container = CreateFrame("Frame", nil, owner)
-	container.layout = layout
-	container.buttons = {}
-	container:SetHeight(IconSize(layout))
-	owner.auras = container
-	return container
+	local holder = CreateFrame("Frame", nil, owner)
+	holder.layout = layout
+	holder:SetHeight(IconSize(layout))
+
+	local container = CreateFrame("AuraContainer", nil, holder, "CustomAuraContainerTemplate")
+	local anchor = layout.growUp and "BOTTOMLEFT" or "TOPLEFT"
+	container:SetPoint(anchor)
+	container:SetEditModePreviewEnabled(false)
+	container:SetFlowLayoutAnchorPoint(anchor)
+	container:SetFlowLayoutGrowthDirection(AnchorUtil.FlowDirection.Right,
+		layout.growUp and AnchorUtil.FlowDirection.Up or AnchorUtil.FlowDirection.Down)
+
+	container:AddAuraGroup("debuffs", layout.debuffFilter or "HARMFUL", {
+		maxFrameCount = layout.maxDebuffs,
+		initializeFrame = function(b) InitButton(b, layout, true) end,
+		layout = GroupLayout("debuffs", layout),
+	})
+	container:AddAuraGroup("buffs", layout.buffsByReaction and "HELPFUL|PLAYER" or "HELPFUL", {
+		maxFrameCount = layout.maxBuffs,
+		initializeFrame = function(b) InitButton(b, layout, false) end,
+		layout = GroupLayout("buffs", layout),
+	})
+
+	if owner.unit then container:SetUnit(owner.unit) end
+	container:SetEnabled(true)
+
+	holder.container = container
+	owner.auras = holder
+	return holder
 end
 
 -- Height of the container when full: the debuff rows plus the buff rows.
--- Needs a fixed perRow.
-function ns.AurasMaxHeight(container)
-	local layout = container.layout
-	local rows = math.ceil(layout.maxDebuffs / layout.perRow) + math.ceil(layout.maxBuffs / layout.perRow)
+-- Needs SizeAuras to have run.
+function ns.AurasMaxHeight(holder)
+	local layout = holder.layout
+	local rows = math.ceil(layout.maxDebuffs / holder.perRow) + math.ceil(layout.maxBuffs / holder.perRow)
 	return rows * (IconSize(layout) + SPACING) - SPACING
 end
 
 -- Icons per row for an owner of the given width, and the icon size
-function ns.SizeAuras(container, ownerWidth)
-	local layout = container.layout
+function ns.SizeAuras(holder, ownerWidth)
+	local layout, container = holder.layout, holder.container
 	local size = IconSize(layout)
 	local step = size + SPACING
-	container.perRow = layout.perRow or math.max(1, math.floor((ownerWidth + SPACING) / step))
-	container:SetWidth(container.perRow * step)
-	container:SetHeight(size)
-	for _, b in ipairs(container.buttons) do
-		b:SetSize(size, size)
+	holder.perRow = layout.perRow or math.max(1, math.floor((ownerWidth + SPACING) / step))
+	holder:SetSize(holder.perRow * step, size)
+	container:SetFlowLayoutMaximumLineSize(holder.perRow * step)
+
+	for _, group in ipairs(GROUPS) do
+		container:SetAuraGroupLayout(group, GroupLayout(group, layout))
 	end
+	-- Locked while auras are secret
+	if C_Secrets.ShouldAurasBeSecret() then
+		ns.pendingLayout = true
+		return
+	end
+	for _, group in ipairs(GROUPS) do
+		for i = 1, container:GetAuraGroupFrameCount(group) do
+			container:GetAuraGroupFrame(group, i):SetSize(size, size)
+		end
+	end
+end
+
+---------------------------------------------------------------------------
+-- Update
+---------------------------------------------------------------------------
+
+-- The container follows UNIT_AURA itself; this is for when the frame's unit
+-- changes. self: any frame with .unit and .auras (from ns.CreateAuras)
+function ns.UpdateAuras(self)
+	local holder = self.auras
+	if not holder then return end
+	local container = holder.container
+	container:SetUnit(self.unit)
+	if holder.layout.buffsByReaction then
+		local canAttack = UnitCanAttack("player", self.unit)
+		if not ns.IsSecret(canAttack) then container:SetAuraGroupEnabled("buffs", not canAttack) end
+	end
+	holder:Show()
+	container:UpdateAllAuras()
+end
+
+-- Hides every icon (placeholder frames in preview have no unit to read)
+function ns.HideAuras(self)
+	if self.auras then self.auras:Hide() end
 end

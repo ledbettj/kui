@@ -53,7 +53,7 @@ read_globals = {
 
 	-- Player and system state
 	"GetCoinTextureString", "GetFramerate", "GetMoney", "GetNetStats", "GetRealmName",
-	"GetQuestDifficultyColor", "GetTime", "GetXPExhaustion",
+	"C_PlayerInfo", "GetDifficultyColor", "GetTime", "GetXPExhaustion",
 	"InCombatLockdown", "IsInGroup", "IsPlayerAtEffectiveMaxLevel",
 	"IsResting", "IsXPUserDisabled", 
 
@@ -95,6 +95,6 @@ read_globals = {
 	-- Secret-safe unit APIs
 	"AbbreviateLargeNumbers", "UnitHealthPercent", "UnitPowerPercent", "CurveConstants", "C_CurveUtil",
 	"CreateUnitHealPredictionCalculator", "UnitGetDetailedHealPrediction",
-	"C_UnitAuras", "canaccesstable",
+	"AnchorUtil", "C_Secrets",
 	"UnitCastingDuration", "UnitChannelDuration", "C_DurationUtil",
 }
