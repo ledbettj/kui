@@ -35,6 +35,15 @@ local function UpdateBorderColor(b, buttonInfo)
 	b.kuiBorder:SetBackdropBorderColor(c[1], c[2], c[3], 1)
 end
 
+-- BackdropTemplate's own handler does math on the size, but the border follows
+-- Blizzard's icon, whose size can be secret in combat. The art catches up on
+-- the next readable change.
+local function OnBorderSizeChanged(border)
+	if not ns.IsSecret(border:GetWidth()) and not ns.IsSecret(border:GetHeight()) then
+		border:SetupTextureCoordinates()
+	end
+end
+
 local function StyleButton(b)
 	ns.CropIcon(b.Icon)
 	-- Blizzard shows/hides these per aura type; alpha keeps them invisible
@@ -42,8 +51,13 @@ local function StyleButton(b)
 	b.DebuffBorder:SetAlpha(0)
 	b.TempEnchantBorder:SetAlpha(0)
 
-	-- Outside the icon, so the duration text below stays where Blizzard put it
-	ns.WrapBorder(b.kuiBorder, b.Icon, true)
+	-- Outside the icon, so the duration text below stays where Blizzard put it.
+	-- Setting a backdrop measures the frame, which can't be done while secret.
+	if ns.IsSecret(b.kuiBorder:GetWidth()) then
+		ns.pendingLayout = true -- ns:ApplyLayout restyles these when combat ends
+	else
+		ns.WrapBorder(b.kuiBorder, b.Icon, true)
+	end
 	UpdateBorderColor(b)
 
 	-- Blizzard recolors the duration every tick, so only the font is ours
@@ -76,6 +90,7 @@ function ns:InitBuffs()
 				buttons[b] = true
 				b.kuiBorder = CreateFrame("Frame", nil, b, "BackdropTemplate")
 				b.kuiBorder:SetFrameLevel(b:GetFrameLevel() + 1)
+				b.kuiBorder:SetScript("OnSizeChanged", OnBorderSizeChanged)
 				hooksecurefunc(b, "Update", UpdateBorderColor)
 			end
 		end

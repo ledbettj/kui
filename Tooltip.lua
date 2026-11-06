@@ -41,7 +41,7 @@ end
 local function OnTooltipSetItem(tt)
 	local bd = backdrops[tt]
 	if not bd then return end
-	local _, link = tt:GetItem()
+	local _, link = TooltipUtil.GetDisplayedItem(tt)
 	local quality = link and select(3, C_Item.GetItemInfo(link))
 	local c = quality and quality >= 2 and ITEM_QUALITY_COLORS[quality]
 	if c then
