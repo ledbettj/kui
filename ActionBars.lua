@@ -170,6 +170,9 @@ local function StyleButton(btn)
 
 	if btn.SlotBackground then
 		btn.SlotBackground:SetColorTexture(ns:GetEmptyColor())
+		-- Shares the icon's layer and sublevel, so it can draw on top of the
+		-- icon and wash it out
+		btn.SlotBackground:SetDrawLayer("BACKGROUND", -1)
 		FitToIcon(btn.SlotBackground, icon)
 	end
 
