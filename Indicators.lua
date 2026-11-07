@@ -70,6 +70,7 @@ ns.STATUS_EVENTS = {
 	PLAYER_UPDATE_RESTING = true,
 	PLAYER_REGEN_DISABLED = true,
 	PLAYER_REGEN_ENABLED = true,
+	PLAYER_ENTERING_WORLD = true,
 }
 
 -- Icons go in the portrait corners, or on the top-left border for frames
@@ -143,7 +144,8 @@ local function UpdatePvP(icon, unit, exists)
 	icon:Show()
 end
 
-function ns.UpdateStatusIcons(f)
+-- event: what triggered the update, when it came from a status event
+function ns.UpdateStatusIcons(f, event)
 	if not f.leaderIcon then return end
 	local unit = f.unit
 	local exists = UnitExists(unit)
@@ -171,7 +173,17 @@ function ns.UpdateStatusIcons(f)
 	if f.pvpIcon then UpdatePvP(f.pvpIcon, unit, exists) end
 
 	if f.stateIcon then
-		local state = UnitAffectingCombat("player") and "combat" or IsResting() and "rest"
+		-- The regen events are the source of truth, as on Blizzard's player
+		-- frame: UnitAffectingCombat read at other times can leave the icon
+		-- stuck on. It only seeds the state, after a login, reload or zone.
+		if event == "PLAYER_REGEN_DISABLED" then
+			f.inCombat = true
+		elseif event == "PLAYER_REGEN_ENABLED" then
+			f.inCombat = false
+		elseif event == "PLAYER_ENTERING_WORLD" or f.inCombat == nil then
+			f.inCombat = UnitAffectingCombat("player")
+		end
+		local state = f.inCombat and "combat" or IsResting() and "rest"
 		if state then
 			f.stateIcon:SetTexCoord(unpack(STATE_COORDS[state]))
 			f.stateIcon:Show()

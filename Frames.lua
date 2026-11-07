@@ -264,7 +264,7 @@ local function OnEvent(self, event)
 		-- partyN may now be a different player entirely
 		return UpdateAll(self)
 	elseif ns.STATUS_EVENTS[event] then
-		return ns.UpdateStatusIcons(self)
+		return ns.UpdateStatusIcons(self, event)
 	end
 	local handler = unitEventHandlers[event]
 	if handler then
