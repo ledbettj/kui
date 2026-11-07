@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: QuestBros
+## Notes: See which of your friends have done, or are on, a quest, even while they're offline
+## Author: John
+## Version: 0.1.0
+## SavedVariables: QuestBrosDB
+
+Core.lua
+Store.lua
+Tracker.lua
+Sync.lua
+UI.lua

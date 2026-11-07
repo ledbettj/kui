@@ -2,7 +2,7 @@
 
 std = "lua51"
 max_line_length = 120
-exclude_files = { ".luacheckrc" }
+exclude_files = { ".luacheckrc", "**/test/**" }
 
 ignore = {
 	"211/addonName", -- every file unpacks `local addonName, ns = ...`
@@ -11,8 +11,8 @@ ignore = {
 
 -- Globals KUI defines or writes
 globals = {
-	"KUIDB", -- saved variables
-	"SLASH_KUI1", "SlashCmdList",
+	"KUIDB", "QuestBrosDB", -- saved variables
+	"SLASH_KUI1", "SLASH_QUESTBROS1", "SLASH_QUESTBROS2", "SlashCmdList",
 	"ClickCastFrames", -- Clique's frame registry
 	"GetMinimapShape", -- read by minimap button addons
 	"StaticPopupDialogs",
@@ -97,4 +97,9 @@ read_globals = {
 	"CreateUnitHealPredictionCalculator", "UnitGetDetailedHealPrediction",
 	"AnchorUtil", "C_Secrets",
 	"UnitCastingDuration", "UnitChannelDuration", "C_DurationUtil",
+
+	-- QuestBros
+	"C_ChatInfo", "C_QuestLog", "GetNormalizedRealmName", "GetQuestID", "GetServerTime", "strsplit",
+	"QuestFrame", "QuestFrameDetailPanel", "QuestFrameGreetingPanel", "QuestFrameProgressPanel",
+	"QuestFrameRewardPanel", "QuestLogPopupDetailFrame", "QuestMapFrame", "QuestScrollFrame",
 }
