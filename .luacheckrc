@@ -1,4 +1,4 @@
--- luacheck config: run `luacheck .` from the addon folder
+-- luacheck config: run `luacheck .` from the repo root or an addon folder
 
 std = "lua51"
 max_line_length = 120
