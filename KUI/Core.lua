@@ -287,6 +287,10 @@ local function HideBlizzard()
 		end
 	end
 
+	-- The raid manager tab on the left edge. Only reparented: its events
+	-- also keep Blizzard's raid frame container up to date.
+	ns.SetHidden(CompactRaidFrameManager, true)
+
 	-- Cast bars are Edit Mode-managed; clearing the unit unregisters their
 	-- events so they never show, without reparenting them
 	for _, name in ipairs({ "PlayerCastingBarFrame", "PetCastingBarFrame" }) do

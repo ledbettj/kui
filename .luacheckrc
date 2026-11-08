@@ -68,7 +68,7 @@ read_globals = {
 	-- Blizzard frames KUI restyles or hides
 	"UIParent", "BuffFrame", "DebuffFrame", "NamePlateDriverFrame",
 	"StatusTrackingBarManager", "TextToSpeechButtonFrame", "CHAT_FRAMES",
-	"MainMenuBarBackpackButton", "MicroMenuContainer",
+	"MainMenuBarBackpackButton", "MicroMenuContainer", "CompactRaidFrameManager",
 	"Minimap", "MinimapCluster", 
 	"MinimapCompassTexture", 
 	"GameTimeFrame", "TimeManagerAlarmFiredTexture", "MinimapCompassTextureUnderlay",
