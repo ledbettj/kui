@@ -89,7 +89,7 @@ read_globals = {
 	"GameTime_GetLocalTime", "GameTime_GetGameTime", "TimeManager_Toggle",
 	"ToggleAllBags", "ToggleCharacter", "ToggleFriendsFrame", "ToggleGuildFrame", "ToggleWorldMap",
 
-	"C_ActionBar", "C_CurrencyInfo", "C_Item", "TooltipDataProcessor", "TooltipUtil", "MainActionBar",
+	"C_ActionBar", "C_CurrencyInfo", "C_Spell", "C_Item", "TooltipDataProcessor", "TooltipUtil", "MainActionBar",
 	"Constants",
 	"BagsBar", "QuickJoinToastButton",
 	-- Secret-safe unit APIs

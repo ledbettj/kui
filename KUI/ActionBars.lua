@@ -93,8 +93,11 @@ local function ActionSpellID(action)
 	end
 end
 
+-- Unranked spells (Feral Charge, say) report as not the highest rank, so
+-- only spells with a rank are checked
 local function IsLowerRank(id)
 	if not id or ns.IsSecret(id) then return false end
+	if not C_Spell.GetSpellSkillLineAbilityRank(id) then return false end
 	return not C_ActionBar.IsHighestSpellRank(id)
 end
 
