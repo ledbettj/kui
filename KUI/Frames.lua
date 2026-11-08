@@ -74,39 +74,54 @@ function ns.UpdateHealth(self)
 	ns.UpdateHealPrediction(self)
 end
 
--- One step curve per pip, turning the combo point share (0-1 of
--- MAX_COMBO) into that pip's alpha, for when the count itself is secret
 local MAX_COMBO = 5
-local comboCurves
+-- Alpha of an unfilled pip's black slot, for classes that use combo points
+local COMBO_EMPTY_ALPHA = 0.4
 
-local function ComboCurves()
-	if not comboCurves then
-		comboCurves = {}
+-- One step curve per pip and unfilled alpha, turning the combo point share
+-- (0-1 of MAX_COMBO) into that pip's alpha, for when the count is secret
+local comboCurves = {}
+
+local function ComboCurves(emptyAlpha)
+	local curves = comboCurves[emptyAlpha]
+	if not curves then
+		curves = {}
 		for i = 1, MAX_COMBO do
 			local curve = C_CurveUtil.CreateCurve()
 			curve:SetType(Enum.LuaCurveType.Step)
-			curve:AddPoint(0, 0)
+			curve:AddPoint(0, emptyAlpha)
 			curve:AddPoint((i - 0.5) / MAX_COMBO, 1)
-			comboCurves[i] = curve
+			curves[i] = curve
 		end
+		comboCurves[emptyAlpha] = curves
 	end
-	return comboCurves
+	return curves
 end
 
+-- Rogues and cat form druids, the energy users, so the empty slots show
+local function UsesComboPoints()
+	local powerType = UnitPowerType("player")
+	return not IsSecret(powerType) and powerType == Enum.PowerType.Energy
+end
+
+-- Each pip is { slot, fill }: a filled pip shows both, an empty one only a
+-- translucent slot, and only for classes that use combo points
 local function UpdateCombo(self)
+	local slotAlpha = UsesComboPoints() and COMBO_EMPTY_ALPHA or 0
 	local cp = GetComboPoints("player", "target")
 	if IsSecret(cp) then
-		local curves = ComboCurves()
+		local slotCurves, fillCurves = ComboCurves(slotAlpha), ComboCurves(0)
 		for i, pip in ipairs(self.combo) do
-			pip:Show()
-			pip:SetAlpha(UnitPowerPercent("player", Enum.PowerType.ComboPoints, false, curves[i]))
+			pip[1]:SetAlpha(UnitPowerPercent("player", Enum.PowerType.ComboPoints, false, slotCurves[i]))
+			pip[2]:SetAlpha(UnitPowerPercent("player", Enum.PowerType.ComboPoints, false, fillCurves[i]))
 		end
 		return
 	end
 	cp = cp or 0
 	for i, pip in ipairs(self.combo) do
-		pip:SetAlpha(1)
-		pip:SetShown(i <= cp)
+		local filled = i <= cp
+		pip[1]:SetAlpha(filled and 1 or slotAlpha)
+		pip[2]:SetAlpha(filled and 1 or 0)
 	end
 end
 
@@ -298,8 +313,9 @@ end
 
 local function RegisterEvents(f, unit, cfg)
 	for event in pairs(unitEventHandlers) do
-		if cfg.combo and event == "UNIT_POWER_FREQUENT" then
-			-- Combo points are the player's power
+		if cfg.combo and (event == "UNIT_POWER_FREQUENT" or event == "UNIT_DISPLAYPOWER") then
+			-- Combo points are the player's power, and entering or leaving cat
+			-- form changes whether the empty slots show
 			SafeRegister(f, event, unit, "player")
 		elseif cfg.threat or event ~= "UNIT_THREAT_SITUATION_UPDATE" then
 			-- (only frames with an aggro border want threat updates)
@@ -404,11 +420,48 @@ local function LayoutContents(f)
 	end
 end
 
+-- Combo points: a strip of thin bars under the frame, together its full width
+local COMBO_HEIGHT = 9 -- including the 1px border
+local COMBO_GAP = 2 -- between bars, and between the strip and the frame
+
+-- Each pip is a black slot, which is also the 1px border, and a fill inset
+-- inside it. UpdateCombo shows them with alpha.
+local function CreateComboPips(f)
+	f.combo = {}
+	for i = 1, MAX_COMBO do
+		local slot = f.overlay:CreateTexture(nil, "BORDER")
+		slot:SetTexture(ns.FLAT_TEXTURE)
+		slot:SetVertexColor(0, 0, 0)
+		slot:SetHeight(COMBO_HEIGHT)
+		slot:SetAlpha(0)
+
+		local fill = f.overlay:CreateTexture(nil, "ARTWORK")
+		fill:SetTexture(ns.FLAT_TEXTURE)
+		fill:SetVertexColor(1, 0.8, 0.1)
+		fill:SetPoint("TOPLEFT", slot, 1, -1)
+		fill:SetPoint("BOTTOMRIGHT", slot, -1, 1)
+		fill:SetAlpha(0)
+
+		f.combo[i] = { slot, fill }
+	end
+end
+
+local function LayoutComboPips(f, width)
+	local pipWidth = (width - (MAX_COMBO - 1) * COMBO_GAP) / MAX_COMBO
+	for i, pip in ipairs(f.combo) do
+		local slot = pip[1]
+		slot:SetWidth(pipWidth)
+		slot:ClearAllPoints()
+		slot:SetPoint("TOPLEFT", f, "BOTTOMLEFT", (i - 1) * (pipWidth + COMBO_GAP), -COMBO_GAP)
+	end
+end
+
 -- Resizes a secure frame; ns:ApplyLayout handles combat deferral
 function ns:LayoutFrame(f)
 	local w = ns:GetWidth(f.unit)
 	f:SetSize(w, ScaledHeight(f.cfg.h))
 	LayoutContents(f)
+	if f.combo then LayoutComboPips(f, w) end
 	-- Segment widths are in pixels of the health bar
 	ns.UpdateHealPrediction(f)
 	ns.UpdateAggro(f) -- the backdrop was just reset
@@ -453,19 +506,6 @@ local function CreateTexts(f)
 	if f.unit == "player" and f.power then
 		f.powerText = ns.CreateText(f.power, ns.fonts.barSmall, "RIGHT")
 		f.powerText:SetPoint("RIGHT", -4, 0)
-	end
-end
-
-local function CreateComboPips(f)
-	f.combo = {}
-	for i = 1, 5 do
-		local pip = f.overlay:CreateTexture(nil, "OVERLAY")
-		pip:SetTexture(ns.FLAT_TEXTURE)
-		pip:SetVertexColor(1, 0.8, 0.1)
-		pip:SetSize(12, 4)
-		pip:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 4 + (i - 1) * 14, -1)
-		pip:Hide()
-		f.combo[i] = pip
 	end
 end
 
