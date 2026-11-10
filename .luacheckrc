@@ -70,7 +70,7 @@ read_globals = {
 	"StatusTrackingBarManager", "TextToSpeechButtonFrame", "CHAT_FRAMES",
 	"MainMenuBarBackpackButton", "MicroMenuContainer", "CompactRaidFrameManager",
 	"Minimap", "MinimapCluster", 
-	"MinimapCompassTexture", 
+	"MinimapCompassTexture", "AddonCompartmentFrame",
 	"GameTimeFrame", "TimeManagerAlarmFiredTexture", "MinimapCompassTextureUnderlay",
 
 	-- Blizzard data and strings

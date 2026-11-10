@@ -7,8 +7,8 @@ local addonName, ns = ...
 --
 -- The buttons around the map (Blizzard's and other addons') carry round
 -- ring art too. Rings that are their own texture are faded wherever they
--- turn up; the zoom buttons and day/night sun, whose ring is part of the
--- button art, are hidden, with the mouse wheel zooming instead.
+-- turn up; the zoom buttons, calendar and day/night sun, whose ring is part
+-- of the button art, are hidden, with the mouse wheel zooming instead.
 --
 -- The round mask is an atlas set by MinimapCluster:UpdateMinimapConfig (rerun
 -- whenever the rotate setting changes, so the square mask goes back on after
@@ -24,6 +24,8 @@ local RING_FILES = {
 }
 -- How deep to look below the minimap for button art
 local SCAN_DEPTH = 3
+-- Between the zone/clock header and the square map
+local HEADER_GAP = 3
 
 local border
 local blizzardArt = {} -- faded with alpha: the compass is shown/hidden by the rotate setting
@@ -31,6 +33,7 @@ local hiddenButtons = {}
 local ringIDs = {}
 local fadedRings = {} -- texture -> true
 local squared -- only undo what was changed, so the default look is never touched
+local headerUnderneath = false -- Edit Mode's minimap setting, tracked by a hook
 
 local function IsSquare()
 	return ns.db.minimap.style == "Square"
@@ -81,6 +84,35 @@ local function SetMask(square)
 	end
 end
 
+-- Blizzard centers the map in a box sized for its round frame art, which
+-- leaves a gap above a square map, and hangs the addon compartment (the
+-- addon count) under the calendar button, which KUI hides. Square, the map
+-- goes against the header and the compartment beside it.
+local function AnchorMap(square)
+	local header = MinimapCluster.ZoneTextButton
+	local compartment = AddonCompartmentFrame
+	Minimap:ClearAllPoints()
+	if compartment then compartment:ClearAllPoints() end
+	if square then
+		if headerUnderneath then
+			Minimap:SetPoint("BOTTOM", header, "TOP", 0, HEADER_GAP)
+		else
+			Minimap:SetPoint("TOP", header, "BOTTOM", 0, -HEADER_GAP)
+		end
+		if compartment then compartment:SetPoint("LEFT", header, "RIGHT", 2, 0) end
+	else
+		-- Blizzard's own points
+		Minimap:SetPoint("CENTER")
+		if compartment then
+			if headerUnderneath then
+				compartment:SetPoint("BOTTOM", GameTimeFrame, "TOP", 0, -1)
+			else
+				compartment:SetPoint("TOP", GameTimeFrame, "BOTTOM", 0, 1)
+			end
+		end
+	end
+end
+
 function ns:LayoutMinimap()
 	if not border then return end
 	local square = IsSquare()
@@ -92,6 +124,7 @@ function ns:LayoutMinimap()
 		for _, button in ipairs(hiddenButtons) do
 			ns.SetHidden(button, square)
 		end
+		AnchorMap(square)
 		squared = square
 		if square then Rescan() else RestoreRings() end
 	end
@@ -114,7 +147,8 @@ function ns:InitMinimap()
 	for _, region in pairs(art) do
 		blizzardArt[#blizzardArt + 1] = region
 	end
-	local buttons = { GameTimeFrame, Minimap.ZoomIn, Minimap.ZoomOut }
+	-- DielFrame: forever's day/night sun, separate from the calendar button
+	local buttons = { GameTimeFrame, Minimap.ZoomIn, Minimap.ZoomOut, MinimapCluster.DielFrame }
 	for _, button in pairs(buttons) do
 		hiddenButtons[#hiddenButtons + 1] = button
 	end
@@ -131,6 +165,16 @@ function ns:InitMinimap()
 	hooksecurefunc(MinimapCluster, "UpdateMinimapConfig", function()
 		if IsSquare() then Minimap:SetMaskTexture(SQUARE_MASK) end
 	end)
+
+	-- Edit Mode's "header underneath" moves the header and compartment
+	hooksecurefunc(MinimapCluster, "SetHeaderUnderneath", function(_, underneath)
+		headerUnderneath = underneath and true or false
+		if squared then AnchorMap(true) end
+	end)
+	-- In case Edit Mode applied it before this hook was in place
+	local ok, underneath = pcall(MinimapCluster.GetSettingValueBool, MinimapCluster,
+		Enum.EditModeMinimapSetting.HeaderUnderneath)
+	if ok then headerUnderneath = underneath and true or false end
 
 	-- Leave it alone if another addon already claims the shape
 	if not GetMinimapShape then
