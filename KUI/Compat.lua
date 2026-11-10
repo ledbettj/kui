@@ -14,7 +14,7 @@ ns.IsSecret = issecretvalue
 -- that's off is never initialized and its settings are hidden.
 ns.supported = {
 	unitframes = true, -- unit frames, their cast bars, auras, heal prediction, aggro
-	nameplates = false, -- not ported to this client's APIs yet
+	nameplates = true,
 	actionbars = true,
 	buffs = true, -- the player buff/debuff frame restyle
 	menubar = true, -- bag buttons and micro menu

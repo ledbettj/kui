@@ -2,7 +2,6 @@
 
 A clean, minimal UI replacement for WoW forever.
 
-Nameplates aren't ported to this client yet, so those are Blizzard's for now.
 For a damage meter, use Blizzard's: turn it on under Options → Advanced and
 place it with Edit Mode.
 
@@ -34,10 +33,14 @@ and class colors fall back to reaction colors in PvP.
 - Pushback shown in red beside the time: how much later a cast will finish
   (+0.5s), or how much was cut off a channel (-0.5s)
 
-## Nameplates (not ported yet)
+## Nameplates
+
+Turn them off under Options → AddOns → KUI → Nameplates to use Blizzard's.
+Your own plate, the personal resource display, stays Blizzard's.
 
 - Restyled to match the unit frames, with name and health percentage
-- Threat border and threat percentage while you're on a mob's threat list
+- Threat border and threat percentage while you're on a mob's threat list,
+  when the client shares threat
 - Your own debuffs above enemy plates
 - Your own buffs above friendly plates
 - Cast bar under the plate while the unit is casting

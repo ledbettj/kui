@@ -8,23 +8,44 @@ local addonName, ns = ...
 -- transparent, so its own logic (and click handling on the base) is
 -- untouched.
 
+local IsSecret = ns.IsSecret
+
+-- Side tables rather than fields on Blizzard's frames, which would taint them
 local plates = {} -- unit token -> KUI plate
+local plateForBase = {} -- Blizzard nameplate base -> KUI plate
+local hooked = setmetatable({}, { __mode = "k" }) -- Blizzard unit frames with the alpha hook
+local hidden = setmetatable({}, { __mode = "k" }) -- those currently under a KUI plate
 
 ---------------------------------------------------------------------------
 -- Blizzard unit frame suppression
 ---------------------------------------------------------------------------
 
--- CompactUnitFrame code can reset alpha (range fading), so pin it at 0
+-- Blizzard's unit frames come from a pool and can move on to the player's
+-- own plate, so only those under a KUI plate are kept transparent. Its code
+-- can reset alpha (range fading), hence the hook.
 local function KeepHidden(uf)
-	if uf:GetAlpha() > 0 then uf:SetAlpha(0) end
+	if hidden[uf] and uf:GetAlpha() > 0 then uf:SetAlpha(0) end
 end
 
 local function HideBlizzardPlate(uf)
-	if not uf.kuiHooked then
+	if not hooked[uf] then
 		hooksecurefunc(uf, "SetAlpha", KeepHidden)
-		uf.kuiHooked = true
+		hooked[uf] = true
 	end
+	hidden[uf] = true
 	uf:SetAlpha(0)
+end
+
+local function ReleaseBlizzardPlate(uf)
+	if not hidden[uf] then return end
+	hidden[uf] = nil
+	uf:SetAlpha(1)
+end
+
+-- Whether a nameplate base shows the given unit. Comparing plates avoids
+-- UnitIsUnit, whose answer can be secret.
+local function PlateIsUnit(base, unit)
+	return base ~= nil and C_NamePlate.GetNamePlateForUnit(unit) == base
 end
 
 ---------------------------------------------------------------------------
@@ -34,9 +55,12 @@ end
 -- The player's threat on a hostile unit: status 1 (about to pull), 2
 -- (tanking, not securely) or 3 (tanking), with the threat percentage where
 -- 100 pulls aggro. nil when not on its threat list or below the tank.
+-- Nothing while the client keeps threat secret.
 local function PlayerThreat(unit)
-	if not UnitCanAttack("player", unit) then return end
+	local canAttack = UnitCanAttack("player", unit)
+	if IsSecret(canAttack) or not canAttack then return end
 	local _, status, percent = UnitDetailedThreatSituation("player", unit)
+	if IsSecret(status) or IsSecret(percent) then return end
 	if status and status > 0 then return status, percent end
 	return nil, percent
 end
@@ -50,7 +74,7 @@ local function UpdateBorder(kp)
 	local c
 	if status then
 		c = ns:GetColor("threat", ns.threatOrder[status])
-	elseif N.highlightTarget and UnitIsUnit(kp.unit, "target") then
+	elseif N.highlightTarget and PlateIsUnit(kp:GetParent(), "target") then
 		c = N.targetColor
 	else
 		c = ns.db.style.borderColor
@@ -80,15 +104,15 @@ local function UpdateThreat(kp)
 end
 
 -- Raid marker just outside the plate's right edge, sized to stand out
--- (unit frames put theirs inside the health bar instead)
+-- (unit frames put theirs inside the health bar instead). A secret marker
+-- is drawn without knowing which, or whether, it is, as on the unit frames.
 local function UpdateRaidMark(kp)
 	local index = GetRaidTargetIndex(kp.unit)
-	if index then
+	local secret = IsSecret(index)
+	if secret or index then
 		SetRaidTargetIconTexture(kp.raidMark, index)
-		kp.raidMark:Show()
-	else
-		kp.raidMark:Hide()
 	end
+	kp.raidMark:SetShown(secret or (index and true or false))
 end
 
 local function UpdatePlate(kp)
@@ -164,7 +188,7 @@ local function CreatePlate(base)
 	kp.castbar.text:SetFontObject(ns.fonts.small)
 	kp.castbar.time:SetFontObject(ns.fonts.small)
 
-	base.kui = kp
+	plateForBase[base] = kp
 	LayoutPlate(kp)
 	StylePlate(kp)
 	return kp
@@ -173,11 +197,15 @@ end
 local function OnPlateAdded(unit)
 	-- Forbidden plates (friendly plates in instances) return nil to addons
 	local base = C_NamePlate.GetNamePlateForUnit(unit)
-	if not base or UnitIsUnit(unit, "player") then return end
+	-- The player's own plate is the personal resource display; left as is
+	if not base or PlateIsUnit(base, "player") then return end
 
+	local kp = plateForBase[base] or CreatePlate(base)
+	if kp.blizzardFrame and kp.blizzardFrame ~= base.UnitFrame then
+		ReleaseBlizzardPlate(kp.blizzardFrame)
+	end
+	kp.blizzardFrame = base.UnitFrame
 	if base.UnitFrame then HideBlizzardPlate(base.UnitFrame) end
-
-	local kp = base.kui or CreatePlate(base)
 	kp.unit = unit
 	plates[unit] = kp
 	ns:SetCastbarUnit(kp.castbar, unit)
@@ -186,9 +214,15 @@ local function OnPlateAdded(unit)
 	kp:Show()
 end
 
+-- Runs after Blizzard has released its unit frame back to the pool, so
+-- the plate remembers which one it hid
 local function OnPlateRemoved(unit)
 	local kp = plates[unit]
 	if not kp then return end
+	if kp.blizzardFrame then
+		ReleaseBlizzardPlate(kp.blizzardFrame)
+		kp.blizzardFrame = nil
+	end
 	plates[unit] = nil
 	kp.unit = nil
 	ns:SetCastbarUnit(kp.castbar, nil)
