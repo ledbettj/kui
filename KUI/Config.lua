@@ -612,6 +612,7 @@ local function BuildNameplates(b)
 	b.Slider("Width", 60, 240, 2, Bind("nameplates", "width", SetNameplates))
 	b.Slider("Health height", 6, 30, 1, Bind("nameplates", "height", SetNameplates))
 	b.Slider("Cast bar height", 6, 24, 1, Bind("nameplates", "castHeight", SetNameplates))
+	b.Checkbox("Rare/elite icon", Bind("nameplates", "classification", SetNameplates))
 
 	b.Section("Target", "nameplates")
 	b.Checkbox("Highlight target", Bind("nameplates", "highlightTarget", SetNameplates))

@@ -10,6 +10,14 @@ local addonName, ns = ...
 
 local IsSecret = ns.IsSecret
 
+-- Blizzard's nameplate classification icons
+local CLASSIFICATION_ATLAS = {
+	elite = "nameplates-icon-elite-gold",
+	worldboss = "nameplates-icon-elite-gold",
+	rareelite = "nameplates-icon-elite-silver",
+	rare = "UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Star",
+}
+
 -- Side tables rather than fields on Blizzard's frames, which would taint them
 local plates = {} -- unit token -> KUI plate
 local plateForBase = {} -- Blizzard nameplate base -> KUI plate
@@ -115,8 +123,21 @@ local function UpdateRaidMark(kp)
 	kp.raidMark:SetShown(secret or (index and true or false))
 end
 
+-- Rare/elite icon just outside the left edge; the threat percentage moves
+-- out past it while it shows
+local function UpdateClassification(kp)
+	local classification = UnitClassification(kp.unit)
+	local atlas = ns.db.nameplates.classification and not IsSecret(classification)
+		and CLASSIFICATION_ATLAS[classification]
+	if atlas then kp.classIcon:SetAtlas(atlas) end
+	kp.classIcon:SetShown(atlas and true or false)
+	kp.threatText:ClearAllPoints()
+	kp.threatText:SetPoint("RIGHT", atlas and kp.classIcon or kp, "LEFT", atlas and -2 or -4, 0)
+end
+
 local function UpdatePlate(kp)
 	UpdateRaidMark(kp)
+	UpdateClassification(kp)
 	ns.UpdateHealth(kp)
 	ns.UpdateName(kp)
 	ns.UpdateAuras(kp)
@@ -132,6 +153,7 @@ local function LayoutPlate(kp)
 
 	kp:SetSize(N.width, N.height)
 	kp.raidMark:SetSize(N.height + 8, N.height + 8)
+	kp.classIcon:SetSize(N.height + 2, N.height + 2)
 	local inset = ns:ApplyBackdrop(kp, true)
 	kp.health:ClearAllPoints()
 	kp.health:SetPoint("TOPLEFT", inset, -inset)
@@ -143,7 +165,10 @@ local function LayoutPlate(kp)
 
 	-- Backdrop reapply resets the border color; threat sets it and the
 	-- threat text, which the config toggles go through here
-	if kp.unit then UpdateThreat(kp) end
+	if kp.unit then
+		UpdateClassification(kp)
+		UpdateThreat(kp)
+	end
 end
 
 local function StylePlate(kp)
@@ -174,6 +199,11 @@ local function CreatePlate(base)
 	kp.raidMark:SetPoint("LEFT", kp, "RIGHT", 4, 0)
 	kp.raidMark:Hide()
 
+	kp.classIcon = kp:CreateTexture(nil, "OVERLAY")
+	kp.classIcon:SetPoint("RIGHT", kp, "LEFT", -3, 0)
+	kp.classIcon:Hide()
+
+	-- Placed by UpdateClassification
 	kp.threatText = ns.CreateText(kp, ns.fonts.small, "RIGHT")
 	kp.threatText:SetPoint("RIGHT", kp, "LEFT", -4, 0)
 	kp.threatText:Hide()
@@ -240,6 +270,7 @@ local unitHandlers = {
 	UNIT_FACTION = UpdatePlate,
 	UNIT_CONNECTION = ns.UpdateHealth,
 	UNIT_NAME_UPDATE = ns.UpdateName,
+	UNIT_CLASSIFICATION_CHANGED = UpdateClassification,
 	UNIT_THREAT_LIST_UPDATE = UpdateThreat,
 }
 

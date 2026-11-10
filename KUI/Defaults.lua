@@ -154,6 +154,7 @@ ns.settingsDefaults = {
 		targetColor = { 1, 0.82, 0 }, -- border color on the current target's plate
 		threatBorder = true, -- border in the threat color while pulling/tanking
 		threatPercent = true, -- threat % beside the plate while on its threat list
+		classification = true, -- Blizzard's rare/elite icon left of the plate
 	},
 
 	-- One font for the whole UI, not just KUI's own text
