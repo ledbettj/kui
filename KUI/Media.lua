@@ -111,3 +111,20 @@ function ns:ListMedia(kind)
 
 	return names
 end
+
+-- Share our own art with other addons (Grid2 and the like) through LSM.
+-- Tried at load, which is before most addons read their textures at
+-- PLAYER_LOGIN, then again at login in case the library loaded after us.
+-- Register is a no-op for names already taken.
+local function RegisterWithLSM()
+	local lsm = GetLSM()
+	if not lsm then return end
+	for _, entry in ipairs(media.statusbar) do
+		if entry.path:find("^Interface\\AddOns\\") then
+			lsm:Register("statusbar", entry.name, entry.path)
+		end
+	end
+end
+
+RegisterWithLSM()
+EventUtil.ContinueOnPlayerLogin(RegisterWithLSM)
