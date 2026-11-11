@@ -1,6 +1,11 @@
 //! Command line parsing and one function per command.
 
+use std::io::{self, BufRead, Write};
+
+use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
+
+use crate::config::Config;
 
 /// Keep WoW forever addons up to date, without the CurseForge app.
 #[derive(Debug, Parser)]
@@ -63,10 +68,19 @@ enum Command {
     #[arg(short, long)]
     remove: bool,
   },
+
+  /// Save your CurseForge API key
+  ///
+  /// Get one at console.curseforge.com. Leave KEY out to be asked for it,
+  /// which keeps it out of your shell history (and saves quoting the `$`s).
+  SetKey {
+    /// The key; asked for when left out
+    key: Option<String>,
+  },
 }
 
 impl Cli {
-  pub fn run() {
+  pub fn run() -> Result<()> {
     match Self::parse().command {
       Command::List => list(),
       Command::Update { yes } => update(yes),
@@ -74,18 +88,54 @@ impl Cli {
       Command::Uninstall { name, yes } => uninstall(&name, yes),
       Command::Link { folder, project } => link(&folder, project),
       Command::Ignore { folder, remove } => ignore(&folder, remove),
+      Command::SetKey { key } => set_key(key),
     }
   }
 }
 
-fn list() {}
+fn list() -> Result<()> {
+  Ok(())
+}
 
-fn update(_yes: bool) {}
+fn update(_yes: bool) -> Result<()> {
+  Ok(())
+}
 
-fn install(_name: &str, _yes: bool) {}
+fn install(_name: &str, _yes: bool) -> Result<()> {
+  Ok(())
+}
 
-fn uninstall(_name: &str, _yes: bool) {}
+fn uninstall(_name: &str, _yes: bool) -> Result<()> {
+  Ok(())
+}
 
-fn link(_folder: &str, _project: u32) {}
+fn link(_folder: &str, _project: u32) -> Result<()> {
+  Ok(())
+}
 
-fn ignore(_folder: &str, _remove: bool) {}
+fn ignore(_folder: &str, _remove: bool) -> Result<()> {
+  Ok(())
+}
+
+fn set_key(key: Option<String>) -> Result<()> {
+  let key = match key {
+    Some(key) => key,
+    None => {
+      print!("CurseForge API key: ");
+      io::stdout().flush()?;
+      let mut line = String::new();
+      io::stdin().lock().read_line(&mut line)?;
+      line
+    }
+  };
+  let key = key.trim();
+  if key.is_empty() {
+    bail!("no key given");
+  }
+
+  let mut config = Config::load()?;
+  config.api_key = Some(key.to_owned());
+  config.save()?;
+  println!("saved to {}", Config::path()?.display());
+  Ok(())
+}

@@ -1,6 +1,9 @@
 mod cli;
+mod config;
+mod curse;
 mod fingerprint;
+mod scanner;
 
-fn main() {
-  cli::Cli::run();
+fn main() -> anyhow::Result<()> {
+  cli::Cli::run()
 }
