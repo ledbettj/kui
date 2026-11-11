@@ -4,9 +4,6 @@
 //! keep the hash and the choice of files as they are: an "improvement"
 //! here means addons stop matching.
 
-// Not called by any command yet
-#![allow(dead_code)]
-
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io;

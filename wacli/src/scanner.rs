@@ -1,8 +1,5 @@
 //! Finding and fingerprinting the addon folders in the AddOns folder.
 
-// Not called by any command yet
-#![allow(dead_code)]
-
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -22,6 +19,36 @@ pub struct Folder {
   pub fingerprint: u32,
 }
 
+impl Folder {
+  /// The `## Version:` from the folder's own toc, if it has one
+  pub fn toc_version(&self) -> Option<String> {
+    let prefix = self.name.to_lowercase();
+    let mut tocs: Vec<PathBuf> = fs::read_dir(&self.path)
+      .ok()?
+      .filter_map(|e| e.ok().map(|e| e.path()))
+      .filter(|p| {
+        let file = p
+          .file_name()
+          .and_then(|n| n.to_str())
+          .unwrap_or("")
+          .to_lowercase();
+        file.starts_with(&prefix) && file.ends_with(".toc")
+      })
+      .collect();
+    // The plain Name.toc first, then the flavoured ones
+    tocs.sort_by_key(|p| p.as_os_str().len());
+
+    tocs.iter().find_map(|toc| {
+      let text = fs::read_to_string(toc).ok()?;
+      text.lines().find_map(|line| {
+        let (key, value) = line.strip_prefix("##")?.split_once(':')?;
+        let value = value.trim();
+        (key.trim().eq_ignore_ascii_case("version") && !value.is_empty()).then(|| value.to_owned())
+      })
+    })
+  }
+}
+
 impl Scanner {
   pub fn new(addons_dir: impl Into<PathBuf>) -> Self {
     Self {
@@ -29,6 +56,7 @@ impl Scanner {
     }
   }
 
+  #[allow(dead_code)] // for install, still to come
   pub fn addons_dir(&self) -> &Path {
     &self.addons_dir
   }
@@ -55,6 +83,7 @@ impl Scanner {
   }
 
   /// One folder by name
+  #[allow(dead_code)] // for uninstall, still to come
   pub fn folder(&self, name: &str) -> Result<Folder> {
     let path = self.addons_dir.join(name);
     let meta = fs::symlink_metadata(&path);
@@ -110,6 +139,14 @@ mod tests {
 
     assert_eq!(scanner.folder("Zeta").unwrap(), folders[1]);
     assert!(scanner.folder("Missing").is_err());
+    assert_eq!(folders[0].toc_version(), None);
+    fs::write(
+      root.join("Zeta/Zeta_Camelot.toc"),
+      "## Title: Zeta\n## Version: 1.2.3\n",
+    )
+    .unwrap();
+    assert_eq!(folders[1].toc_version().as_deref(), Some("1.2.3"));
+
     #[cfg(unix)]
     assert!(
       scanner

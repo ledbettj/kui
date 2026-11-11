@@ -9,11 +9,15 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Config {
   /// CurseForge API key, from console.curseforge.com
   #[serde(skip_serializing_if = "Option::is_none")]
   pub api_key: Option<String>,
+
+  /// User-Agent sent to CurseForge, instead of wacli's own
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub user_agent: Option<String>,
 
   /// The game's Interface/AddOns folder. A leading `~/` is the home folder.
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -66,7 +70,6 @@ impl Config {
     Ok(())
   }
 
-  #[allow(dead_code)] // until the commands use it
   pub fn api_key(&self) -> Result<&str> {
     match self.api_key.as_deref() {
       Some(key) if !key.is_empty() => Ok(key),
@@ -74,13 +77,9 @@ impl Config {
     }
   }
 
-  #[allow(dead_code)] // until the commands use it
   pub fn addons_dir(&self) -> Result<PathBuf> {
     let Some(dir) = &self.addons_dir else {
-      bail!(
-        "no addons folder; set addons_dir in {}",
-        Self::path()?.display()
-      );
+      bail!("no addons folder; set one with `wacli set-dir`");
     };
     Ok(expand_home(dir))
   }
@@ -102,7 +101,7 @@ fn private_file(path: &Path) -> std::io::Result<fs::File> {
   fs::File::create(path)
 }
 
-fn expand_home(path: &Path) -> PathBuf {
+pub fn expand_home(path: &Path) -> PathBuf {
   match (path.strip_prefix("~"), dirs::home_dir()) {
     (Ok(rest), Some(home)) => home.join(rest),
     _ => path.to_path_buf(),
@@ -145,6 +144,15 @@ mod tests {
       let mode = fs::metadata(&path).unwrap().permissions().mode();
       assert_eq!(mode & 0o777, 0o600);
     }
+  }
+
+  #[test]
+  fn unknown_keys_are_an_error() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("config.toml");
+    fs::write(&path, "User_agent = \"x\"\n").unwrap();
+    let err = format!("{:#}", Config::load_from(&path).unwrap_err());
+    assert!(err.contains("User_agent"), "{err}");
   }
 
   #[test]
