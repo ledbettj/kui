@@ -1,7 +1,8 @@
 local addonName, ns = ...
 
--- Buff/debuff icon grids for unit frames and nameplates. Debuffs come first
--- (nearest the frame), then buffs starting on a fresh row.
+-- Buff/debuff icon grids for unit frames and nameplates, plus the unit
+-- frames' dispel highlight. In the grids, debuffs come first (nearest the
+-- frame), then buffs starting on a fresh row.
 --
 -- Addon code can't read auras at all while they're secret: the query raises
 -- an error. So each grid is Blizzard's CustomAuraContainerTemplate, whose
@@ -165,7 +166,23 @@ end
 
 -- The container follows UNIT_AURA itself; this is for when the frame's unit
 -- changes. self: any frame with .unit and .auras (from ns.CreateAuras)
+-- and/or .dispel (from ns.CreateDispelHighlight)
 function ns.UpdateAuras(self)
+	local dispel = self.dispel
+	if dispel then
+		dispel:SetShown(ns.db.dispel.enabled)
+		-- On enemies "HARMFUL|RAID" still matches (the player's own debuffs
+		-- on them), so it only shows on units the player can help. A secret
+		-- answer can still drive the alpha.
+		local canAssist = UnitCanAssist("player", self.unit)
+		if ns.IsSecret(canAssist) then
+			dispel:SetAlphaFromBoolean(canAssist, 1, 0)
+		else
+			dispel:SetAlpha(canAssist and 1 or 0)
+		end
+		dispel.container:SetUnit(self.unit)
+		dispel.container:UpdateAllAuras()
+	end
 	local holder = self.auras
 	if not holder then return end
 	local container = holder.container
@@ -181,4 +198,86 @@ end
 -- Hides every icon (placeholder frames in preview have no unit to read)
 function ns.HideAuras(self)
 	if self.auras then self.auras:Hide() end
+	if self.dispel then self.dispel:Hide() end
+end
+
+---------------------------------------------------------------------------
+-- Dispel highlight
+---------------------------------------------------------------------------
+
+-- A border and health bar tint in the dispel type's color while the unit has
+-- a debuff the player can remove. The "RAID" filter only matches those, and
+-- the client works out what the player's class and spec can dispel, so no
+-- spell list is needed. Like the icons, it's a CustomAuraContainer, since
+-- auras can be secret: a single 1px button whose dispel type textures are
+-- anchored to the frame instead of the button.
+
+local DISPEL_BORDER = 2
+local DISPEL_TINT_ALPHA = 0.3
+local DISPEL_TEXTURE_OPTIONS = { style = Enum.CustomAuraButtonDispelTypeTextureStyle.PreserveAsset }
+
+-- A white texture on parent (b or a frame inside it) that b's aura colors
+local function DispelTexture(parent, b, layer)
+	local t = parent:CreateTexture(nil, layer)
+	t:SetColorTexture(1, 1, 1)
+	b:AddDispelTypeTexture(t, DISPEL_TEXTURE_OPTIONS)
+	return t
+end
+
+local function InitDispelButton(b, f)
+	b:SetSize(1, 1)
+	b:EnableMouse(false)
+
+	-- The container takes over the texture's own alpha (and draws it opaque),
+	-- so the translucency comes from a child frame's alpha instead
+	local tintFrame = CreateFrame("Frame", nil, b)
+	tintFrame:SetAllPoints(f.health)
+	tintFrame:SetAlpha(DISPEL_TINT_ALPHA)
+	DispelTexture(tintFrame, b, "ARTWORK"):SetAllPoints()
+
+	-- Over the frame's own border, so it wins over the aggro color
+	local top, bottom = DispelTexture(b, b, "OVERLAY"), DispelTexture(b, b, "OVERLAY")
+	local left, right = DispelTexture(b, b, "OVERLAY"), DispelTexture(b, b, "OVERLAY")
+	top:SetPoint("TOPLEFT", f)
+	top:SetPoint("TOPRIGHT", f)
+	top:SetHeight(DISPEL_BORDER)
+	bottom:SetPoint("BOTTOMLEFT", f)
+	bottom:SetPoint("BOTTOMRIGHT", f)
+	bottom:SetHeight(DISPEL_BORDER)
+	left:SetPoint("TOPLEFT", f)
+	left:SetPoint("BOTTOMLEFT", f)
+	left:SetWidth(DISPEL_BORDER)
+	right:SetPoint("TOPRIGHT", f)
+	right:SetPoint("BOTTOMRIGHT", f)
+	right:SetWidth(DISPEL_BORDER)
+end
+
+-- Creates f.dispel. Its textures draw above the bars but below f.overlay's
+-- icons and pips. ns.UpdateAuras keeps its unit current.
+function ns.CreateDispelHighlight(f)
+	local holder = CreateFrame("Frame", nil, f)
+	holder:SetAllPoints()
+	holder:SetFrameLevel(f:GetFrameLevel() + 2)
+
+	local container = CreateFrame("AuraContainer", nil, holder, "CustomAuraContainerTemplate")
+	container:SetPoint("TOPLEFT")
+	container:SetEditModePreviewEnabled(false)
+	container:SetFlowLayoutAnchorPoint("TOPLEFT")
+	container:SetFlowLayoutGrowthDirection(AnchorUtil.FlowDirection.Right, AnchorUtil.FlowDirection.Down)
+	container:SetFlowLayoutMaximumLineSize(1)
+	container:AddAuraGroup("dispel", "HARMFUL|RAID", {
+		maxFrameCount = 1,
+		initializeFrame = function(b) InitDispelButton(b, f) end,
+		layout = {
+			elementWidth = 1, elementHeight = 1, elementSpacing = 0,
+			lineSpacing = 0, groupLineSpacing = 0, layoutIndex = 1,
+		},
+	})
+
+	if f.unit then container:SetUnit(f.unit) end
+	container:SetEnabled(true)
+
+	holder.container = container
+	f.dispel = holder
+	return holder
 end

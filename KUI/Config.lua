@@ -318,6 +318,11 @@ local function SetAggro(key, value)
 	ns:ApplyStyle()
 end
 
+local function SetDispel(key, value)
+	ns.db.dispel[key] = value
+	ns:ApplyStyle()
+end
+
 local function SetBuffs(key, value)
 	ns.db.buffs[key] = value
 	NeedsReload("buff bar styling")
@@ -568,6 +573,9 @@ local function BuildUnitFrames(b)
 
 	b.Section("Aggro", "unitframes")
 	b.Checkbox("Threat border (player, pet, party)", Bind("aggro", "enabled", SetAggro))
+
+	b.Section("Dispels", "unitframes")
+	b.Checkbox("Highlight debuffs you can dispel", Bind("dispel", "enabled", SetDispel))
 end
 
 local function BuildColors(b)

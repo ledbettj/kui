@@ -17,6 +17,8 @@ and class colors fall back to reaction colors in PvP.
 - Incoming heals shown on the health bar, yours and other healers' separately
 - Aggro border: player, pet and party frames turn yellow, orange or red as a
   mob comes after them
+- Dispel highlight: player, target, focus, ToT, party and party pet frames
+  get a border and tint in the debuff's color when it's one you can dispel
 - Buffs and debuffs above the player and target, and below party members
 - Cast bars built into the player and target frames, and under the focus
   frame

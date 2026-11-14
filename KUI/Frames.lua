@@ -255,6 +255,7 @@ local unitEventHandlers = {
 	UNIT_FACTION = function(self)
 		ns.UpdateHealth(self)
 		ns.UpdateStatusIcons(self)
+		ns.UpdateAuras(self) -- whether the dispel highlight applies (duels, mind control)
 	end,
 	UNIT_POWER_FREQUENT = UpdatePower,
 	UNIT_MAXPOWER = UpdatePower,
@@ -538,6 +539,7 @@ function ns:CreateUnitFrame(unit, cfg)
 	end
 	CreateCastbar(f, cfg)
 	CreateAuras(f, cfg)
+	if cfg.dispel then ns.CreateDispelHighlight(f) end
 
 	-- Child frame above the bars for icons and pips; textures on f itself
 	-- would render underneath the bars

@@ -31,19 +31,24 @@ ns.unitOrder = {
 --   party              party unit: raid-hidden, roster-aware, range fade
 --   owner              a pet: refresh when this unit's pet changes
 --   threat             border in the threat color while it has aggro
+--   dispel             border and tint while it has a debuff the player can dispel
 --   widthFrom          share another unit's width setting
 ns.units = {
 	player       = {
 		label = "Player", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true,
 		auras = "above", castbar = true, status = { pvp = true, state = true }, threat = true,
+		dispel = true,
 	},
 	target       = {
 		label = "Target", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true,
 		auras = "above", castbar = true, combo = true, status = { pvp = true },
+		dispel = true,
 	},
-	targettarget = { label = "ToT",    w = 108, h = 22, poll = true },
+	targettarget = { label = "ToT",    w = 108, h = 22, poll = true, dispel = true },
 	pet          = { label = "Pet",    w = 108, h = 22, power = true, owner = "player", threat = true },
-	focus        = { label = "Focus",  w = 108, h = 22, widthFrom = "targettarget", detachedCastbar = true },
+	focus        = {
+		label = "Focus", w = 108, h = 22, widthFrom = "targettarget", detachedCastbar = true, dispel = true,
+	},
 }
 -- Party: the other four members (like Blizzard's classic party frames, the
 -- player isn't included), each with a pet frame to its right. Members share
@@ -51,11 +56,11 @@ ns.units = {
 for i = 1, 4 do
 	ns.units["party" .. i] = {
 		label = "Party " .. i, w = 170, h = 36, power = true, powerHeight = 8, portrait = true, auras = "below",
-		party = true, widthFrom = i > 1 and "party1" or nil, status = {}, threat = true,
+		party = true, widthFrom = i > 1 and "party1" or nil, status = {}, threat = true, dispel = true,
 	}
 	ns.units["partypet" .. i] = {
 		label = "Pet " .. i, w = 108, h = 22,
-		party = true, owner = "party" .. i, widthFrom = "targettarget", threat = true,
+		party = true, owner = "party" .. i, widthFrom = "targettarget", threat = true, dispel = true,
 	}
 end
 
@@ -172,6 +177,10 @@ ns.settingsDefaults = {
 
 	aggro = {
 		enabled = true, -- threat-colored border on player, pet and party frames
+	},
+
+	dispel = {
+		enabled = true, -- unit frames light up with debuffs the player can dispel
 	},
 
 	healPrediction = {

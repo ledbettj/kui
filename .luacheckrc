@@ -34,7 +34,7 @@ read_globals = {
 	"Enum", "EventUtil", "GameRulesUtil", "Settings",
 
 	-- Units
-	"UnitAffectingCombat", "UnitCanAttack", "UnitCastingInfo", "UnitChannelInfo",
+	"UnitAffectingCombat", "UnitCanAssist", "UnitCanAttack", "UnitCastingInfo", "UnitChannelInfo",
 	"UnitClass", "UnitClassification", "UnitDetailedThreatSituation", "UnitExists",
 	"UnitFactionGroup", "UnitHealth",
 	"UnitHealthMax", "UnitInRange", "UnitIsConnected", "UnitIsDead",
