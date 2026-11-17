@@ -40,7 +40,7 @@ read_globals = {
 	"UnitHealthMax", "UnitInRange", "UnitIsConnected", "UnitIsDead",
 	"UnitIsDeadOrGhost", "UnitIsGhost", "UnitIsGroupLeader", "UnitIsPlayer",
 	"UnitIsPVP", "UnitIsPVPFreeForAll", "UnitIsTapDenied", "UnitIsUnit",
-	"UnitIsVisible", "UnitLevel", "UnitName", "UnitPower", "UnitPowerMax",
+	"UnitIsVisible", "UnitLevel", "UnitEffectiveLevel", "UnitName", "UnitPower", "UnitPowerMax",
 	"UnitPowerType", "UnitReaction", "UnitThreatSituation", "UnitXP", "UnitXPMax",
 	"GetComboPoints", "GetRaidTargetIndex",
 	"SetRaidTargetIconTexture", "Ambiguate",

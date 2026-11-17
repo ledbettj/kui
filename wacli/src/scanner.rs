@@ -56,7 +56,6 @@ impl Scanner {
     }
   }
 
-  #[allow(dead_code)] // for install, still to come
   pub fn addons_dir(&self) -> &Path {
     &self.addons_dir
   }

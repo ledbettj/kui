@@ -160,7 +160,7 @@ function ns.UpdateName(self)
 	end
 
 	local levelText = ""
-	local level = UnitLevel(unit)
+	local level = UnitEffectiveLevel(unit)
 	if unit ~= "player" and (self.showLevel or not self.small) and not IsSecret(level) then
 		-- Colored as Blizzard's target frame does; quest difficulty has other ranges
 		local hex = "|cffffd100"
@@ -191,8 +191,16 @@ function ns.UpdatePortrait(self)
 	local unit = self.unit
 	-- Remembered so the party range check can tell when it changes
 	self.portraitVisible = UnitIsVisible(unit)
-	if self.portraitVisible and UnitIsConnected(unit) then
-		portrait:SetUnit(unit)
+	-- SetUnit errors on a unit whose identity is secret, and when it fails
+	-- the old model stays up, so a target frame shows whoever was targeted
+	-- before (often yourself or a party member). Clear instead.
+	local loaded = false
+	if self.portraitVisible and UnitIsConnected(unit)
+		and not (C_Secrets and C_Secrets.ShouldUnitIdentityBeSecret(unit)) then
+		local ok, success = pcall(portrait.SetUnit, portrait, unit)
+		loaded = ok and success ~= false
+	end
+	if loaded then
 		portrait:SetPortraitZoom(1)
 	else
 		-- Out of visual range the model can't load; leave the dark backdrop

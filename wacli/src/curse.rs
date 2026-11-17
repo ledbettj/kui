@@ -1,9 +1,6 @@
 //! A small client for the CurseForge API (api.curseforge.com), covering
 //! only what wacli needs.
 
-// Some of it is for install and update, still to come
-#![allow(dead_code)]
-
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
@@ -17,6 +14,9 @@ const WOW: u32 = 1;
 
 /// CurseForge's game version for WoW forever (interface 16001)
 pub const FOREVER: &str = "1.60.1";
+
+/// Biggest addon zip wacli will download
+const MAX_DOWNLOAD: u64 = 200 * 1024 * 1024;
 
 /// Most results the API returns in one page
 const PAGE_SIZE: u32 = 50;
@@ -38,16 +38,7 @@ pub struct Project {
   pub name: String,
   pub slug: String,
   #[serde(default)]
-  pub summary: String,
-  #[serde(default)]
   pub links: Links,
-  #[serde(default)]
-  pub download_count: f64,
-  /// Whether the author lets other apps download it. When this is false,
-  /// files come with no download URL.
-  pub allow_mod_distribution: Option<bool>,
-  #[serde(default)]
-  pub latest_files: Vec<File>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -66,12 +57,9 @@ pub struct File {
   pub display_name: String,
   pub file_name: String,
   pub release_type: ReleaseType,
-  pub file_date: String,
   pub file_length: u64,
   /// Missing when the author doesn't allow downloads from other apps
   pub download_url: Option<String>,
-  #[serde(default)]
-  pub game_versions: Vec<String>,
   #[serde(default)]
   pub dependencies: Vec<Dependency>,
   /// The folders this file unpacks to, with their fingerprints
@@ -128,8 +116,6 @@ pub struct Match {
   #[serde(rename = "id")]
   pub project_id: u32,
   pub file: File,
-  #[serde(default)]
-  pub latest_files: Vec<File>,
 }
 
 #[derive(Deserialize)]
@@ -233,6 +219,34 @@ impl Curse {
     Ok(result.data)
   }
 
+  /// Download a file. Only to the URL CurseForge gave, without the API
+  /// key, which is just for the API.
+  pub fn download(&self, file: &File) -> Result<Vec<u8>> {
+    let Some(url) = &file.download_url else {
+      bail!("CurseForge gave no download link for {}", file.display_name);
+    };
+    let mut response = self
+      .agent
+      .get(url)
+      .call()
+      .with_context(|| format!("downloading {}", file.file_name))?;
+    let bytes = response
+      .body_mut()
+      .with_config()
+      .limit(MAX_DOWNLOAD)
+      .read_to_vec()
+      .with_context(|| format!("downloading {}", file.file_name))?;
+    if file.file_length > 0 && bytes.len() as u64 != file.file_length {
+      bail!(
+        "{} came down as {} bytes, not the {} CurseForge lists",
+        file.file_name,
+        bytes.len(),
+        file.file_length
+      );
+    }
+    Ok(bytes)
+  }
+
   fn get(&self, path: &str) -> ureq::RequestBuilder<ureq::typestate::WithoutBody> {
     self
       .agent
@@ -320,7 +334,6 @@ mod tests {
     let curse = Curse::with_api(&url, "the-key", Some("Custom/1.0"));
     let project = curse.project(15226).unwrap();
     assert_eq!(project.name, "Grid2");
-    assert_eq!(project.allow_mod_distribution, Some(true));
 
     let headers = server.join().unwrap();
     assert!(headers.iter().any(|h| h.starts_with("get /mods/15226 ")));

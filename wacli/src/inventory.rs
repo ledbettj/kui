@@ -207,7 +207,6 @@ mod tests {
     Match {
       project_id: file.project_id,
       file,
-      latest_files: Vec::new(),
     }
   }
 
