@@ -261,6 +261,7 @@ function ns:ApplyLayout()
 	end
 	-- Border size/inset changes
 	ns:StyleActionBars()
+	ns:ApplyStealthBar()
 	ns:StyleBuffs()
 	ns:LayoutNameplates()
 	ns:LayoutInfoBar()

@@ -302,3 +302,73 @@ function ns:InitActionBars()
 
 	ns:StyleActionBars()
 end
+
+---------------------------------------------------------------------------
+-- Stealth bar: while stealthed (Prowl, Stealth, Shadowmeld) the main bar's
+-- buttons show another bar's slots, like Blizzard's own stance paging.
+-- Chosen per class, since profiles are shared between characters.
+--
+-- A secure state driver sets "actionpage" on ActionButton1-12. A button's
+-- own attribute wins over its parent's page, and setting it makes the
+-- button update (OnAttributeChanged), so this works in combat and the
+-- keybinds stay on the same buttons. Clearing it hands paging back to
+-- Blizzard (cat form, bar paging and so on). Independent of the restyle.
+---------------------------------------------------------------------------
+
+-- Edit Mode's bar names and the action pages they show
+local STEALTH_PAGES = {
+	["Action Bar 2"] = 6,
+	["Action Bar 3"] = 5,
+	["Action Bar 4"] = 3,
+	["Action Bar 5"] = 4,
+	["Action Bar 6"] = 13,
+	["Action Bar 7"] = 14,
+	["Action Bar 8"] = 15,
+}
+ns.stealthBarOptions = { "Off" }
+for i = 2, 8 do ns.stealthBarOptions[i] = "Action Bar " .. i end
+
+local stealthDriver
+
+local function PlayerClass()
+	return select(2, UnitClass("player"))
+end
+
+function ns:GetStealthBar()
+	return ns.db.actionbars.stealthBar[PlayerClass()] or "Off"
+end
+
+function ns:SetStealthBar(name)
+	ns.db.actionbars.stealthBar[PlayerClass()] = STEALTH_PAGES[name] and name or nil
+	ns:ApplyStealthBar()
+end
+
+local function CreateStealthDriver()
+	stealthDriver = CreateFrame("Frame", nil, UIParent, "SecureHandlerStateTemplate")
+	for i = 1, 12 do
+		stealthDriver:SetFrameRef("button" .. i, _G["ActionButton" .. i])
+	end
+	-- newstate is a page number, or "none" to clear
+	stealthDriver:SetAttribute("_onstate-page", [[
+		local page = tonumber(newstate)
+		for i = 1, 12 do
+			self:GetFrameRef("button" .. i):SetAttribute("actionpage", page)
+		end
+	]])
+end
+
+-- The driver is protected, so it's built and changed out of combat only;
+-- ns:ApplyLayout calls this again once combat ends
+function ns:ApplyStealthBar()
+	if not ns.supported.actionbars or not _G.ActionButton1 then return end
+	if InCombatLockdown() then
+		ns.pendingLayout = true
+		return
+	end
+	local page = STEALTH_PAGES[ns:GetStealthBar()]
+	if not stealthDriver then
+		if not page then return end
+		CreateStealthDriver()
+	end
+	RegisterStateDriver(stealthDriver, "page", page and ("[stealth] " .. page .. "; none") or "none")
+end

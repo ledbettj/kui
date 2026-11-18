@@ -639,6 +639,11 @@ local function BuildActionBars(b)
 	b.Checkbox("Red icons out of range", Bind("actionbars", "rangeColor", SetActionBars))
 	b.Checkbox("Mark lower-rank spells", Bind("actionbars", "markLowRank", SetActionBars))
 	b.Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
+	-- Per class, so it doesn't follow the profile onto other characters
+	b.Dropdown("Bar 1 while stealthed (" .. (UnitClass("player")) .. ")",
+		function() return ns.stealthBarOptions end,
+		function() return ns:GetStealthBar() end,
+		function(name) ns:SetStealthBar(name) end)
 
 	b.Section("Bags & menu", "menubar")
 	b.Dropdown("Bag buttons", function() return ns.bagOptions end, Bind("menubar", "bags", SetMenuBar))

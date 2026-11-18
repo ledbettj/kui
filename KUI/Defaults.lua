@@ -119,6 +119,7 @@ ns.settingsDefaults = {
 		rangeColor = true,
 		activeColor = { 1, 0.82, 0 }, -- border color while an action is active
 		markLowRank = true, -- dot on buttons with a spell below its highest trained rank
+		stealthBar = {}, -- class -> bar ("Action Bar 2".."8") the main bar shows while stealthed
 	},
 
 	-- Full-width strip along the bottom of the screen

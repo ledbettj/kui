@@ -53,6 +53,8 @@ Your own plate, the personal resource display, stays Blizzard's.
 - Icons turn red when the target is out of range
 - Optional keybind and macro name text
 - A green dot on any button holding a spell below its highest known rank
+- Optionally swap the main bar to another bar while stealthed (Prowl,
+  Stealth, Shadowmeld), chosen per class
 
 ## Bags and menu
 
