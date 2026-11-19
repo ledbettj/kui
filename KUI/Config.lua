@@ -524,9 +524,13 @@ local function BuildGeneral(b)
 	b.Slider("Info bar", 8, 20, 1, Bind("style", "infobarFontSize", SetStyle))
 	b.Feature(nil)
 
-	b.Section("Bar textures")
+	b.Section("Bars")
 	b.Dropdown("Health bar", StatusbarList, Bind("style", "healthTexture", SetStyle))
 	b.Dropdown("Power bar", StatusbarList, Bind("style", "powerTexture", SetStyle))
+	-- Unit frames' and nameplates' cast bars alike
+	b.Feature({ "unitframes", "nameplates" })
+	b.Dropdown("Cast bar", StatusbarList, Bind("castbar", "texture", SetCastbar))
+	b.Feature(nil)
 	b.Swatch("Empty bar color", Bind("style", "emptyColor", SetStyle))
 	b.Slider("Empty bar opacity", 0, 100, 5, Bind("style", "emptyAlpha", SetStyle, true))
 
@@ -536,20 +540,18 @@ local function BuildGeneral(b)
 	b.Swatch("Color", Bind("style", "borderColor", SetStyle))
 	b.Slider("Padding", 0, 6, 1, Bind("style", "padding", SetStyle))
 	b.Slider("Background opacity", 0, 100, 5, Bind("style", "bgAlpha", SetStyle, true))
-
-	b.Button("Reset profile...", function() StaticPopup_Show("KUI_RESET_PROFILE", ns:ProfileName()) end)
 end
 
 local function BuildUnitFrames(b)
-	b.Section("Layout", "unitframes")
+	b.Section("Position", "unitframes")
 	b.Slider("Vertical position", -600, 600, 2, Bind("layout", "y", SetLayout))
 	b.Slider("Distance from center", 0, 400, 1, Bind("layout", "centerGap", SetLayout))
 	b.Slider("Focus / ToT spacing", 0, 100, 1, Bind("layout", "sideGap", SetLayout))
 
-	b.Section("Frame width", "unitframes")
+	b.Section("Size", "unitframes")
 	for _, unit in ipairs(ns.unitOrder) do
 		if not ns.units[unit].widthFrom then
-			b.Slider(WIDTH_LABELS[unit] or unit, 60, 400, 2,
+			b.Slider("Width (" .. (WIDTH_LABELS[unit] or unit) .. ")", 60, 400, 2,
 				function() return ns:GetWidth(unit) end,
 				function(v)
 					ns.db.widths[unit] = v
@@ -558,8 +560,8 @@ local function BuildUnitFrames(b)
 		end
 	end
 	b.Slider("Frame height (%)", 100, 200, 5, Bind("style", "frameHeightScale", SetStyle, true))
-	b.Slider("Buff and debuff icons (%)", 50, 200, 5, Bind("style", "auraScale", SetStyle, true))
 	b.Slider("Power bar height (player/target)", 2, 20, 1, Bind("style", "powerHeight", SetStyle))
+	b.Slider("Buff and debuff icons (%)", 50, 200, 5, Bind("style", "auraScale", SetStyle, true))
 
 	b.Section("Party", "unitframes")
 	b.Slider("Horizontal position", 0, 1000, 2, Bind("layout", "partyX", SetLayout))
@@ -570,20 +572,30 @@ local function BuildUnitFrames(b)
 	b.Section("Cast bars", "unitframes")
 	b.Slider("Height (player/target)", 4, 24, 1, Bind("castbar", "height", SetCastbar))
 	b.Slider("Height (focus)", 6, 30, 1, Bind("castbar", "focusHeight", SetCastbar))
-	b.Dropdown("Texture", StatusbarList, Bind("castbar", "texture", SetCastbar))
-	b.Checkbox("Show spell icon", Bind("castbar", "showIcon", SetCastbar))
+	b.Checkbox("Show spell icon (also on nameplates)", Bind("castbar", "showIcon", SetCastbar))
 
-	b.Section("Incoming heals", "unitframes")
+	b.Section("Extras", "unitframes")
 	b.Checkbox("Show incoming heals", Bind("healPrediction", "enabled", SetHealPrediction))
-
-	b.Section("Aggro", "unitframes")
 	b.Checkbox("Threat border (player, pet, party)", Bind("aggro", "enabled", SetAggro))
-
-	b.Section("Dispels", "unitframes")
 	b.Checkbox("Highlight debuffs you can dispel", Bind("dispel", "enabled", SetDispel))
+	b.Checkbox("Druid mana bar in bear and cat form", Bind("druidMana", "enabled", SetDruidMana))
+end
 
-	b.Section("Druid mana", "unitframes")
-	b.Checkbox("Mana bar in bear and cat form", Bind("druidMana", "enabled", SetDruidMana))
+local function BuildNameplates(b)
+	b.Section("Nameplates", "nameplates")
+	b.Checkbox("Restyle nameplates", Bind("nameplates", "enabled", SetNameplates))
+	b.Slider("Width", 60, 240, 2, Bind("nameplates", "width", SetNameplates))
+	b.Slider("Health height", 6, 30, 1, Bind("nameplates", "height", SetNameplates))
+	b.Slider("Cast bar height", 6, 24, 1, Bind("nameplates", "castHeight", SetNameplates))
+	b.Checkbox("Rare/elite icon", Bind("nameplates", "classification", SetNameplates))
+
+	b.Section("Target", "nameplates")
+	b.Checkbox("Highlight target", Bind("nameplates", "highlightTarget", SetNameplates))
+	b.Swatch("Target border color", Bind("nameplates", "targetColor", SetNameplates))
+
+	b.Section("Threat", "nameplates")
+	b.Checkbox("Threat border", Bind("nameplates", "threatBorder", SetNameplates))
+	b.Checkbox("Threat percentage", Bind("nameplates", "threatPercent", SetNameplates))
 end
 
 local function BuildColors(b)
@@ -622,54 +634,29 @@ local function BuildColors(b)
 	end
 end
 
-local function BuildNameplates(b)
-	b.Section("Nameplates", "nameplates")
-	b.Checkbox("Restyle nameplates", Bind("nameplates", "enabled", SetNameplates))
-	b.Slider("Width", 60, 240, 2, Bind("nameplates", "width", SetNameplates))
-	b.Slider("Health height", 6, 30, 1, Bind("nameplates", "height", SetNameplates))
-	b.Slider("Cast bar height", 6, 24, 1, Bind("nameplates", "castHeight", SetNameplates))
-	b.Checkbox("Rare/elite icon", Bind("nameplates", "classification", SetNameplates))
-
-	b.Section("Target", "nameplates")
-	b.Checkbox("Highlight target", Bind("nameplates", "highlightTarget", SetNameplates))
-	b.Swatch("Target border color", Bind("nameplates", "targetColor", SetNameplates))
-
-	b.Section("Threat", "nameplates")
-	b.Checkbox("Threat border", Bind("nameplates", "threatBorder", SetNameplates))
-	b.Checkbox("Threat percentage", Bind("nameplates", "threatPercent", SetNameplates))
-end
-
 local function BuildActionBars(b)
-	b.Section("Action bars", "actionbars")
+	b.Section("Restyle", "actionbars")
 	b.Checkbox("Restyle action bars", Bind("actionbars", "enabled", SetActionBars))
 	b.Checkbox("Show keybinds", Bind("actionbars", "showHotkeys", SetActionBars))
 	b.Checkbox("Show macro names", Bind("actionbars", "showMacroNames", SetActionBars))
 	b.Checkbox("Red icons out of range", Bind("actionbars", "rangeColor", SetActionBars))
 	b.Checkbox("Mark lower-rank spells", Bind("actionbars", "markLowRank", SetActionBars))
 	b.Swatch("Active border color", Bind("actionbars", "activeColor", SetActionBars))
-	-- Per class, so it doesn't follow the profile onto other characters
+
+	-- Works with the restyle off too. Per class, so it doesn't follow the
+	-- profile onto other characters.
+	b.Section("Stealth paging", "actionbars")
 	b.Dropdown("Bar 1 while stealthed (" .. (UnitClass("player")) .. ")",
 		function() return ns.stealthBarOptions end,
 		function() return ns:GetStealthBar() end,
 		function(name) ns:SetStealthBar(name) end)
 
-	b.Section("Bags & menu", "menubar")
+	b.Section("Bags & micro menu", "menubar")
 	b.Dropdown("Bag buttons", function() return ns.bagOptions end, Bind("menubar", "bags", SetMenuBar))
 	b.Checkbox("Hide the micro menu", Bind("menubar", "hideMicroMenu", SetMenuBar))
-
-	b.Section("Buff bar", "buffs")
-	b.Checkbox("Restyle buff bar", Bind("buffs", "enabled", SetBuffs))
-	b.Slider("Size (%)", 50, 200, 5, Bind("buffs", "scale", SetBuffScale, true))
 end
 
-local function BuildOther(b)
-	b.Section("XP / reputation bars", "statusbars")
-	b.Checkbox("Replace XP/rep bars", Bind("statusbars", "enabled", SetStatusBars))
-	b.Dropdown("Position", function() return { "Top", "Bottom" } end, Bind("statusbars", "position", SetStatusBars))
-	b.Slider("Width", 100, 1200, 4, Bind("statusbars", "width", SetStatusBars))
-	b.Slider("Height", 4, 30, 1, Bind("statusbars", "height", SetStatusBars))
-	b.Dropdown("Texture", StatusbarList, Bind("statusbars", "texture", SetStatusBars))
-
+local function BuildInfoBar(b)
 	b.Section("Info bar", "infobar")
 	b.Checkbox("Show info bar", Bind("infobar", "enabled", SetInfoBar))
 	b.Slider("Height", 10, 40, 1, Bind("infobar", "height", SetInfoBar))
@@ -680,22 +667,35 @@ local function BuildOther(b)
 		b.ReadoutRow(i)
 	end
 
+	b.Section("XP / reputation bars", "statusbars")
+	b.Checkbox("Replace XP/rep bars", Bind("statusbars", "enabled", SetStatusBars))
+	b.Dropdown("Position", function() return { "Top", "Bottom" } end, Bind("statusbars", "position", SetStatusBars))
+	b.Slider("Width", 100, 1200, 4, Bind("statusbars", "width", SetStatusBars))
+	b.Slider("Height", 4, 30, 1, Bind("statusbars", "height", SetStatusBars))
+	b.Dropdown("Texture", StatusbarList, Bind("statusbars", "texture", SetStatusBars))
+end
+
+local function BuildInterface(b)
+	b.Section("Buffs", "buffs")
+	b.Checkbox("Restyle buffs and debuffs", Bind("buffs", "enabled", SetBuffs))
+	b.Slider("Size (%)", 50, 200, 5, Bind("buffs", "scale", SetBuffScale, true))
+
 	b.Section("Tooltips", "tooltips")
 	b.Checkbox("Restyle tooltips", Bind("tooltip", "enabled", SetTooltip))
 	b.Checkbox("Class-colored player names", Bind("tooltip", "classColors", SetTooltip))
 	b.Checkbox("Show what units are targeting", Bind("tooltip", "showTarget", SetTooltip))
 	b.Checkbox("Hide unit tooltips in combat", Bind("tooltip", "hideInCombat", SetTooltip))
 
-	b.Section("Vendors (hold Shift to skip)", "vendor")
-	b.Checkbox("Repair automatically", Bind("vendor", "autoRepair", SetVendor))
-	b.Checkbox("Use guild bank funds for repairs", Bind("vendor", "guildRepair", SetVendor))
-	b.Checkbox("Sell grey items", Bind("vendor", "sellGreys", SetVendor))
-
 	b.Section("Minimap", "minimap")
 	b.Dropdown("Style", function() return { "Blizzard", "Square" } end, Bind("minimap", "style", SetMinimap))
 
 	b.Section("Chat", "chat")
 	b.Checkbox("Hide chat buttons", Bind("chat", "hideButtons", SetChat))
+
+	b.Section("Vendors (hold Shift to skip)", "vendor")
+	b.Checkbox("Repair automatically", Bind("vendor", "autoRepair", SetVendor))
+	b.Checkbox("Use guild bank funds for repairs", Bind("vendor", "guildRepair", SetVendor))
+	b.Checkbox("Sell grey items", Bind("vendor", "sellGreys", SetVendor))
 end
 
 ---------------------------------------------------------------------------
@@ -797,6 +797,7 @@ local function BuildProfiles(b)
 		end)
 	b.Info("Used by", function() return table.concat(ns:ProfileUsers(ns:ProfileName()), ", ") end)
 	b.Button("New profile...", function() StaticPopup_Show("KUI_NEW_PROFILE") end)
+	b.Button("Reset profile...", function() StaticPopup_Show("KUI_RESET_PROFILE", ns:ProfileName()) end)
 
 	b.Section("Other profiles")
 	b.Picker("Copy settings from", "Choose a profile", OtherProfiles, function(from)
@@ -812,15 +813,17 @@ local PAGES = {
 	{ name = "KUI", title = "KUI", build = BuildGeneral,
 		description = "Shared look for everything KUI draws. All unit frames are shown while any KUI page is open." },
 	{ name = "Unit Frames", build = BuildUnitFrames,
-		description = "Position and size of the player, target, focus, pet and party frames." },
-	{ name = "Colors", build = BuildColors,
-		description = "Choosing a palette clears individual overrides; Reset returns a row to the palette." },
+		description = "Position, size and extras of the player, target, focus, pet and party frames." },
 	{ name = "Nameplates", build = BuildNameplates,
 		description = "Enemy plates show your debuffs; friendly plates your own buffs." },
-	{ name = "Action Bars & Buffs", build = BuildActionBars,
-		description = "Cosmetic only: positions and sizes stay with Edit Mode." },
-	{ name = "Other", build = BuildOther,
-		description = "XP/reputation bars, info bar, tooltips, vendors, minimap and chat window tweaks." },
+	{ name = "Colors", build = BuildColors,
+		description = "Choosing a palette clears individual overrides; Reset returns a row to the palette." },
+	{ name = "Action Bars", build = BuildActionBars,
+		description = "Positions and sizes stay with Edit Mode." },
+	{ name = "Info Bar & XP", build = BuildInfoBar,
+		description = "The strip along the bottom of the screen and the XP/reputation bars." },
+	{ name = "Interface", build = BuildInterface,
+		description = "Buffs, tooltips, minimap and chat restyles, and vendor automation." },
 	{ name = "Profiles", build = BuildProfiles,
 		description = "Profiles are shared by all your characters, and each character uses one. "
 			.. "New characters start on Default; make a new profile to give one its own settings." },
