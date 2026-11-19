@@ -323,6 +323,11 @@ local function SetDispel(key, value)
 	ns:ApplyStyle()
 end
 
+local function SetDruidMana(key, value)
+	ns.db.druidMana[key] = value
+	ns:ApplyStyle()
+end
+
 local function SetBuffs(key, value)
 	ns.db.buffs[key] = value
 	NeedsReload("buff bar styling")
@@ -576,6 +581,9 @@ local function BuildUnitFrames(b)
 
 	b.Section("Dispels", "unitframes")
 	b.Checkbox("Highlight debuffs you can dispel", Bind("dispel", "enabled", SetDispel))
+
+	b.Section("Druid mana", "unitframes")
+	b.Checkbox("Mana stripe in bear and cat form", Bind("druidMana", "enabled", SetDruidMana))
 end
 
 local function BuildColors(b)

@@ -26,6 +26,8 @@ ns.unitOrder = {
 --   castbar            cast bar row inside the frame
 --   detachedCastbar    cast bar in its own holder under the frame
 --   combo              combo point pips
+--   druidMana          mana stripe along the bottom of the power bar while it
+--                      shows something else (bear and cat form)
 --   status             status icons: leader/looter always, plus pvp/state
 --   poll               no reliable events, refresh on a timer
 --   party              party unit: raid-hidden, roster-aware, range fade
@@ -37,7 +39,7 @@ ns.units = {
 	player       = {
 		label = "Player", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true,
 		auras = "above", castbar = true, status = { pvp = true, state = true }, threat = true,
-		dispel = true,
+		dispel = true, druidMana = true,
 	},
 	target       = {
 		label = "Target", w = 234, h = 56, power = true, powerFromSettings = true, portrait = true,
@@ -186,6 +188,10 @@ ns.settingsDefaults = {
 
 	healPrediction = {
 		enabled = true, -- incoming heals on the unit frames' health bars
+	},
+
+	druidMana = {
+		enabled = true, -- mana stripe on the player's power bar in bear and cat form
 	},
 
 	minimap = {

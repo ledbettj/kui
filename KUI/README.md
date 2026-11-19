@@ -25,6 +25,8 @@ and class colors fall back to reaction colors in PvP.
 - Raid target markers, leader and master looter icons, PvP flag, and
   resting / in combat icon
 - Combo points on the target frame
+- Druids in bear or cat form see their mana as a thin stripe along the
+  bottom of the player's power bar
 - Party members fade when out of range
 - Works with Clique for click casting
 

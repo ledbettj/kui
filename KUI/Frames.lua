@@ -125,9 +125,36 @@ local function UpdateCombo(self)
 	end
 end
 
--- Combo points ride along: they change with the player's power events
+local MANA = Enum.PowerType.Mana
+
+-- Druid mana shows while the power bar holds something else and there's a
+-- mana pool to show, as in bear and cat form. The pool's size can be secret
+-- in combat, so the last readable answer stands in for it.
+local function NeedsDruidMana(self)
+	if UnitPowerType(self.unit) == MANA then return false end
+	local max = UnitPowerMax(self.unit, MANA)
+	if not IsSecret(max) then self.druidMana.hasMana = max > 0 end
+	return self.druidMana.hasMana
+end
+
+local function UpdateDruidMana(self)
+	local stripe = self.druidMana
+	local shown = ns.db.druidMana.enabled and NeedsDruidMana(self) or false
+	stripe:SetShown(shown)
+	if not shown then return end
+
+	local cur, max = UnitPower(self.unit, MANA), UnitPowerMax(self.unit, MANA)
+	local c = ns:GetPowerColor("MANA", MANA)
+	stripe:SetMinMaxValues(0, (IsSecret(max) or max > 0) and max or 1)
+	stripe:SetValue(cur)
+	stripe:SetStatusBarColor(c[1], c[2], c[3])
+end
+
+-- Combo points and druid mana ride along: they change with the player's
+-- power events (a form change is UNIT_DISPLAYPOWER)
 local function UpdatePower(self)
 	if self.combo then UpdateCombo(self) end
+	if self.druidMana then UpdateDruidMana(self) end
 	if not self.power then return end
 
 	local unit = self.unit
@@ -228,6 +255,7 @@ local function ShowPlaceholder(self)
 		self.power:SetValue(0)
 	end
 	if self.powerText then self.powerText:SetText("") end
+	if self.druidMana then self.druidMana:Hide() end
 end
 
 -- Refreshes every element. A unit that doesn't exist gets placeholder
@@ -356,6 +384,13 @@ end
 -- Style / layout
 ---------------------------------------------------------------------------
 
+-- Druid mana's layers: above the power fill, below the power text. Restyling
+-- can swap the fill texture, so StyleFrame calls this again.
+local function SetDruidManaLayers(stripe)
+	stripe.bg:SetDrawLayer("ARTWORK", 2)
+	stripe:GetStatusBarTexture():SetDrawLayer("ARTWORK", 3)
+end
+
 function ns:StyleFrame(f)
 	ns.StyleBar(f.health, ns.db.style.healthTexture)
 	ns.StyleHealPrediction(f)
@@ -365,6 +400,11 @@ function ns:StyleFrame(f)
 	end
 	if f.castbar then
 		ns:StyleCastbar(f.castbar)
+	end
+	if f.druidMana then
+		ns.StyleBar(f.druidMana, ns.db.style.powerTexture, true)
+		f.druidMana.bg:SetColorTexture(ns:GetEmptyColor())
+		SetDruidManaLayers(f.druidMana)
 	end
 	-- Swapping textures drops vertex colors, so recolor
 	UpdateAll(f)
@@ -465,12 +505,35 @@ local function LayoutComboPips(f, width)
 	end
 end
 
+-- Druid mana: a thin stripe along the bottom of the power bar, so nothing
+-- has to move when it comes and goes. Drawn at the power bar's own level
+-- (like the heal prediction segments), so the power text stays on top.
+-- Hidden until UpdateDruidMana has something to show.
+local DRUID_MANA_SHARE = 0.3 -- of the power bar's height
+
+local function CreateDruidMana(f)
+	local stripe = ns.CreateBar(f.power)
+	stripe:SetUsingParentLevel(true)
+	SetDruidManaLayers(stripe)
+	stripe:Hide()
+	f.druidMana = stripe
+end
+
+local function LayoutDruidMana(f)
+	local stripe = f.druidMana
+	stripe:ClearAllPoints()
+	stripe:SetPoint("BOTTOMLEFT")
+	stripe:SetPoint("BOTTOMRIGHT")
+	stripe:SetHeight(math.max(2, math.floor(PowerHeight(f.cfg) * DRUID_MANA_SHARE + 0.5)))
+end
+
 -- Resizes a secure frame; ns:ApplyLayout handles combat deferral
 function ns:LayoutFrame(f)
 	local w = ns:GetWidth(f.unit)
 	f:SetSize(w, ScaledHeight(f.cfg.h))
 	LayoutContents(f)
 	if f.combo then LayoutComboPips(f, w) end
+	if f.druidMana then LayoutDruidMana(f) end
 	-- Segment widths are in pixels of the health bar
 	ns.UpdateHealPrediction(f)
 	ns.UpdateAggro(f) -- the backdrop was just reset
@@ -559,6 +622,7 @@ function ns:CreateUnitFrame(unit, cfg)
 	ns.CreateRaidIcon(f)
 	if cfg.status then ns.CreateStatusIcons(f, f.overlay, cfg.status) end
 	if cfg.combo then CreateComboPips(f) end
+	if cfg.druidMana then CreateDruidMana(f) end
 
 	RegisterEvents(f, unit, cfg)
 
