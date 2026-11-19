@@ -26,8 +26,8 @@ ns.unitOrder = {
 --   castbar            cast bar row inside the frame
 --   detachedCastbar    cast bar in its own holder under the frame
 --   combo              combo point pips
---   druidMana          mana stripe along the bottom of the power bar while it
---                      shows something else (bear and cat form)
+--   druidMana          the power row splits into power and a thin mana bar
+--                      while power shows something else (bear and cat form)
 --   status             status icons: leader/looter always, plus pvp/state
 --   poll               no reliable events, refresh on a timer
 --   party              party unit: raid-hidden, roster-aware, range fade
@@ -191,7 +191,7 @@ ns.settingsDefaults = {
 	},
 
 	druidMana = {
-		enabled = true, -- mana stripe on the player's power bar in bear and cat form
+		enabled = true, -- player's power row splits into power and mana in bear and cat form
 	},
 
 	minimap = {

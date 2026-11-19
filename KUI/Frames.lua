@@ -137,29 +137,34 @@ local function NeedsDruidMana(self)
 	return self.druidMana.hasMana
 end
 
--- While the stripe shows, the power text centers in the part of the bar above
--- it (only the text moves, so this is fine in combat)
-local function PlaceDruidManaText(self)
-	if not self.powerText then return end
-	local stripe = self.druidMana
-	local lift = stripe:IsShown() and math.floor(stripe.thickness / 2 + 0.5) or 0
-	self.powerText:SetPoint("RIGHT", -4, lift) -- -4: as CreateTexts places it
+-- The power row (from LayoutContents) holds the power bar alone, or while the
+-- mana bar shows, the power bar on top and mana under it, a 1px gap between.
+-- The power bar isn't protected, so it can change height in combat.
+local function PlacePowerRow(self)
+	local row = self.powerRow
+	if not row then return end
+	local mana = self.druidMana
+	local lift = (mana and mana:IsShown()) and mana.thickness + 1 or 0
+	self.power:ClearAllPoints()
+	self.power:SetPoint("BOTTOMLEFT", row.left, row.bottom + lift)
+	self.power:SetPoint("BOTTOMRIGHT", -row.right, row.bottom + lift)
+	self.power:SetHeight(math.max(1, row.height - lift))
 end
 
 local function UpdateDruidMana(self)
-	local stripe = self.druidMana
+	local mana = self.druidMana
 	local shown = ns.db.druidMana.enabled and NeedsDruidMana(self) or false
-	if shown ~= stripe:IsShown() then
-		stripe:SetShown(shown)
-		PlaceDruidManaText(self)
+	if shown ~= mana:IsShown() then
+		mana:SetShown(shown)
+		PlacePowerRow(self)
 	end
 	if not shown then return end
 
 	local cur, max = UnitPower(self.unit, MANA), UnitPowerMax(self.unit, MANA)
 	local c = ns:GetPowerColor("MANA", MANA)
-	stripe:SetMinMaxValues(0, (IsSecret(max) or max > 0) and max or 1)
-	stripe:SetValue(cur)
-	stripe:SetStatusBarColor(c[1], c[2], c[3])
+	mana:SetMinMaxValues(0, (IsSecret(max) or max > 0) and max or 1)
+	mana:SetValue(cur)
+	mana:SetStatusBarColor(c[1], c[2], c[3])
 end
 
 -- Combo points and druid mana ride along: they change with the player's
@@ -269,7 +274,7 @@ local function ShowPlaceholder(self)
 	if self.powerText then self.powerText:SetText("") end
 	if self.druidMana then
 		self.druidMana:Hide()
-		PlaceDruidManaText(self)
+		PlacePowerRow(self)
 	end
 end
 
@@ -399,13 +404,6 @@ end
 -- Style / layout
 ---------------------------------------------------------------------------
 
--- Druid mana's layers: above the power fill, below the power text. Restyling
--- can swap the fill texture, so StyleFrame calls this again.
-local function SetDruidManaLayers(stripe)
-	stripe.bg:SetDrawLayer("ARTWORK", 2)
-	stripe:GetStatusBarTexture():SetDrawLayer("ARTWORK", 3)
-end
-
 function ns:StyleFrame(f)
 	ns.StyleBar(f.health, ns.db.style.healthTexture)
 	ns.StyleHealPrediction(f)
@@ -419,7 +417,6 @@ function ns:StyleFrame(f)
 	if f.druidMana then
 		ns.StyleBar(f.druidMana, ns.db.style.powerTexture, true)
 		f.druidMana.bg:SetColorTexture(ns:GetEmptyColor())
-		SetDruidManaLayers(f.druidMana)
 	end
 	-- Swapping textures drops vertex colors, so recolor
 	UpdateAll(f)
@@ -471,7 +468,9 @@ local function LayoutContents(f)
 		ns:LayoutCastbar(f.castbar)
 	end
 	if f.power then
-		Row(f.power, PowerHeight(cfg))
+		-- Remembered so the druid mana bar can split it (PlacePowerRow)
+		f.powerRow = { left = left, right = inset, bottom = bottom, height = PowerHeight(cfg) }
+		Row(f.power, f.powerRow.height)
 	end
 
 	f.health:ClearAllPoints()
@@ -520,28 +519,25 @@ local function LayoutComboPips(f, width)
 	end
 end
 
--- Druid mana: a thin stripe along the bottom of the power bar, so nothing
--- has to move when it comes and goes. Drawn at the power bar's own level
--- (like the heal prediction segments), so the power text stays on top.
--- Hidden until UpdateDruidMana has something to show.
-local DRUID_MANA_SHARE = 0.3 -- of the power bar's height
+-- Druid mana: a thin bar under the power bar, sharing the power row's height
+-- with it, so the frame's other rows never move. Hidden until UpdateDruidMana
+-- has something to show.
+local DRUID_MANA_SHARE = 0.3 -- of the power row's height
 
 local function CreateDruidMana(f)
-	local stripe = ns.CreateBar(f.power)
-	stripe:SetUsingParentLevel(true)
-	SetDruidManaLayers(stripe)
-	stripe:Hide()
-	f.druidMana = stripe
+	local mana = ns.CreateBar(f)
+	mana:Hide()
+	f.druidMana = mana
 end
 
 local function LayoutDruidMana(f)
-	local stripe = f.druidMana
-	stripe:ClearAllPoints()
-	stripe:SetPoint("BOTTOMLEFT")
-	stripe:SetPoint("BOTTOMRIGHT")
-	stripe.thickness = math.max(2, math.floor(PowerHeight(f.cfg) * DRUID_MANA_SHARE + 0.5))
-	stripe:SetHeight(stripe.thickness)
-	PlaceDruidManaText(f)
+	local mana = f.druidMana
+	mana.thickness = math.max(1, math.floor(f.powerRow.height * DRUID_MANA_SHARE + 0.5))
+	mana:ClearAllPoints()
+	mana:SetPoint("TOPLEFT", f.power, "BOTTOMLEFT", 0, -1)
+	mana:SetPoint("TOPRIGHT", f.power, "BOTTOMRIGHT", 0, -1)
+	mana:SetHeight(mana.thickness)
+	PlacePowerRow(f)
 end
 
 -- Resizes a secure frame; ns:ApplyLayout handles combat deferral

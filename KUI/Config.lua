@@ -583,7 +583,7 @@ local function BuildUnitFrames(b)
 	b.Checkbox("Highlight debuffs you can dispel", Bind("dispel", "enabled", SetDispel))
 
 	b.Section("Druid mana", "unitframes")
-	b.Checkbox("Mana stripe in bear and cat form", Bind("druidMana", "enabled", SetDruidMana))
+	b.Checkbox("Mana bar in bear and cat form", Bind("druidMana", "enabled", SetDruidMana))
 end
 
 local function BuildColors(b)
