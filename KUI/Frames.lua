@@ -137,10 +137,22 @@ local function NeedsDruidMana(self)
 	return self.druidMana.hasMana
 end
 
+-- While the stripe shows, the power text centers in the part of the bar above
+-- it (only the text moves, so this is fine in combat)
+local function PlaceDruidManaText(self)
+	if not self.powerText then return end
+	local stripe = self.druidMana
+	local lift = stripe:IsShown() and math.floor(stripe.thickness / 2 + 0.5) or 0
+	self.powerText:SetPoint("RIGHT", -4, lift) -- -4: as CreateTexts places it
+end
+
 local function UpdateDruidMana(self)
 	local stripe = self.druidMana
 	local shown = ns.db.druidMana.enabled and NeedsDruidMana(self) or false
-	stripe:SetShown(shown)
+	if shown ~= stripe:IsShown() then
+		stripe:SetShown(shown)
+		PlaceDruidManaText(self)
+	end
 	if not shown then return end
 
 	local cur, max = UnitPower(self.unit, MANA), UnitPowerMax(self.unit, MANA)
@@ -255,7 +267,10 @@ local function ShowPlaceholder(self)
 		self.power:SetValue(0)
 	end
 	if self.powerText then self.powerText:SetText("") end
-	if self.druidMana then self.druidMana:Hide() end
+	if self.druidMana then
+		self.druidMana:Hide()
+		PlaceDruidManaText(self)
+	end
 end
 
 -- Refreshes every element. A unit that doesn't exist gets placeholder
@@ -524,7 +539,9 @@ local function LayoutDruidMana(f)
 	stripe:ClearAllPoints()
 	stripe:SetPoint("BOTTOMLEFT")
 	stripe:SetPoint("BOTTOMRIGHT")
-	stripe:SetHeight(math.max(2, math.floor(PowerHeight(f.cfg) * DRUID_MANA_SHARE + 0.5)))
+	stripe.thickness = math.max(2, math.floor(PowerHeight(f.cfg) * DRUID_MANA_SHARE + 0.5))
+	stripe:SetHeight(stripe.thickness)
+	PlaceDruidManaText(f)
 end
 
 -- Resizes a secure frame; ns:ApplyLayout handles combat deferral
