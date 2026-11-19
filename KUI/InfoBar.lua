@@ -28,10 +28,7 @@ local eventReadouts = {} -- event -> list of readout ids it updates
 
 local WHITE = { 1, 1, 1 }
 local CoinText = C_CurrencyInfo.GetCoinTextureString -- gold, silver and copper with icons
-
-local function Hex(c)
-	return format("|cff%02x%02x%02x", c[1] * 255, c[2] * 255, c[3] * 255)
-end
+local Hex = ns.Hex
 
 -- Localized class name ("Priest", "Prêtresse") -> class token ("PRIEST");
 -- the friends list only gives the name

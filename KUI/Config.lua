@@ -532,7 +532,7 @@ local function BuildGeneral(b)
 	b.Slider("Padding", 0, 6, 1, Bind("style", "padding", SetStyle))
 	b.Slider("Background opacity", 0, 100, 5, Bind("style", "bgAlpha", SetStyle, true))
 
-	b.Button("Reset profile", ResetToDefaults)
+	b.Button("Reset profile...", function() StaticPopup_Show("KUI_RESET_PROFILE", ns:ProfileName()) end)
 end
 
 local function BuildUnitFrames(b)
@@ -733,6 +733,18 @@ StaticPopupDialogs.KUI_COPY_PROFILE = {
 		ns:CopyProfile(from)
 		RefreshAll()
 	end,
+	timeout = 0,
+	whileDead = 1,
+	hideOnEscape = 1,
+}
+
+-- From the Reset profile button. Settings' own Defaults button (OnDefault,
+-- below) has its own confirmation.
+StaticPopupDialogs.KUI_RESET_PROFILE = {
+	text = "Reset every setting in the %s profile to its default?",
+	button1 = YES,
+	button2 = NO,
+	OnAccept = ResetToDefaults,
 	timeout = 0,
 	whileDead = 1,
 	hideOnEscape = 1,

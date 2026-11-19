@@ -25,10 +25,7 @@ local TOOLTIPS = {
 
 local backdrops = {} -- tooltip -> its KUI backdrop frame
 local healthBar = GameTooltipStatusBar
-
-local function Hex(c)
-	return format("|cff%02x%02x%02x", c[1] * 255, c[2] * 255, c[3] * 255)
-end
+local Hex = ns.Hex
 
 local function ResetBorder(tt)
 	local bd = backdrops[tt]

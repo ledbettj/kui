@@ -76,8 +76,6 @@ local function TradeSkillIcon(name, fallback)
 	return icon or fallback
 end
 
--- castID: for channels, the GUID from the CHANNEL_START event, since
--- UnitChannelInfo doesn't return one
 -- The bar and spark for a cast whose times are secret
 local function StartSecret(cb, isChannel)
 	local duration
@@ -96,6 +94,8 @@ local function StartSecret(cb, isChannel)
 	return true
 end
 
+-- castID: for channels, the GUID from the CHANNEL_START event, since
+-- UnitChannelInfo doesn't return one
 local function Start(cb, isChannel, castID)
 	local name, text, texture, startMs, endMs, isTradeSkill
 	if isChannel then
@@ -111,7 +111,9 @@ local function Start(cb, isChannel, castID)
 	cb.castID = castID
 	cb.delay = 0
 	if IsSecret(startMs) or IsSecret(endMs) then
-		if not StartSecret(cb, isChannel) then return end
+		-- Nothing can drive the bar without a duration, and the timer is already
+		-- stopped, so idle rather than run on the last cast's times
+		if not StartSecret(cb, isChannel) then return Idle(cb) end
 		cb.text:SetText(name)
 	else
 		if not IsSecret(isTradeSkill) and isTradeSkill and not IsSecret(name) then
@@ -176,11 +178,12 @@ function OnUpdate(cb)
 end
 
 -- Pushback: re-reads the cast and adds how far its end moved to cb.delay.
--- A secret cast just picks up its new duration.
+-- A secret cast just picks up its new duration. So does one that was secret
+-- until now: its end time is stale or missing, so there's nothing to compare.
 local function Delay(cb, isChannel)
-	local delay, oldEnd = cb.delay, cb.endTime
+	local delay, oldEnd, wasSecret = cb.delay, cb.endTime, cb.secret
 	Start(cb, isChannel, cb.castID)
-	if cb.secret then return end
+	if cb.secret or wasSecret then return end
 	cb.delay = delay + math.abs(cb.endTime - oldEnd)
 end
 
@@ -215,11 +218,19 @@ local function OnEvent(cb, event, _, castID, _, interruptedBy)
 		else
 			Idle(cb)
 		end
-	elseif event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
-		-- castID check: pressing a spell on cooldown fires FAILED for a cast
-		-- that never started
+	elseif event == "UNIT_SPELLCAST_FAILED" then
+		-- Pressing a spell that isn't ready fires FAILED for a cast that never
+		-- started. The castID check can't rule that out while IDs are secret, so
+		-- as on Blizzard's bar only a cast in progress can fail; mid-channel, a
+		-- FAILED is always for some other spell.
+		if cb.active and not cb.channel and (IsSecret(castID) or castID) and SameCast(cb, castID) then
+			Fail(cb, FAILED)
+		end
+	elseif event == "UNIT_SPELLCAST_INTERRUPTED" then
+		-- Not limited to a bar that's still active, in case it arrives after
+		-- CHANNEL_STOP has idled a channel with a secret interrupter (see above)
 		if (IsSecret(castID) or castID) and SameCast(cb, castID) then
-			Fail(cb, event == "UNIT_SPELLCAST_FAILED" and FAILED or INTERRUPTED)
+			Fail(cb, INTERRUPTED)
 		end
 	end
 end
@@ -228,13 +239,13 @@ end
 -- Driven by the owning unit frame
 ---------------------------------------------------------------------------
 
--- Re-sync with whatever the unit is doing now (unit frame changed target,
--- came back from preview, etc).
 -- Whether a cast or channel name (possibly secret) means one is in progress
 local function Casting(name)
 	return IsSecret(name) or name ~= nil
 end
 
+-- Re-sync with whatever the unit is doing now (unit frame changed target,
+-- came back from preview, etc).
 function ns:RefreshCastbar(cb)
 	cb.preview = false
 	if Casting(UnitCastingInfo(cb.unit)) then

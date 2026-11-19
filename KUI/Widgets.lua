@@ -109,6 +109,11 @@ function ns:UpdateFonts()
 	ns.fonts.infobar:SetFont(path, S.infobarFontSize, "")
 end
 
+-- Color escape code that starts text in an { r, g, b } color
+function ns.Hex(c)
+	return format("|cff%02x%02x%02x", c[1] * 255, c[2] * 255, c[3] * 255)
+end
+
 -- Single-line fontstring on the OVERLAY layer
 function ns.CreateText(parent, fontObject, justify)
 	local fs = parent:CreateFontString(nil, "OVERLAY")
