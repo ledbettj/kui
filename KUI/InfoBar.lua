@@ -255,8 +255,8 @@ ns.readouts = {
 		events = { "PLAYER_MONEY" },
 		update = function() return CoinText(GetMoney()) end,
 		tooltip = GoldTooltip,
-		hint = "Click: open bags",
-		click = function() ToggleAllBags() end,
+		hint = "Click: start counting again",
+		click = function() sessionStartMoney = GetMoney() end,
 	},
 	bags = {
 		label = "Bag slots",
@@ -582,6 +582,8 @@ end
 function OnClick(button, mouseButton)
 	local readout = ns.readouts[button.id]
 	if readout.click then readout.click(mouseButton) end
+	-- Redrawn so a reset shows straight away
+	if GameTooltip:IsOwned(button) then ShowTooltip(button) end
 end
 
 ---------------------------------------------------------------------------
