@@ -86,7 +86,7 @@ local function BagSlots()
 end
 
 ---------------------------------------------------------------------------
--- Gold on every character, kept account-wide: KUIDB.gold["Name - Realm"]
+-- Gold on every character, kept account-wide: KUIDB.gold[name]
 ---------------------------------------------------------------------------
 
 local sessionStartMoney

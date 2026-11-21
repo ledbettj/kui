@@ -35,7 +35,7 @@ end
 -- Saved variables and profiles
 --
 -- KUIDB (account-wide) holds named profiles and which one each character
--- uses: { profiles = { name -> settings }, chars = { "Name - Realm" -> name } }.
+-- uses: { profiles = { name -> settings }, chars = { character name -> profile name } }.
 -- ns.db is the current character's profile; everything else reads its
 -- settings there, fresh on every use, so switching profiles is just
 -- pointing ns.db elsewhere and reapplying.
@@ -94,8 +94,24 @@ local function InitDB()
 		KUIDB = { profiles = { [DEFAULT_PROFILE] = KUIDB } }
 	end
 	KUIDB.chars = KUIDB.chars or {}
+	KUIDB.gold = KUIDB.gold or {}
+	-- Keys were once "Name - Realm", but GetRealmName() is sometimes empty
+	-- at ADDON_LOADED, which left "Name - " duplicates. Forever has one
+	-- realm, so the name alone is enough. An entry with a realm wins over
+	-- one without.
+	for _, t in ipairs({ KUIDB.chars, KUIDB.gold }) do
+		local old = {}
+		for key in pairs(t) do
+			if key:find(" %- ") then old[#old + 1] = key end
+		end
+		table.sort(old, function(a, b) return #a < #b end) -- realm-less keys first
+		for _, key in ipairs(old) do
+			t[key:match("^(.-) %- ")] = t[key]
+			t[key] = nil
+		end
+	end
 
-	charKey = UnitName("player") .. " - " .. GetRealmName()
+	charKey = UnitName("player")
 	ns.charKey = charKey
 	local name = KUIDB.chars[charKey]
 	if not KUIDB.profiles[name] then name = DEFAULT_PROFILE end
