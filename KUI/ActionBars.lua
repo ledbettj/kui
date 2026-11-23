@@ -372,3 +372,23 @@ function ns:ApplyStealthBar()
 	end
 	RegisterStateDriver(stealthDriver, "page", page and ("[stealth] " .. page .. "; none") or "none")
 end
+
+---------------------------------------------------------------------------
+-- Totem bar: Blizzard's shaman bar with a slot per element and the Call of
+-- the Elements/Ancestors/Spirits buttons. There's no Blizzard setting to
+-- hide it (Edit Mode's checkbox only shows it while editing), and it
+-- shows itself whenever a totem slot is trained. Reparenting beats that.
+-- It holds secure action buttons, which makes it protected too, so this
+-- only runs out of combat. Independent of the restyle.
+---------------------------------------------------------------------------
+
+-- ns:ApplyLayout calls this again once combat ends
+function ns:ApplyTotemBar()
+	local bar = _G.MultiCastActionBarFrame
+	if not ns.supported.actionbars or not bar then return end
+	if InCombatLockdown() then
+		ns.pendingLayout = true
+		return
+	end
+	ns.SetHidden(bar, ns.db.actionbars.hideTotemBar)
+end

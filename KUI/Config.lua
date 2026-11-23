@@ -651,6 +651,15 @@ local function BuildActionBars(b)
 		function() return ns:GetStealthBar() end,
 		function(name) ns:SetStealthBar(name) end)
 
+	-- Only shamans get the bar
+	if select(2, UnitClass("player")) == "SHAMAN" then
+		b.Section("Totem bar", "actionbars")
+		b.Checkbox("Hide Blizzard's totem bar", Bind("actionbars", "hideTotemBar", function(key, value)
+			ns.db.actionbars[key] = value
+			ns:ApplyTotemBar()
+		end))
+	end
+
 	b.Section("Bags & micro menu", "menubar")
 	b.Dropdown("Bag buttons", function() return ns.bagOptions end, Bind("menubar", "bags", SetMenuBar))
 	b.Checkbox("Hide the micro menu", Bind("menubar", "hideMicroMenu", SetMenuBar))
